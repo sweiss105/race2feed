@@ -1,6 +1,6 @@
 # Race page workflow, penalty labels and referee hardening — design
 
-Status: **Draft for approval** · 2026-11-23
+Status: **Approved by the owner** · 2026-11-23
 
 ## Why
 
@@ -103,7 +103,7 @@ Calls made here, not by the owner:
 **Role.** The `control` role is removed and `admin` remains; every command either could send is allowed for `admin`. Everyone who signs in sees every section: Race, Teams, Setup, Devices, Settings, Events and Log. The screens and guides say "race control" for the people; "admin" survives only in the code (call made here).
 
 **Normal sign-in.**
-- A Cloudflare Access application covers `r2f.weiss-audio.com/control`, `/control/*` and `/api/control/*`. Its one policy allows a list of email addresses, with one-time PIN as the sign-in method. The list is managed in Cloudflare's Zero Trust dashboard, not in the app.
+- A Cloudflare Access application ("Race to Feed console", created 2026-11-23) covers `r2f.weiss-audio.com/control*` and `r2f.weiss-audio.com/api/control/*`. The first path is written with a trailing wildcard because the page is served at `/control/`, which `/control` and `/control/*` do not match. Its audience tag is `00d2d484090bf7ba4b3a038668fea3c5daaa94a1b3861f3178d13bf83486d879` (not a secret). Its one policy allows a list of email addresses, with one-time PIN as the sign-in method. The list is managed in Cloudflare's Zero Trust dashboard, not in the app.
 - The console page and every console request (commands, lists, export, and the console's live connection) move under `/api/control/`. The Worker accepts a console request only if it carries Access's signed token, checked against the team's public keys and the application's audience tag. Both values are Worker variables (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`). If either is missing the console is refused, never opened.
 - The person's email from the token is the actor name in the log.
 - Session length is 14 days (owner's decision), set on the Access application, so people sign in before event day.
@@ -118,7 +118,7 @@ Calls made here, not by the owner:
 
 **Local development and tests.** `wrangler dev` has no Access in front of it. A Worker variable `DEV_CONSOLE_USER`, set only in `.dev.vars` and the test configuration, makes the Worker treat console requests as signed in as that name. It is refused if the request arrives on the production hostname (call made here).
 
-**Deploy order.** (1) Create the Access application and policy and confirm the sign-in page appears at `/control` on the current version, which then asks for the old password as well. (2) Set `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` and `EMERGENCY_PASSWORD`. (3) Deploy this version.
+**Deploy order.** (1) Done: the Access application and policy exist and `/control` asks for the emailed code, then the old password until this version is deployed. (2) Set `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` and `EMERGENCY_PASSWORD`. (3) Deploy this version.
 
 **Unchanged:** Companion (API key), phones and the projector.
 

@@ -250,6 +250,20 @@ All times in this section are **official times**: the raw time plus any penaltie
 
 All page and UX design follows the `anthropic-skills:apple-design` skill (the user's request).
 
+**Decided for the pages (plan 3):**
+
+| Address | Page |
+|---|---|
+| `/` | Participants |
+| `/projector` | Projector |
+| `/ref` | Referees (race control's pairing QR code opens `/ref?code=…`) |
+| `/control` | One race control and admin console; setup sections appear only for admin |
+
+- **Look:** clean Apple style with automatic light/dark mode and one accent colour, the spreadsheet's display red `#D71920`. The projector uses a dark theme, and the Gold/Silver/Bronze/Copper/Tin tier colours are kept.
+- **Referee page:** adapts to phones (team buttons stacked) and tablets (side by side).
+- **Brackets on phones:** a card list per bracket, with a toggle to the classic bracket diagram.
+- **Finding the site:** a QR code on the projector's welcome and table screens.
+
 ### 7.1 Admin (password)
 - Manage events, import and edit teams, set the venue table count.
 - Edit seeding groups and table assignments.
@@ -362,7 +376,11 @@ The server is reachable from the internet, so:
 
 ## 11. Deployment
 
-- **Cloudflare Workers:** deployed with `wrangler deploy` to the custom domain `r2f.weiss-audio.com`.
+- **Cloudflare Workers:** deployed to the custom domain `r2f.weiss-audio.com`.
+- **Deploys go through GitHub Actions when work is merged into `main`.** Tests run first, then `wrangler deploy` uploads the Worker and the page files.
+  - Pages are served as Cloudflare static assets, which are free and unlimited.
+  - Nothing goes live without the user's merge.
+  - Pull requests run the tests only.
 - **Configuration:** the initial admin password is a Worker secret (`wrangler secret put ADMIN_PASSWORD`). Everything else is set in the admin page.
 - **Plan:** the Workers Free plan likely covers an event. Over a free daily limit, requests fail instead of slowing down, so the Workers Paid plan ($5/month) is recommended for the event month.
 - **Backups:** the Durable Object's SQLite keeps 30 days of point-in-time recovery, and admin has an "export event" option (JSON and CSV).

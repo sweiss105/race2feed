@@ -357,6 +357,8 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
   - It's available from START until RACE FINISHED, before or after the team's finish tap.
   - It shows the number of penalties applied and the official time, e.g. `3:41.20 +5s = 3:46.20`. Each penalty tap has its own **Undo** countdown.
 - Shows connection status and any taps queued offline.
+- A saved tap the server refuses for good is always reported ("The saved tap for {team} in round {round} was refused: {reason}"), even if the round or connection changed while the answer was in flight.
+- **One live tab per tablet.** The page holds the Web Lock `r2f-referee`. A second tab shows "The referee page is already open in another tab on this tablet" and a **Use this tab instead** button, and creates neither the live connection nor the tap queue. The button posts `takeover` on `BroadcastChannel('r2f-referee')`; the holder releases the lock and shows the same message, and the new tab acquires it. Without Web Locks or BroadcastChannel the page behaves as before.
 
 ### 7.4 Participant (public, read-only, phone-first)
 - **Team search** highlights the team in every bracket and list where it appears.

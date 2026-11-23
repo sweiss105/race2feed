@@ -345,8 +345,12 @@ Every tap gets its own bar at the bottom, newest on top, for example "**Alpha fi
 - **Taps sent after a dropout** get their bar too, once they reach the server. The countdown runs from the moment the tap was recorded.
 - **If Undo can't be sent,** you'll see "Could not undo — not connected. Try again." and the bar stays until its time runs out.
 - **After that, or once the round is finished,** only race control can change it. If you press Undo too late, a red message says "Too late to undo; ask race control." (or "The race is over; ask race control." once the round has finished).
-- **If the server refuses a tap that was waiting to send** (for example the team already has a result), a red message says "The saved tap for Alpha was refused", with the reason. Tell race control if the time looks wrong.
+- **If the server refuses a tap that was waiting to send** (for example the team already has a result), a red message says "The saved tap for Alpha in round 3 was refused", with the reason. You see it even if the round changed while the tap was being sent. Tell race control if the time looks wrong.
 - **If a red message says "The server could not process that. Try again."**, the tap is not lost: it stays saved on the tablet and is sent again automatically within a few seconds. Tell race control if the message keeps coming back.
+
+### Only one referee tab
+
+The referee page runs in one browser tab per tablet, so two tabs never keep separate lists of saved taps. If you open it a second time, the new tab says **"The referee page is already open in another tab on this tablet"** with a **Use this tab instead** button. Press it to make this tab the live one; the other tab then shows the same message, with its own button to take it back. Browsers without this feature behave as before and allow several tabs.
 
 ### Penalty button
 
@@ -495,6 +499,9 @@ Wait a few seconds; the tablet is lining up its clock with the server. If it sta
 
 **A referee says "*N* taps waiting to send".**
 The connection dropped. The taps are saved with their real times and will send by themselves. Keep the page open. Race control sees those teams under **Waiting on *N* teams** until the taps arrive.
+
+**The referee page says "The referee page is already open in another tab on this tablet".**
+Only one tab can run the referee page. Close the other tab, or press **Use this tab instead** here.
 
 **Start is refused: "*N* station(s) not ready."**
 Look at the **Stations** panel. Ask those referees to press Ready, or use **Ready** or **Exclude** on their station yourself.

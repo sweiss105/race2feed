@@ -48,10 +48,12 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
       // Taps from a finished round can't apply any more (and a penalty would land in the wrong round).
       queue.drop((e) => e.round !== undefined && e.round !== currentRound);
       void queue.flush(send, (entry, ack) => {
-        if (!live || ack.ok || !ack.code || !NON_RETRYABLE.has(ack.code)) return;
+        // A refusal is shown even if the round or connection changed while the answer was in flight.
+        if (ack.ok || !ack.code || !NON_RETRYABLE.has(ack.code)) return;
         const id = (entry.cmd as { teamId?: string }).teamId;
         const name = teamsRef.current.find((t) => t.teamId === id)?.name ?? 'a team';
-        setError(`The saved tap for ${name} was refused: ${ack.message ?? ack.code}`);
+        const inRound = entry.round !== undefined ? ` in round ${entry.round}` : '';
+        setError(`The saved tap for ${name}${inRound} was refused: ${ack.message ?? ack.code}`);
       }).then(() => { if (live) { setFlushed(true); refreshQueue(); } });
     };
     flush();

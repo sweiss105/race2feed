@@ -235,8 +235,25 @@ describe('referee page', () => {
     const clock = { synced: () => true, serverNow: () => NOW };
     render(<RefereePage view={refViewOf(e)} status="open" clock={clock} queue={queue}
       send={async () => ({ ok: false, code: 'already_finished', message: 'That team already has a result.' })} newId={() => 'x'} />);
-    expect((await screen.findByRole('alert')).textContent).toBe('The saved tap for T1 was refused: That team already has a result.');
+    expect((await screen.findByRole('alert')).textContent).toBe('The saved tap for T1 in round 1 was refused: That team already has a result.');
     expect(queue.all()).toEqual([]);
+  });
+
+  it('reports a refused saved tap even if the round changed while it was being sent', async () => {
+    const e = start(openNext(lockedFour()));
+    const storage = new MemoryStorage();
+    new TapQueue(storage).add({ clientTapId: 'old-1', round: 1, cmd: { type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: 1, clientTapId: 'old-1' } });
+    const queue = new TapQueue(storage);
+    const clock = { synced: () => true, serverNow: () => NOW };
+    let answer!: (a: { ok: false; code: string; message: string }) => void;
+    const send = vi.fn(() => new Promise<any>((r) => { answer = r; }));
+    const props = { status: 'open' as const, clock, queue, send, newId: () => 'x' };
+    const { rerender } = render(<RefereePage {...props} view={refViewOf(e)} />);
+    await waitFor(() => expect(send).toHaveBeenCalled());
+    const round2 = refViewOf(e);
+    rerender(<RefereePage {...props} view={{ ...round2, round: { ...round2.round, current: 2 } }} />);
+    answer({ ok: false, code: 'already_finished', message: 'That team already has a result.' });
+    expect((await screen.findByRole('alert')).textContent).toBe('The saved tap for T1 in round 1 was refused: That team already has a result.');
   });
 
   it('does not leave a no-connection error on screen after the tap is delivered', async () => {

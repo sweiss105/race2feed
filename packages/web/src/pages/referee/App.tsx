@@ -1,4 +1,6 @@
-import { useEffect, useMemo, useState } from 'preact/hooks';
+import type { ComponentChildren } from 'preact';
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
+import { Button } from '../../ui/Button';
 import { Header } from '../../ui/Header';
 import { StatusDot } from '../../ui/StatusDot';
 import { LiveConnection, wsUrl, type LiveStatus } from '../../lib/live';
@@ -8,6 +10,7 @@ import { authState } from '../../lib/api';
 import type { RefereeView } from '../../lib/types';
 import { RefereePage } from './RefereePage';
 import { pairFromUrl } from './pairing';
+import { claimTab } from '../../lib/singleTab';
 
 type Gate = { kind: 'checking'; retrying?: boolean } | { kind: 'unpaired'; error?: string } | { kind: 'paired' };
 
@@ -46,7 +49,33 @@ export function App() {
       </div>
     );
   }
-  return <Live onSignedOut={() => setGate({ kind: 'unpaired', error: 'This device was disconnected. Scan a new station QR code.' })} />;
+  return <OneTab><Live onSignedOut={() => setGate({ kind: 'unpaired', error: 'This device was disconnected. Scan a new station QR code.' })} /></OneTab>;
+}
+
+/** Renders its children only in the one live referee tab; other tabs offer to take over. */
+function OneTab({ children }: { children: ComponentChildren }) {
+  const [state, setState] = useState<'claiming' | 'live' | 'other'>('claiming');
+  const claim = useRef<ReturnType<typeof claimTab> | null>(null);
+  useEffect(() => {
+    const c = claimTab({ onLost: () => setState('other') });
+    claim.current = c;
+    let gone = false;
+    void c.ready.then((r) => { if (!gone) setState(r === 'blocked' ? 'other' : 'live'); });
+    return () => { gone = true; c.release(); };
+  }, []);
+  if (state === 'claiming') return <div class="center-page"><p class="secondary">Checking this device…</p></div>;
+  if (state === 'other') {
+    return (
+      <div class="ref">
+        <Header title="Referee" />
+        <div class="center-page">
+          <p class="callout">The referee page is already open in another tab on this tablet</p>
+          <Button onClick={() => { void claim.current?.takeOver().then(() => setState('live')); }}>Use this tab instead</Button>
+        </div>
+      </div>
+    );
+  }
+  return <>{children}</>;
 }
 
 function Live({ onSignedOut }: { onSignedOut(): void }) {

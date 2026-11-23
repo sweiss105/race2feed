@@ -16,6 +16,7 @@ After the first live tests the event owner wants race control to be harder to ge
 6. Only one referee tab is live per tablet.
 7. A refused saved tap always tells the referee.
 8. The test gaps listed in the last review are closed.
+9. Race control and admin become one role with one password.
 
 ## Not in scope
 
@@ -37,6 +38,7 @@ After the first live tests the event owner wants race control to be harder to ge
 - **Refused saved taps always show a message.**
 - **Close the listed test gaps.**
 - **Penalty switch moves to Settings.**
+- **Race control and admin are merged.** They are the same people.
 
 ## Design
 
@@ -88,7 +90,18 @@ Calls made here, not by the owner:
 - The "Penalty (seconds)" setting is removed. Penalties stored by earlier versions keep the amounts they have.
 - Wherever a team has a pending penalty its time is followed by **"pending: under review"**: participant page, console results and referee tablet. On the projector's finish ticker it is shortened to "under review" (call made here).
 - Unchanged: the next round cannot open and the champion cannot be shown while a penalty is pending.
-- The switch reads **Time penalties** and sits in Settings under the event's settings. **Consequence:** Settings is visible to admin only, so race control signed in with the race-control password can no longer turn penalties on or off; admin does it. Companion's `penalties_enabled` variable is unchanged.
+- The switch reads **Time penalties** and sits in Settings under the event's settings. With the roles merged (below), everyone who signs in to the console can reach it. Companion's `penalties_enabled` variable is unchanged.
+
+### One console role
+
+- The console has one sign-in and one password. The sign-in page loses its "Sign in as" choice.
+- Everyone who signs in sees every section: Race, Teams, Setup, Devices, Settings, Events and Log.
+- Settings has one password to change, labelled **Console password**. The race-control password is removed.
+- On the server the `control` role is removed and `admin` remains; every command either role could send is allowed for `admin`. The first-time password still comes from the `ADMIN_PASSWORD` secret.
+- **At deploy:** any stored race-control password and any race-control sign-in are deleted, so anyone signed in with the race-control password is signed out and signs in again with the console password. Log entries already written keep the name they were written with.
+- Referee tablets (pairing), Companion (API key), phones and the projector are unchanged.
+- **Consequence:** everyone running races can now also change setup before it is locked, change the password, end the event and download exports. The owner has said these are the same people.
+- Wording: the console and its documents say "race control" for the people and "console password" for the credential; the word "admin" stays only inside the code (call made here).
 
 ### Referee tablet
 
@@ -109,10 +122,11 @@ Calls made here, not by the owner:
 
 - **Auto-finish on the server (chosen)** against on the console page. A console timer stops if the laptop sleeps or the tab closes, and two open consoles would both fire. The server already owns the clock and the finish rules.
 - **Pending penalty with no time (chosen, owner's decision)** against keeping a hidden 5 seconds. Hidden time shows numbers nobody chose.
+- **Remove the race-control role outright (chosen)** against keeping two sign-ins with the same access. Two passwords for one job is one more thing to lose on the day.
 - **Browser lock for one live tab (chosen)** against sharing one queue between tabs. Sharing fixes the queue and leaves two screens that can both tap.
 
 ## Left to the builder
 
 - Exact button size, the animation curve and colours, following the existing tokens in `packages/web/src/styles/tokens.css`.
 - Where the countdown state lives in the event document and how the alarm picks the earlier time.
-- `docs/design.md` (§4, §5.1, §5.2, §7.2, §7.3) and `docs/user-guide.md` are updated in the same commits as the behaviour, per `CLAUDE.md`.
+- `docs/design.md` (§4, §5.1, §5.2, §7.1, §7.2, §7.3, §9), `README.md` and `docs/user-guide.md` are updated in the same commits as the behaviour, per `CLAUDE.md`.

@@ -1,0 +1,32 @@
+import { fail, type Command, type CommandResult, type Ctx, type LiveEvent, type Role } from './model';
+import { handleSetup } from './setup';
+import { handleLifecycle } from './lifecycle';
+import { handleTaps } from './taps';
+
+const SETUP = ['importTeams', 'addTeam', 'renameTeam', 'removeTeam', 'setTableCount', 'suggestSetup', 'setGroups',
+  'setBrackets', 'setGrandChampionship', 'lockSetup', 'unlockSetup', 'setSettings', 'setBagTotal'] as const;
+const LIFECYCLE = ['openNextRound', 'stationReady', 'overrideStation', 'startRace', 'finishRace', 'decideTie', 'pinProjector'] as const;
+const TAPS = ['tapFinish', 'tapPenalty', 'undoTap', 'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled'] as const;
+
+const CONTROL = ['openNextRound', 'overrideStation', 'startRace', 'finishRace', 'decideTie', 'pinProjector',
+  'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled'];
+
+/** Roles allowed to send each command. Admin may do everything race control can, plus setup. */
+export const PERMISSIONS: Record<Command['type'], Role[]> = Object.fromEntries([
+  ...SETUP.map((t) => [t, ['admin']]),
+  ...CONTROL.map((t) => [t, ['admin', 'control']]),
+  ...['stationReady', 'tapFinish', 'tapPenalty', 'undoTap'].map((t) => [t, ['referee']]),
+]) as Record<Command['type'], Role[]>;
+for (const t of ['startRace', 'finishRace', 'pinProjector'] as const) PERMISSIONS[t] = [...PERMISSIONS[t], 'companion'];
+
+const isOneOf = <T extends string>(list: readonly T[], type: string): type is T => (list as readonly string[]).includes(type);
+
+export function applyCommand(e: LiveEvent, cmd: Command, ctx: Ctx): CommandResult {
+  const allowed = PERMISSIONS[cmd.type];
+  if (!allowed) return fail('unknown_command', `Unknown command "${(cmd as { type: string }).type}".`);
+  if (!allowed.includes(ctx.actor.role)) return fail('forbidden', 'You are not allowed to do that.');
+  if (isOneOf(SETUP, cmd.type)) return handleSetup(e, cmd as Extract<Command, { type: (typeof SETUP)[number] }>, ctx);
+  if (isOneOf(LIFECYCLE, cmd.type)) return handleLifecycle(e, cmd as Extract<Command, { type: (typeof LIFECYCLE)[number] }>, ctx);
+  if (isOneOf(TAPS, cmd.type)) return handleTaps(e, cmd as Extract<Command, { type: (typeof TAPS)[number] }>, ctx);
+  return fail('unknown_command', `Unknown command "${cmd.type}".`);
+}

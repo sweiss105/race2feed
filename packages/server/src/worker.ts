@@ -1,4 +1,4 @@
-import { Hub } from './hub';
+import { Hub, type Credentials } from './hub';
 
 export { Hub };
 
@@ -11,11 +11,101 @@ export interface Env {
 export const json = (body: unknown, status = 200, headers: HeadersInit = {}): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 
+const SESSION_COOKIE = 'r2f_session';
+const DEVICE_COOKIE = 'r2f_device';
+
+const setCookie = (name: string, value: string, maxAgeSeconds: number) =>
+  `${name}=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSeconds}`;
+
+function cookies(request: Request): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const part of (request.headers.get('cookie') ?? '').split(';')) {
+    const i = part.indexOf('=');
+    if (i > 0) out[part.slice(0, i).trim()] = part.slice(i + 1).trim();
+  }
+  return out;
+}
+
+export function credentials(request: Request): Credentials {
+  const c = cookies(request);
+  const auth = request.headers.get('authorization') ?? '';
+  return {
+    ...(c[SESSION_COOKIE] ? { session: c[SESSION_COOKIE] } : {}),
+    ...(c[DEVICE_COOKIE] ? { device: c[DEVICE_COOKIE] } : {}),
+    ...(auth.startsWith('Bearer ') ? { apiKey: auth.slice(7).trim() } : {}),
+  };
+}
+
+async function body(request: Request): Promise<Record<string, unknown>> {
+  try {
+    const parsed = await request.json();
+    return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+  } catch {
+    return {};
+  }
+}
+
 export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
-    if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
-    if (url.pathname === '/api/health') return json({ ok: true });
+    const path = url.pathname;
+    if (!path.startsWith('/api/')) return env.ASSETS.fetch(request);
+    const hub = env.HUB.getByName('hub');
+    const post = request.method === 'POST';
+
+    if (path === '/api/health') return json({ ok: true });
+
+    if (path === '/api/ws') return hub.fetch(request);
+
+    if (path === '/api/login' && post) {
+      const { role, password } = await body(request);
+      if ((role !== 'admin' && role !== 'control') || typeof password !== 'string') return json({ error: 'invalid' }, 400);
+      const ip = request.headers.get('cf-connecting-ip') ?? 'local';
+      const r = await hub.login(role, password, ip);
+      if (!r.ok) return json({ error: r.status === 429 ? 'too_many_attempts' : 'invalid_login' }, r.status);
+      return json({ ok: true, role }, 200, { 'set-cookie': setCookie(SESSION_COOKIE, r.token, 12 * 60 * 60) });
+    }
+
+    if (path === '/api/logout' && post) {
+      const { session } = credentials(request);
+      if (session) await hub.logout(session);
+      return json({ ok: true }, 200, { 'set-cookie': setCookie(SESSION_COOKIE, '', 0) });
+    }
+
+    if (path === '/api/pair' && post) {
+      const { code } = await body(request);
+      if (typeof code !== 'string') return json({ error: 'invalid' }, 400);
+      const r = await hub.pair(code);
+      if (!r.ok) return json({ error: 'invalid_code' }, 400);
+      return json({ ok: true, station: r.station }, 200, { 'set-cookie': setCookie(DEVICE_COOKIE, r.deviceToken, 30 * 24 * 60 * 60) });
+    }
+
+    if (path === '/api/command' && post) {
+      const actor = await hub.authenticate(credentials(request));
+      if (!actor) return json({ error: 'unauthorized' }, 401);
+      const { cmd } = await body(request);
+      if (!cmd || typeof cmd !== 'object' || typeof (cmd as { type?: unknown }).type !== 'string') {
+        return json({ ok: false, code: 'invalid', message: 'Missing command.' }, 400);
+      }
+      // RPC return types are erased for unions with `unknown` members; the shape is CommandResult.
+      const result = (await hub.command(actor, cmd as Parameters<Hub['command']>[1])) as { ok: boolean };
+      return json(result, result.ok ? 200 : 400);
+    }
+
+    if (path === '/api/export' && request.method === 'GET') {
+      const actor = await hub.authenticate(credentials(request));
+      if (actor?.role !== 'admin') return json({ error: 'unauthorized' }, 401);
+      const format = url.searchParams.get('format') === 'csv' ? 'csv' : 'json';
+      const out = await hub.exportEvent(url.searchParams.get('event') ?? '', format);
+      if (out === null) return json({ error: 'not_found' }, 404);
+      return new Response(out, {
+        headers: {
+          'content-type': format === 'csv' ? 'text/csv' : 'application/json',
+          'content-disposition': `attachment; filename="race-to-feed.${format}"`,
+        },
+      });
+    }
+
     return json({ error: 'not_found' }, 404);
   },
 } satisfies ExportedHandler<Env>;

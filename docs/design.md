@@ -234,6 +234,35 @@ All times in this section are **official times**: the raw time plus any penaltie
 - **DNF and DNS teams:** penalties are still recorded for them but don't change their ranking. DNF and DNS always rank after finishers.
 - **Offline taps:** a penalty tapped during a Wi-Fi dropout is queued like a finish tap. It counts if it is sent before RACE FINISHED; race control can see queued items as outstanding.
 
+### 5.2 Penalty notes and review
+
+*Added after the first live test, at the user's request.*
+
+- **A referee's +5s counts immediately** and is marked **pending review**. Times, places and brackets reflect it straight away.
+- **After the race (once race control presses Finish),** a referee who tapped penalties sees a **Penalty notes** card for each one:
+  - They pick the closest reason from the penalty list and may add a short note, then **Send**.
+  - The referee's pick and note go to race control only.
+- **Race control reviews each pending penalty** with the referee's pick pre-selected, and chooses the official reason from the list:
+  - **Approve with a timed reason:** the penalty becomes that reason's time (for example +15s).
+  - **Approve with a DQ reason:** the team is disqualified from that race. It ranks like a DNF and shows as **DQ**.
+  - **Reject:** the penalty is removed and results update.
+  - A decision can be made without a referee note.
+- **The next round can't be opened while any penalty in the finished round is still pending.**
+- **Penalties race control adds itself** take their reason when added and count as approved immediately.
+- **Changing a decision on an earlier round** after a later round has opened follows the usual unlock confirmation (§4).
+- **Approved reasons are shown to everyone:**
+  - On phones: `3:46.20 (incl. +15s · Unsafe start)` or `DQ · Unsafe conduct`.
+  - On the projector: just `+15s` or `DQ`.
+  - The CSV and JSON exports include the reasons and the referee notes.
+- **The penalty list** (name, plus a time or DQ) is managed by admin in Settings. It can be edited at any time; already-decided penalties keep their recorded reason and time. New events start with:
+
+  | Reason | Penalty |
+  |---|---|
+  | Bag not sealed | +5s |
+  | Wrong item count | +5s |
+  | Started early | +10s |
+  | Unsafe conduct | DQ |
+
 ---
 
 ## 6. Corrections and audit

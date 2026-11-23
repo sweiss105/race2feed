@@ -14,7 +14,7 @@ describe('penalty text', () => {
     expect(timeText({ ...base, penaltyNotes: ['Started early'], penaltyPending: false, dq: null })).toBe('3:46.20 (incl. +15s · Started early)');
   });
   it('flags penalties under review', () => {
-    expect(timeText({ ...base, penaltiesMs: 5000, penaltyNotes: [], penaltyPending: true, dq: null })).toBe('3:46.20 (incl. +5s · under review)');
+    expect(timeText({ ...base, penaltiesMs: 5000, penaltyNotes: [], penaltyPending: true, dq: null })).toBe('3:46.20 (incl. +5s) · pending: under review');
   });
   it('shows a disqualification with its reason', () => {
     expect(timeText({ ...base, status: 'dnf', officialMs: null, penaltyNotes: [], penaltyPending: false, dq: 'Unsafe conduct' })).toBe('DQ · Unsafe conduct');

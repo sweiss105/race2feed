@@ -69,8 +69,6 @@ function EventSettings({ view }: { view: ControlView }) {
   return (
     <section class="panel card stack">
       <h3 class="headline">{view.event.name}</h3>
-      <NumberSetting label="Penalty (seconds)" button="Save penalty" initial={view.settings.penaltyMs / 1000} keyName="setSettings-penalty"
-        onSave={(s) => void runner.run({ type: 'setSettings', penaltyMs: Math.round(s * 1000) }, 'setSettings-penalty')} />
       <NumberSetting label="Referee undo window (seconds)" button="Save undo window" initial={view.settings.undoWindowMs / 1000} keyName="setSettings-undo"
         onSave={(s) => void runner.run({ type: 'setSettings', undoWindowMs: Math.round(s * 1000) }, 'setSettings-undo')} />
       <div class="race-actions">

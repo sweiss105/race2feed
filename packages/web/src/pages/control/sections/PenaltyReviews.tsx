@@ -55,7 +55,7 @@ function ReviewCard({ review, view }: { review: Review; view: ControlView }) {
     <div class="card review-card">
       <div>
         <div class="headline">{teamName(view, review.teamId)}</div>
-        <div class="footnote secondary">Round {review.round} · referee gave +{review.amountMs / 1000}s</div>
+        <div class="footnote secondary">Round {review.round} · flagged by the referee</div>
       </div>
       <p class="callout" style={{ margin: 0 }}>
         {refereeReason ? <>Referee: <strong>{refereeReason.name}</strong></> : <span class="secondary">Waiting for the referee's note…</span>}

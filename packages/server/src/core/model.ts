@@ -52,7 +52,7 @@ export interface LiveEvent {
   date: string;
   setup: EventInput;
   setupLocked: boolean;
-  settings: { penaltiesEnabled: boolean; penaltyMs: number; undoWindowMs: number };
+  settings: { penaltiesEnabled: boolean; undoWindowMs: number; penaltyMs?: number };
   bagTotal: string | null;
   round: { current: number; phase: Phase; startedAt: number | null; finishedAt: number | null };
   finishedRounds: number;
@@ -86,7 +86,7 @@ export type SetupCommand =
   | { type: 'setGrandChampionship'; enabled: boolean }
   | { type: 'lockSetup' }
   | { type: 'unlockSetup' }
-  | { type: 'setSettings'; penaltyMs?: number; undoWindowMs?: number }
+  | { type: 'setSettings'; undoWindowMs?: number }
   | { type: 'setBagTotal'; text: string }
   | { type: 'setPenaltyReasons'; reasons: PenaltyReason[] };
 
@@ -129,7 +129,7 @@ export function newEvent(id: string, name: string, date: string, tableCount: num
     date,
     setup: { tableCount, categories: [], teams: [], groups: [], tableOf: {}, brackets: [], grandChampionship: true },
     setupLocked: false,
-    settings: { penaltiesEnabled: false, penaltyMs: 5000, undoWindowMs: 10_000 },
+    settings: { penaltiesEnabled: false, undoWindowMs: 10_000 },
     bagTotal: null,
     round: { current: 0, phase: 'idle', startedAt: null, finishedAt: null },
     finishedRounds: 0,

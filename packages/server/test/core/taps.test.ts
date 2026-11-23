@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { handleTaps } from '../../src/core/taps';
+import { applyCommand } from '../../src/core/apply';
 import { handleLifecycle } from '../../src/core/lifecycle';
 import { buildProgress, derive } from '../../src/core/results';
 import type { CommandResult, LiveEvent } from '../../src/core/model';
@@ -91,19 +92,35 @@ describe('penalties', () => {
     expect(code(penalty(running(), 'T1'))).toBe('penalties_disabled');
   });
 
-  it('add the configured amount when on, before or after the finish', () => {
+  it('add no time themselves when on, before or after the finish', () => {
     let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(control)));
     e = ok(penalty(e, 'T1', 'p1'));
     e = ok(tapFinish(e, 'T1', START + 200_000));
     e = ok(penalty(e, 'T1', 'p2'));
-    expect(result(e, 'T1')).toEqual({ status: 'finished', rawMs: 200_000, penaltiesMs: 10_000 });
+    expect(result(e, 'T1')).toEqual({ status: 'finished', rawMs: 200_000, penaltiesMs: 0 });
+    expect(e.taps.filter((t) => t.kind === 'penalty').map((t) => t.amountMs)).toEqual([0, 0]);
   });
 
   it('switching off keeps penalties already given', () => {
     let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(control)));
     e = ok(tapFinish(ok(penalty(e, 'T1')), 'T1', START + 200_000));
     e = ok(handleTaps(e, { type: 'setPenaltiesEnabled', enabled: false }, ctx(control)));
-    expect(result(e, 'T1')?.penaltiesMs).toBe(5_000);
+    expect(result(e, 'T1')?.penaltiesMs).toBe(0);
+    expect(e.taps.filter((t) => t.kind === 'penalty' && t.removedAt === null).length).toBe(1);
+  });
+
+  it('a referee penalty adds no time until race control approves it', () => {
+    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(control)));
+    e = ok(tapFinish(e, 'T1', START + 60_000));
+    e = ok(penalty(e, 'T1'));
+    const tap = e.taps.find((t) => t.kind === 'penalty')!;
+    expect(tap.amountMs).toBe(0);
+    expect(tap.review?.status).toBe('pending');
+    expect(buildProgress(e).results[1]![teamId(e, 'T1')]!.penaltiesMs).toBe(0);
+    for (const t of e.setup.teams) if (!result(e, t.name)) e = ok(applyCommand(e, { type: 'setResult', round: 1, teamId: t.id, set: { kind: 'time', rawMs: 150_000 } }, ctx(control, START + 300_000)));
+    e = ok(handleLifecycle(e, { type: 'finishRace' }, ctx(control, START + 300_000)));
+    e = ok(applyCommand(e, { type: 'decidePenalty', tapId: tap.id, decision: 'approve', reasonId: 'early' }, ctx(control, START + 301_000)));
+    expect(buildProgress(e).results[1]![teamId(e, 'T1')]!.penaltiesMs).toBe(10_000);
   });
 
   it('race control can add and remove penalties even when switched off', () => {

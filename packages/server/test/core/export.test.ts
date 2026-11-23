@@ -37,11 +37,12 @@ describe('eventCsv', () => {
     e = ok(run(e, { type: 'tapPenalty', teamId: teamId(e, '@At'), clientTapId: 'p1' }, referee(1)));
     for (const t of e.setup.teams) e = ok(run(e, { type: 'setResult', round: 1, teamId: t.id, set: { kind: 'time', rawMs: 150_000 } }));
     e = ok(run(e, { type: 'finishRace' }, control, 2_000_001));
+    e = ok(run(e, { type: 'decidePenalty', tapId: e.taps.at(-1)!.id, decision: 'approve', reasonId: 'early' }));
 
     const rows = eventCsv(e).split('\n').map((l) => l.split(','));
     for (const name of ['@At', '-Dash', '=Eq', '+Plus']) expect(rows.some((r) => r[1] === `'${name}`)).toBe(true);
     const penalised = rows.find((r) => r[1] === "'@At")!;
-    expect(penalised[6]).toBe('5000');
+    expect(penalised[6]).toBe('10000');
     expect(penalised[6]).not.toContain("'");
   });
 });

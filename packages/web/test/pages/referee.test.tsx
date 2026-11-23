@@ -37,14 +37,16 @@ describe('referee page', () => {
     await waitFor(() => expect(sent).toContainEqual({ type: 'stationReady' }));
   });
 
-  it('shows one big button per team, and +5s only when penalties are on', async () => {
+  it('shows one big button per team, and Penalty only when penalties are on', async () => {
     const e = start(openNext(lockedFour()));
     setup(e);
     expect((await screen.findAllByRole('button', { name: /^T[12]/ })).length).toBe(2);
-    expect(screen.queryByRole('button', { name: /\+5s/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Penalty for/ })).toBeNull();
     cleanup();
     setup({ ...e, settings: { ...e.settings, penaltiesEnabled: true } });
-    expect((await screen.findAllByRole('button', { name: /\+5s/ })).length).toBe(2);
+    expect(await screen.findByRole('button', { name: 'Penalty for T1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Penalty for T2' })).toBeTruthy();
+    expect(screen.queryAllByRole('button').filter((b) => (b.getAttribute('aria-label') ?? b.textContent ?? '').includes('+5s'))).toEqual([]);
   });
 
   it('stamps a tap with the server clock, queues it, and offers undo', async () => {
@@ -96,7 +98,7 @@ describe('referee page', () => {
     render(<RefereePage view={refViewOf(e)} status="offline" clock={{ synced: () => true, serverNow: () => NOW }} queue={queue}
       send={async () => { throw 'offline'; }} newId={() => `q-${++n}`} />);
     // First load still needs one flush; status starts offline here, so seed it as already flushed by allowing taps after sync.
-    const pen = await screen.findByRole('button', { name: /penalty for T1/ });
+    const pen = await screen.findByRole('button', { name: /Penalty for T1/ });
     await waitFor(() => expect((pen as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(pen);
     await waitFor(() => expect(pen.textContent).toContain('×1'));
@@ -136,7 +138,7 @@ describe('referee page', () => {
     const send = async (c: any) => { sent.push(c); return { ok: true }; };
     const clock = { synced: () => true, serverNow: () => NOW };
     const { rerender } = render(<RefereePage view={refViewOf(e)} status="open" clock={clock} queue={queue} send={send} newId={() => 'mine'} />);
-    const pen = await screen.findByRole('button', { name: /penalty for T1/ });
+    const pen = await screen.findByRole('button', { name: /Penalty for T1/ });
     await waitFor(() => expect((pen as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(pen);
     await waitFor(() => expect(sent).toContainEqual(expect.objectContaining({ type: 'tapPenalty', clientTapId: 'mine' })));

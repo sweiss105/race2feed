@@ -156,7 +156,6 @@ About pairing:
 
 Under **Settings**, for the active event:
 
-- **Penalty (seconds):** the size of the referee's penalty button (default 5 seconds). Press **Save penalty**.
 - **Referee undo window (seconds):** how long a referee can undo their own tap (default 10 seconds). Press **Save undo window**.
 - **Bags of food packed:** the number shown on the champion screen. Type just the number (for example `9,816`) and press **Save bag total**. The screen adds "bags of food packed!". Race control can also enter it when showing the champion.
 - **The penalty list:** the reasons race control chooses from when reviewing penalties. Each reason has a name and either a time (for example +10s) or **DQ** (disqualified from that race). New events start with:
@@ -249,14 +248,14 @@ Penalties are switched **off** for a new event. The **Time penalties** switch on
 - **You can still add or remove penalties** in Results while it's off.
 
 How penalties count:
-- Penalties **stack**: three +5s taps add 15 seconds.
+- A referee's penalty tap adds **no time** by itself; you set the length when you review it (see below). Taps **stack**: three taps are three penalties to review.
 - A team's **official time** is its finish time plus its penalties. The official time decides places, head-to-heads, ties and seeding.
 
 ### Penalty review
 
-A referee's penalty **counts immediately**, but it is marked **pending review**. After you press **Finish**, the referee can send a note for each penalty: the closest reason from the list, plus a short comment.
+A referee's penalty **adds no time**; it flags the team as **pending: under review** (that label appears beside the team's time for everyone, and as "under review" on the projector) until you decide it. After you press **Finish**, the referee can send a note for each penalty: the closest reason from the list, plus a short comment.
 
-Pending penalties appear in the **Penalties to review** panel on the Race page. For each one:
+Pending penalties appear in the **Penalties to review** panel on the Race page ("Round N · flagged by the referee"). For each one:
 
 1. Read the referee's pick and note. A note isn't required, so you can decide without one.
 2. Choose the official reason from the penalty list. The referee's pick is pre-selected.
@@ -354,7 +353,7 @@ The referee page runs in one browser tab per tablet, so two tabs never keep sepa
 
 ### Penalty button
 
-When race control has switched penalties on, each team has a smaller **+5s** button under its finish button. (The number matches the event's setting.)
+When race control has switched penalties on, each team has a smaller **Penalty** button under its finish button. It adds no time; race control sets the length afterwards.
 
 - **When:** any time from the start until race control presses Finish, before or after the team's finish tap.
 - **Stacking:** each tap adds one penalty. The button shows how many, for example **×2**.
@@ -399,7 +398,7 @@ Your phone remembers your team, so next time it opens straight to it. Tap **Not 
 - **Brackets:** every category's brackets, updating live. Switch between **Cards** and **Diagram**.
 - **Results:** the latest round's results.
 
-Times include penalties. For example, `3:46.20 (incl. +10s · Started early)` means the time already includes a 10-second penalty. **DQ** means the team was disqualified from that race.
+Times include penalties. For example, `3:46.20 (incl. +10s · Started early)` means the time already includes a 10-second penalty. **pending: under review** after a time means a referee has flagged the team and race control hasn't decided yet; the time may still change. **DQ** means the team was disqualified from that race.
 
 When race control shows the champion, a champion card appears at the top of every phone. It shows the Grand Champion (or each category's winner if there's no Grand Championship), the bags packed and the final standings, with your team highlighted. The tabs stay available below. After the event ends, phones also show **Event complete**.
 
@@ -415,7 +414,7 @@ The projector follows the event by itself:
 |---|---|
 | Before the first round | **Welcome**: the event name and a QR code to the participant site |
 | A round is open | **Tables**: "Go to your table", every team's table number, and the QR code |
-| A race is running | **Clock**: a big master clock, with finishing teams appearing below as they finish (penalties shown as `+5s` or `DQ`) |
+| A race is running | **Clock**: a big master clock, with finishing teams appearing below as they finish (approved penalties shown as `+5s`, `under review` while one is pending, or `DQ`) |
 | After a seeding round | **Seeding results** by category, coloured by bracket tier |
 | After a bracket round | **Brackets**, cycling through the categories |
 | After the Grand Championship, or when race control shows the champion | **Champion**: the Grand Champion and the bags packed |

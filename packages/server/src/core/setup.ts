@@ -122,10 +122,6 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
       return ok({ ...e, setupLocked: false });
     case 'setSettings': {
       const settings = { ...e.settings };
-      if (cmd.penaltyMs !== undefined) {
-        if (!Number.isInteger(cmd.penaltyMs) || cmd.penaltyMs < 0) return fail('invalid', 'Penalty must be a whole number of ms.');
-        settings.penaltyMs = cmd.penaltyMs;
-      }
       if (cmd.undoWindowMs !== undefined) {
         if (!Number.isInteger(cmd.undoWindowMs) || cmd.undoWindowMs < 0) return fail('invalid', 'Undo window must be a whole number of ms.');
         settings.undoWindowMs = cmd.undoWindowMs;

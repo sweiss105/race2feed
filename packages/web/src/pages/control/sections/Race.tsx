@@ -47,7 +47,7 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
       {round.phase === 'open' && notReady > 0 && <p class="callout secondary">{notReady} station{notReady === 1 ? '' : 's'} not ready yet.</p>}
 
       <div class="race-actions" style={{ marginBottom: 'var(--space-4)' }}>
-        <Switch checked={view.settings.penaltiesEnabled} label={`Time penalties (+${view.settings.penaltyMs / 1000}s)`}
+        <Switch checked={view.settings.penaltiesEnabled} label="Time penalties"
           onToggle={(enabled) => runner.run({ type: 'setPenaltiesEnabled', enabled })} />
         <label class="field" style={{ marginLeft: 'auto' }}>
           <span class="visually-hidden">Projector screen</span>

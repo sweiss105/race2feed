@@ -101,8 +101,8 @@ describe('setup commands', () => {
     expect(e.setup.teams.map((t) => t.name)).toEqual(['A', 'Bee']);
     e = ok(handleSetup(e, { type: 'removeTeam', teamId: b.id }, ctx(admin)));
     expect(e.setup.teams.length).toBe(1);
-    e = ok(handleSetup(e, { type: 'setSettings', penaltyMs: 3000 }, ctx(admin)));
-    expect(e.settings).toEqual({ penaltiesEnabled: false, penaltyMs: 3000, undoWindowMs: 10_000 });
+    e = ok(handleSetup(e, { type: 'setSettings', undoWindowMs: 3000 }, ctx(admin)));
+    expect(e.settings).toEqual({ penaltiesEnabled: false, undoWindowMs: 3000 });
     e = ok(handleSetup(e, { type: 'setTableCount', tableCount: 10 }, ctx(admin)));
     expect(e.setup.tableCount).toBe(10);
   });

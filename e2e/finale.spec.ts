@@ -25,7 +25,7 @@ test('penalty review, champion and the end of the event', async ({ browser }) =>
   await expect(admin.getByRole('switch')).toBeChecked();
   await admin.getByRole('button', { name: 'Open next round' }).click();
   await readyAndStart(admin);
-  await ref.getByRole('button', { name: '+5s penalty for Alpha' }).click();
+  await ref.getByRole('button', { name: 'Penalty for Alpha' }).click();
   for (const name of ['Alpha', 'Bravo']) {
     const button = ref.getByRole('button', { name: new RegExp(`^${name}`) });
     await expect(button).toBeEnabled();
@@ -43,7 +43,7 @@ test('penalty review, champion and the end of the event', async ({ browser }) =>
   await shot(ref, 'referee-penalty-note');
   await note.getByRole('button', { name: 'Send to race control' }).click();
   await expect(note.getByText(/Sent ✓/)).toBeVisible();
-  await expect(phone.getByText(/under review/).first()).toBeVisible();
+  await expect(phone.getByText(/pending: under review/).first()).toBeVisible();
 
   // The next round waits for race control's decision.
   await admin.getByRole('button', { name: 'Open next round' }).click();

@@ -67,13 +67,10 @@ describe('admin sections', () => {
     expect(screen.queryByText('secret-key-value')).toBeNull();
   });
 
-  it('sets the penalty amount in seconds', async () => {
+  it('has no penalty-seconds setting any more', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
-    const send = vi.fn(async () => ({ ok: true }));
-    withRunner(<Settings view={ctlViewOf(lockedFour())} />, send);
-    fireEvent.input(screen.getByLabelText('Penalty (seconds)'), { target: { value: '7' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save penalty' }));
-    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setSettings', penaltyMs: 7000 }));
+    withRunner(<Settings view={ctlViewOf(lockedFour())} />, vi.fn(async () => ({ ok: true })));
+    expect(screen.queryByLabelText('Penalty (seconds)')).toBeNull();
   });
 
   it('chooses how many tables each referee covers until setup is locked', async () => {

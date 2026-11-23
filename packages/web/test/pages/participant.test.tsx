@@ -43,6 +43,15 @@ describe('participant page', () => {
     expect(screen.getByText(/1:45\.00 \(incl\. \+5s\)/)).toBeTruthy();
   });
 
+  it('shows pending: under review beside a time with a pending referee penalty', () => {
+    let e = heatsOpen();
+    const t1 = teamId(e, 'T1');
+    e = { ...e, taps: [{ id: 'p', kind: 'penalty', round: 1, teamId: t1, amountMs: 0, source: 'referee', createdAt: 1, removedAt: null, review: { status: 'pending' } }] };
+    storage.setItem('r2f.team', t1);
+    render(<ParticipantPage state={viewOf(e)} storage={storage} />);
+    expect(screen.getByText(/1:40\.00 · pending: under review/)).toBeTruthy();
+  });
+
   it('"Not you?" clears the team', () => {
     const e = heatsOpen();
     storage.setItem('r2f.team', teamId(e, 'T1'));

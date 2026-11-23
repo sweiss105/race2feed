@@ -33,11 +33,11 @@ function refPenalty(e: LiveEvent, name: string, clientTapId = `p-${name}`) {
 const result = (e: LiveEvent, name: string, round = e.round.current) => buildProgress(e).results[round]?.[teamId(e, name)];
 
 describe('penalty review', () => {
-  it("a referee's penalty starts pending and counts straight away", () => {
+  it("a referee's penalty starts pending and adds no time", () => {
     const { e, tap } = refPenalty(startNext(lockedFour()), 'T1');
     expect(tap.review).toEqual({ status: 'pending' });
     const done = finish(e, seed);
-    expect(result(done, 'T1')).toMatchObject({ status: 'finished', penaltiesMs: 5000 });
+    expect(result(done, 'T1')).toMatchObject({ status: 'finished', penaltiesMs: 0 });
   });
 
   it('notes are sent after the race, not during it', () => {

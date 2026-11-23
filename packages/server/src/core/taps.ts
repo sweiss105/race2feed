@@ -68,7 +68,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       if (!e.settings.penaltiesEnabled) return fail('penalties_disabled', 'Time penalties are switched off.');
       const tap = newTap({
         clientTapId: cmd.clientTapId, kind: 'penalty', round: current, teamId: cmd.teamId,
-        amountMs: e.settings.penaltyMs, source: 'referee',
+        amountMs: 0, source: 'referee',
       });
       tap.review = { status: 'pending' };
       return ok({ ...e, taps: [...e.taps, tap] });

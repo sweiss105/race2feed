@@ -137,6 +137,7 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
       table,
       result: results[teamId] ?? null,
       dq: pens.get(`${e.round.current}:${teamId}`)?.dq ?? null,
+      penaltyPending: pens.get(`${e.round.current}:${teamId}`)?.pending ?? false,
       taps: e.taps
         .filter((t) => t.round === e.round.current && t.teamId === teamId)
         .map((t) => {

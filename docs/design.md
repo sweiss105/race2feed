@@ -207,7 +207,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 - Admin chooses per event, in Setup, either **One referee per two tables** (the default, as in §3.1) or **One referee per table**. It can be changed until setup is locked.
 - **One per table:**
   - Each referee station is one table.
-  - The referee screen shows one big team button, with its +5s.
+  - The referee screen shows one big team button, with its Penalty button.
   - Head-to-heads are judged by two referees on the same master clock, so times still decide.
   - The layout rule about keeping head-to-heads on one station no longer applies.
 - **Everything follows the choice:** station counts, the Ready/Start check, pairing, the referee screen and the console's station labels.
@@ -247,8 +247,8 @@ All times in this section are **official times**: the raw time plus any penaltie
 
 ### 5.1 Time penalties
 
-- **What it does:** a referee can add a time penalty to a team for an infraction. The default is **+5 s**, and admin can change the amount.
-  - Penalties **stack**: three taps add 15 s.
+- **What it does:** a referee can flag a team for an infraction with one tap. The tap adds **no time**; race control sets the penalty's real length when it reviews it (§5.2).
+  - Taps **stack**: three taps are three flags, each reviewed on its own.
   - Each tap needs a single press, with no confirmation dialog.
 - **Official time = raw finish time + all penalties.** The official time is what counts everywhere:
   - finish order within a race
@@ -272,7 +272,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 
 *Added after the first live test, at the user's request.*
 
-- **A referee's +5s counts immediately** and is marked **pending review**. Times, places and brackets reflect it straight away.
+- **A referee's penalty tap adds no time.** It flags the team as **pending: under review** (shown beside its time on the participant page, console results and referee tablet, and as "under review" on the projector's finish ticker). Times, places and brackets change only when race control approves a reason. Penalties stored by earlier versions keep the amounts they have.
 - **After the race (once race control presses Finish),** a referee who tapped penalties sees a **Penalty notes** card for each one:
   - They pick the closest reason from the penalty list and may add a short note, then **Send**.
   - The referee's pick and note go to race control only.
@@ -331,7 +331,7 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 ### 7.1 Admin (password)
 - Manage events, import and edit teams, set the venue table count.
 - Edit seeding groups and table assignments.
-- Set the **penalty amount** (default 5 s) and the referee undo window.
+- Set the referee undo window.
 - Edit the bracket plan and set Grand Championship eligibility.
 - Manage credentials and the Companion API key.
 - Type the **bag total** shown on the champion screen.
@@ -352,10 +352,10 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 - Shows the station's table numbers and the current round's teams.
 - **Ready** button. Once pressed it stays locked; only race control can clear it.
 - While running, one large button per team. A tap shows that team's time and an **Undo** countdown.
-- **Penalty button** (only while penalties are switched on): a separate, smaller **+5s PENALTY** button under each team.
+- **Penalty button** (only while penalties are switched on): a separate, smaller **Penalty** button under each team.
   - It is placed and coloured so it can't be mistaken for the finish button.
   - It's available from START until RACE FINISHED, before or after the team's finish tap.
-  - It shows the number of penalties applied and the official time, e.g. `3:41.20 +5s = 3:46.20`. Each penalty tap has its own **Undo** countdown.
+  - It shows the number of penalties flagged (e.g. **×2**). Each penalty tap has its own **Undo** countdown.
 - Shows connection status and any taps queued offline.
 - A saved tap the server refuses for good is always reported ("The saved tap for {team} in round {round} was refused: {reason}"), even if the round or connection changed while the answer was in flight.
 - **One live tab per tablet.** The page holds the Web Lock `r2f-referee`. A second tab shows "The referee page is already open in another tab on this tablet" and a **Use this tab instead** button, and creates neither the live connection nor the tap queue. The button posts `takeover` on `BroadcastChannel('r2f-referee')`; the holder releases the lock and shows the same message, and the new tab acquires it. Without Web Locks or BroadcastChannel the page behaves as before.
@@ -365,7 +365,7 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 - The phone **remembers the team** (local storage), so later visits open straight to it.
 - **"Your next race":** round, table number and opponent(s). Before the round is opened it says "waiting for Round N to finish".
 - **Brackets:** all categories and tiers, live-updating.
-- **Race times:** the team's and its opponents' official finish times, plus seeding totals and rank within category. Penalties are marked (e.g. `3:46.20 (incl. +5s)`).
+- **Race times:** the team's and its opponents' official finish times, plus seeding totals and rank within category. Approved penalties are marked (e.g. `3:46.20 (incl. +5s · Bag not sealed)`), and a time with a penalty awaiting review reads `3:41.20 · pending: under review`.
 - **Full schedule:** every team's table for the current round.
 
 ### 7.5 Projector (public URL, full-screen)
@@ -374,7 +374,7 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
   | State | Screen |
   |---|---|
   | Open | Table assignments for the round |
-  | Running | Large master clock and a finish ticker (penalties shown as `+5s` on the ticker) |
+  | Running | Large master clock and a finish ticker (approved penalties shown as `+5s`, and `under review` while one is pending) |
   | Finished | Updated seeding results, brackets or standings |
   | Event complete | Final standings, then the champion |
 
@@ -434,7 +434,7 @@ The server is reachable from the internet, so:
   - Event, Category, Team, Table/Station, SeedingGroup, Bracket, Round, Race
   - RaceEntry (team, table, raw time in ms, status: pending / finished / DNF / DNS)
   - Penalty (race entry, amount in ms, source: referee or race control, device, created and removed timestamps)
-  - Event settings, including the penalty switch, penalty amount and undo window
+  - Event settings, including the penalty switch and undo window
   - TieDecision, Device, ApiKey, AuditLog
   - RoundLineup, BracketMembers (the races each round was opened with, and each bracket's teams as they stood when the first bracket round opened)
 - **The rules engine is a pure module with no I/O:** group and table assignment, seeding rank, bracket plan, heat and placement generation, and final standings. This makes it straightforward to unit-test.

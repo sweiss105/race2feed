@@ -20,6 +20,17 @@ describe('TapQueue', () => {
     expect(q.all().map((e) => e.clientTapId)).toEqual(['c']);
   });
 
+  it('ignores a stored queue that is not a list', () => {
+    for (const raw of ['{}', 'null']) {
+      const storage = new MemoryStorage();
+      storage.setItem('r2f.tapQueue', raw);
+      const q = new TapQueue(storage);
+      expect(q.all()).toEqual([]);
+      q.add(entry('a'));
+      expect(q.all().map((e) => e.clientTapId)).toEqual(['a']);
+    }
+  });
+
   it('keeps an entry the server failed to process', () => {
     const q = new TapQueue(new MemoryStorage());
     q.add(entry('a'));

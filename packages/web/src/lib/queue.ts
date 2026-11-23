@@ -19,7 +19,8 @@ export class TapQueue {
   private load(): QueuedTap[] {
     try {
       const raw = this.storage.getItem(this.key);
-      return raw ? (JSON.parse(raw) as QueuedTap[]) : [];
+      const parsed: unknown = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? (parsed as QueuedTap[]) : [];
     } catch {
       return [];
     }

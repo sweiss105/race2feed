@@ -56,3 +56,12 @@
 .toast .btn-plain { color: var(--bg); }
 @keyframes fade { from { opacity: 0; } }
 @keyframes sheet-in { from { transform: scale(0.96); opacity: 0; } }
+
+.review-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(18rem, 1fr)); gap: var(--space-3); }
+.review-card { display: grid; gap: var(--space-3); }
+.review-card .actions { justify-content: flex-end; }
+.review-history { margin-top: var(--space-3); }
+.review-history summary { cursor: pointer; margin-bottom: var(--space-2); }
+.reason-add { display: flex; gap: var(--space-1); }
+.reason-add select { width: auto; max-width: 11rem; }
+.reasons-editor .row { display: grid; grid-template-columns: 1fr 7rem 6rem auto; gap: var(--space-2); align-items: center; }

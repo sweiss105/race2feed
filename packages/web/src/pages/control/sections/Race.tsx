@@ -7,6 +7,8 @@ import { teamName } from '../../../lib/selectors';
 import { useNow } from '../../../lib/useNow';
 import { useRunner } from '../runner';
 import { Switch } from '../../../ui/Switch';
+import { Sheet } from '../../../ui/Sheet';
+import { PenaltyReviews, reasonLabel } from './PenaltyReviews';
 
 const SCREENS = ['welcome', 'tables', 'clock', 'seeding-results', 'brackets', 'standings', 'champion'] as const;
 
@@ -38,9 +40,10 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
             disabled={round.phase !== 'open'} onClick={act({ type: 'startRace' })}>Start</Button>
           <Button kind={round.phase === 'running' ? 'primary' : 'secondary'} busy={runner.busy('finishRace')}
             disabled={round.phase !== 'running'} onClick={act({ type: 'finishRace' })}>Finish</Button>
+          {noRoundsLeft && <ChampionButton view={view} />}
         </div>
       </header>
-      {['openNextRound', 'startRace', 'finishRace'].map((k) => runner.error(k) && <p key={k} class="err" role="alert">{runner.error(k)}</p>)}
+      {['openNextRound', 'startRace', 'finishRace', 'hideChampion'].map((k) => runner.error(k) && <p key={k} class="err" role="alert">{runner.error(k)}</p>)}
       {round.phase === 'open' && notReady > 0 && <p class="callout secondary">{notReady} station{notReady === 1 ? '' : 's'} not ready yet.</p>}
 
       <div class="race-actions" style={{ marginBottom: 'var(--space-4)' }}>
@@ -62,6 +65,7 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
       {view.outstanding.length > 0 && <Outstanding view={view} />}
       {view.ties.length > 0 && <Ties view={view} />}
       {view.blockers.length > 0 && <p class="err" role="alert">{view.blockers.join(' · ')}</p>}
+      <PenaltyReviews view={view} />
       <Results view={view} />
     </>
   );
@@ -204,8 +208,8 @@ function Results({ view }: { view: ControlView }) {
                   <Button kind="secondary" data-action="dnf" busy={runner.busy(key)} onClick={set({ kind: 'status', status: 'dnf' })}>DNF</Button>
                   <Button kind="secondary" data-action="dns" busy={runner.busy(key)} onClick={set({ kind: 'status', status: 'dns' })}>DNS</Button>
                   <Button kind="plain" data-action="clear" busy={runner.busy(key)} onClick={set({ kind: 'clear' })}>Clear</Button>
-                  <Button kind="secondary" data-action="add-penalty" busy={runner.busy(`${key}-pen`)}
-                    onClick={() => void runner.run({ type: 'addPenalty', round, teamId: x.teamId }, `${key}-pen`)}>+{view.settings.penaltyMs / 1000}s</Button>
+                  <AddPenalty view={view} busy={runner.busy(`${key}-pen`)}
+                    onAdd={(reasonId) => void runner.run({ type: 'addPenalty', round, teamId: x.teamId, reasonId }, `${key}-pen`)} />
                   {pens.length > 0 && (
                     <Button kind="destructive" data-action="remove-penalty" busy={runner.busy(`${key}-pen`)}
                       onClick={() => void runner.run({ type: 'removePenalty', tapId: pens.at(-1)!.id }, `${key}-pen`)}>−{(pens.at(-1)!.amountMs ?? 0) / 1000}s</Button>
@@ -239,5 +243,49 @@ function TimeEntry({ onSet }: { onSet(rawMs: number): void }) {
         onInput={(e) => setText((e.target as HTMLInputElement).value)} />
       <Button kind="secondary" type="submit" disabled={!text}>Set</Button>
     </form>
+  );
+}
+
+function AddPenalty({ view, busy, onAdd }: { view: ControlView; busy: boolean; onAdd(reasonId: string): void }) {
+  const [reasonId, setReasonId] = useState(view.penaltyReasons[0]?.id ?? '');
+  return (
+    <span class="reason-add">
+      <select class="input" aria-label="Penalty reason" value={reasonId} onChange={(e) => setReasonId((e.target as HTMLSelectElement).value)}>
+        {view.penaltyReasons.map((r) => <option key={r.id} value={r.id}>{reasonLabel(r)}</option>)}
+      </select>
+      <Button kind="secondary" data-action="add-penalty" busy={busy} disabled={!reasonId} onClick={() => onAdd(reasonId)}>Add</Button>
+    </span>
+  );
+}
+
+function ChampionButton({ view }: { view: ControlView }) {
+  const runner = useRunner();
+  const [open, setOpen] = useState(false);
+  const [bags, setBags] = useState(view.bagTotal ?? '');
+  if (view.championShown) {
+    return <Button kind="secondary" busy={runner.busy('hideChampion')} onClick={() => void runner.run({ type: 'hideChampion' })}>Hide champion</Button>;
+  }
+  return (
+    <>
+      <Button onClick={() => { setBags(view.bagTotal ?? ''); setOpen(true); }}>Show champion</Button>
+      {open && (
+        <Sheet title="Show the champion" onClose={() => setOpen(false)}>
+          <p class="callout secondary">The champion and the bag count appear on the projector and every phone.</p>
+          <label class="field">
+            <span class="footnote secondary">Bags of food packed</span>
+            <input class="input" inputMode="numeric" aria-label="Bags of food packed" placeholder="e.g. 9,816" value={bags}
+              onInput={(e) => setBags((e.target as HTMLInputElement).value)} />
+          </label>
+          {runner.error('showChampion') && <p class="err">{runner.error('showChampion')}</p>}
+          <div class="sheet-actions">
+            <Button kind="secondary" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button busy={runner.busy('showChampion')} onClick={async () => {
+              const ack = await runner.run({ type: 'showChampion', bagTotal: bags });
+              if (ack?.ok) setOpen(false);
+            }}>Show</Button>
+          </div>
+        </Sheet>
+      )}
+    </>
   );
 }

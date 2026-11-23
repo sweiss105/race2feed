@@ -12,6 +12,7 @@ export function Settings({ view }: { view: ControlView | null }) {
       <h2 class="title-1">Settings</h2>
       <Passwords />
       {view && <EventSettings view={view} />}
+      {view && <PenaltyList key={view.event.id} view={view} />}
       <CompanionKeys />
     </>
   );
@@ -126,6 +127,63 @@ function CompanionKeys() {
           </tbody>
         </table>
       )}
+    </section>
+  );
+}
+
+interface ReasonRow { id: string; name: string; kind: 'time' | 'dq'; seconds: string }
+
+/** The penalties race control picks from when approving a referee's penalty or adding one. */
+function PenaltyList({ view }: { view: ControlView }) {
+  const runner = useRunner();
+  const toRows = () => view.penaltyReasons.map((r) => ({ id: r.id, name: r.name, kind: r.kind, seconds: String((r.amountMs ?? 0) / 1000) }));
+  const [rows, setRows] = useState<ReasonRow[]>(toRows);
+  const [saved, setSaved] = useState(false);
+  const [problems, setProblems] = useState<string[]>([]);
+  const update = (i: number, patch: Partial<ReasonRow>) => { setSaved(false); setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r))); };
+  const add = () => {
+    setSaved(false);
+    const ids = new Set(rows.map((r) => r.id));
+    let n = rows.length + 1;
+    while (ids.has(`reason-${n}`)) n++;
+    setRows((rs) => [...rs, { id: `reason-${n}`, name: '', kind: 'time', seconds: '5' }]);
+  };
+  const save = async () => {
+    setSaved(false);
+    const reasons = rows.map((r) => (r.kind === 'dq'
+      ? { id: r.id, name: r.name.trim(), kind: 'dq' as const }
+      : { id: r.id, name: r.name.trim(), kind: 'time' as const, amountMs: Math.round(Number(r.seconds) * 1000) }));
+    const ack = await runner.run({ type: 'setPenaltyReasons', reasons }, 'setPenaltyReasons');
+    setProblems(ack && !ack.ok && Array.isArray(ack.detail) ? (ack.detail as string[]) : []);
+    if (ack?.ok) setSaved(true);
+  };
+  const label = (r: ReasonRow, i: number) => r.name.trim() || `penalty ${i + 1}`;
+  return (
+    <section class="panel card stack reasons-editor" aria-label="Penalty list">
+      <h3 class="headline">Penalty list</h3>
+      <p class="footnote secondary" style={{ margin: 0 }}>Referees pick from this list when they explain a penalty; race control picks the final one. Everyone sees the name.</p>
+      {rows.map((r, i) => (
+        <div class="row" key={r.id}>
+          <input class="input" aria-label={`Name for ${label(r, i)}`} placeholder="e.g. Bag not sealed" maxLength={60} value={r.name}
+            onInput={(e) => update(i, { name: (e.target as HTMLInputElement).value })} />
+          <select class="input" aria-label={`Kind for ${label(r, i)}`} value={r.kind} onChange={(e) => update(i, { kind: (e.target as HTMLSelectElement).value as 'time' | 'dq' })}>
+            <option value="time">Time</option>
+            <option value="dq">DQ</option>
+          </select>
+          <input class="input" type="number" min={0} step="0.5" aria-label={`Seconds for ${label(r, i)}`} disabled={r.kind === 'dq'}
+            value={r.kind === 'dq' ? '' : r.seconds} placeholder={r.kind === 'dq' ? '—' : 'sec'}
+            onInput={(e) => update(i, { seconds: (e.target as HTMLInputElement).value })} />
+          <Button kind="plain" aria-label={`Remove ${label(r, i)}`} disabled={rows.length === 1}
+            onClick={() => { setSaved(false); setRows((rs) => rs.filter((_, j) => j !== i)); }}>Remove</Button>
+        </div>
+      ))}
+      <div class="race-actions">
+        <Button kind="secondary" onClick={add}>Add penalty</Button>
+        <Button busy={runner.busy('setPenaltyReasons')} onClick={() => void save()}>Save penalty list</Button>
+        {saved && <span class="callout" style={{ color: 'var(--success)' }}>Saved.</span>}
+      </div>
+      {runner.error('setPenaltyReasons') && <p class="err">{runner.error('setPenaltyReasons')}</p>}
+      {problems.length > 0 && <ul class="err">{problems.map((p) => <li key={p}>{p}</li>)}</ul>}
     </section>
   );
 }

@@ -75,7 +75,7 @@ function SectionView({ section, ...p }: ConsoleProps & { section: Section }) {
     case 'setup': return <Setup view={p.view!} />;
     case 'devices': return <Devices view={p.view!} />;
     case 'settings': return <Settings view={p.view} />;
-    case 'events': return <Events />;
+    case 'events': return <Events view={p.view} />;
     case 'log': return <Log view={p.view!} />;
   }
 }

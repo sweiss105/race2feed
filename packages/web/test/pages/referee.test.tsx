@@ -5,7 +5,7 @@ import { pairFromUrl } from '../../src/pages/referee/pairing';
 import { TapQueue } from '../../src/lib/queue';
 import { MemoryStorage } from '../lib/fakes';
 import { lockedFour, openNext, refViewOf, start, teamId } from '../support/state';
-import type { LiveEvent } from '../../../server/src/core/model';
+import type { LiveEvent, PenaltyReview } from '../../../server/src/core/model';
 
 const NOW = 1_000_000 + 200_000;
 
@@ -193,5 +193,46 @@ describe('pairing', () => {
   it('reports a bad or used code', async () => {
     const fetchFn = vi.fn(async () => new Response('{}', { status: 400 }));
     expect(await pairFromUrl('https://r2f.test/ref?code=NOPE', fetchFn as unknown as typeof fetch, vi.fn())).toEqual({ paired: false, error: 'This pairing code is invalid or already used. Ask race control for a new one.' });
+  });
+
+  describe('penalty notes', () => {
+    beforeEach(() => cleanup());
+    const finishedWith = (review: PenaltyReview): LiveEvent => {
+      const e = start(openNext(lockedFour()));
+      return {
+        ...e,
+        round: { ...e.round, phase: 'finished' as const },
+        taps: [{ id: 'pen-1', kind: 'penalty' as const, round: 1, teamId: teamId(e, 'T1'), amountMs: 5000, source: 'referee' as const, deviceId: 'dev1', createdAt: 1, removedAt: null, review }],
+      };
+    };
+
+    it('does not appear while the race is running', async () => {
+      const e = finishedWith({ status: 'pending' });
+      setup({ ...e, round: { ...e.round, phase: 'running' } });
+      await screen.findAllByRole('button', { name: /^T1/ });
+      expect(screen.queryByRole('region', { name: /Penalty for T1/ })).toBeNull();
+    });
+
+    it('asks for a reason after the round and sends it to race control', async () => {
+      const { sent } = setup(finishedWith({ status: 'pending' }));
+      const card = await screen.findByRole('region', { name: /Penalty for T1/ });
+      const send = card.querySelector('button[type="submit"]') as HTMLButtonElement;
+      expect(send.disabled).toBe(true);
+      fireEvent.click(screen.getByRole('button', { name: 'Started early' }));
+      fireEvent.input(screen.getByRole('textbox', { name: /Note/ }), { target: { value: 'went at 3' } });
+      fireEvent.click(send);
+      await waitFor(() => expect(sent).toContainEqual({ type: 'notePenalty', tapId: 'pen-1', reasonId: 'early', note: 'went at 3' }));
+    });
+
+    it('shows that a note was sent', async () => {
+      setup(finishedWith({ status: 'pending', refereeReasonId: 'early' }));
+      expect(await screen.findByText(/Sent ✓/)).toBeTruthy();
+    });
+
+    it('skips penalties race control already decided', async () => {
+      setup(finishedWith({ status: 'approved', reasonId: 'early', reasonName: 'Started early' }));
+      await screen.findAllByText(/Round 1 finished/);
+      expect(screen.queryByRole('region', { name: /Penalty for T1/ })).toBeNull();
+    });
   });
 });

@@ -170,6 +170,7 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
             <li key={t.teamId}><span class="headline">{t.name}</span><span class="tabular">{t.result ? timeText({ status: t.result.status, officialMs: t.result.rawMs === null ? null : t.result.rawMs + t.result.penaltiesMs, penaltiesMs: t.result.penaltiesMs }) : '—'}</span></li>
           ))}
         </ul>
+        <PenaltyNotes view={view} send={send} />
       </div>
     );
   }
@@ -217,5 +218,67 @@ function UndoBar({ recent, windowMs, teams, onUndo }: { recent: Recent; windowMs
       <Button kind="plain" onClick={onUndo}>Undo</Button>
       <div class="progress" ref={bar} style={{ width: '100%' }} />
     </div>
+  );
+}
+
+/** After a round, the referee says why each penalty they gave was given; race control then decides. */
+function PenaltyNotes({ view, send }: { view: RefereeView; send(cmd: object): Promise<Ack> }) {
+  const items = view.teams.flatMap((t) => t.taps
+    .filter((x) => x.kind === 'penalty' && x.source === 'referee' && x.removedAt === null && x.review.status === 'pending')
+    .map((x) => ({ tap: x, team: t })));
+  if (!items.length) return null;
+  return (
+    <div class="ref-notes">
+      <h2 class="headline">Penalty notes</h2>
+      <p class="footnote secondary">Tell race control why. They approve or reject each penalty before the next round.</p>
+      {items.map(({ tap, team }) => (
+        <PenaltyNote key={tap.id} tapId={tap.id} teamName={team.name} sentReason={tap.review.refereeReasonId}
+          reasons={view.reasons} send={send} />
+      ))}
+    </div>
+  );
+}
+
+function PenaltyNote({ tapId, teamName, sentReason, reasons, send }: {
+  tapId: string; teamName: string; sentReason: string | null; reasons: RefereeView['reasons']; send(cmd: object): Promise<Ack>;
+}) {
+  const [reasonId, setReasonId] = useState<string | null>(null);
+  const [note, setNote] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const titleId = `pen-${tapId}`;
+  const sentName = reasons.find((r) => r.id === sentReason)?.name;
+  const label = (r: RefereeView['reasons'][number]) => (r.kind === 'dq' ? 'DQ' : `+${(r.amountMs ?? 0) / 1000}s`);
+  return (
+    <section class="card ref-note" role="region" aria-labelledby={titleId}>
+      <h3 id={titleId} class="headline">Penalty for {teamName}</h3>
+      {sentReason ? (
+        <p class="callout" style={{ color: 'var(--success)' }}>Sent ✓ — race control will review{sentName ? ` (${sentName})` : ''}.</p>
+      ) : (
+        <form onSubmit={async (ev) => {
+          ev.preventDefault();
+          if (!reasonId) return;
+          setBusy(true); setError(null);
+          try {
+            const ack = await send({ type: 'notePenalty', tapId, reasonId, ...(note.trim() ? { note: note.trim() } : {}) });
+            if (!ack.ok) setError(ack.message ?? 'Could not send.');
+          } catch { setError('Not connected — try again in a moment.'); } finally { setBusy(false); }
+        }}>
+          <div class="ref-reasons" role="group" aria-label="Reason">
+            {reasons.map((r) => (
+              <button key={r.id} type="button" class="chip-button" aria-pressed={reasonId === r.id ? 'true' : 'false'}
+                aria-label={r.name} onClick={() => setReasonId(r.id)}>
+                <span>{r.name}</span><span class="footnote secondary">{label(r)}</span>
+              </button>
+            ))}
+          </div>
+          <label class="footnote secondary" for={`${titleId}-note`}>Note (optional)</label>
+          <textarea id={`${titleId}-note`} class="input" rows={2} maxLength={200} value={note}
+            onInput={(e) => setNote((e.target as HTMLTextAreaElement).value)} />
+          {error && <p class="footnote" role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
+          <Button type="submit" busy={busy} disabled={!reasonId}>Send to race control</Button>
+        </form>
+      )}
+    </section>
   );
 }

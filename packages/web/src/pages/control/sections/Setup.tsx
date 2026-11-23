@@ -167,7 +167,7 @@ function TablesPerReferee({ view }: { view: ControlView }) {
       </div>
       <p class="footnote secondary" style={{ margin: 0 }}>
         {value === 2 ? 'Each referee times a pair of tables (1 & 2, 3 & 4, …).' : 'Each table has its own referee and tablet.'}
-        {view.setupLocked && ' Unlock setup to change this.'}
+        {view.setupLocked ? ' Unlock setup to change this.' : ' If tablets are already paired, pair them again after changing this.'}
       </p>
       {runner.error('setTablesPerReferee') && <p class="err">{runner.error('setTablesPerReferee')}</p>}
     </section>

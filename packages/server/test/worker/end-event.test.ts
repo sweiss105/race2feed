@@ -37,4 +37,27 @@ describe('ending an event', () => {
     const { control } = await controlAndReferee(admin);
     expect((await command({ type: 'endEvent', eventId: 'x' }, { cookie: control })).body.code).toBe('forbidden');
   });
+
+  it('creating the next event after ending one leaves the champion on phones', async () => {
+    const admin = await lockedEvent();
+    const events = (await call('/api/events', undefined, { cookie: admin })).body as { id: string; active: boolean }[];
+    const eventId = events.find((e) => e.active)!.id;
+    await command({ type: 'endEvent', eventId }, { cookie: admin });
+    const created = await command({ type: 'createEvent', name: 'Next year', date: '2027-11-20', tableCount: 4 }, { cookie: admin });
+    expect(created.status).toBe(200);
+    const list = (await call('/api/events', undefined, { cookie: admin })).body as { id: string; name: string; active: boolean }[];
+    expect(list.find((e) => e.name === 'Next year')!.active).toBe(false);
+    const phone = await connect({ role: 'public' });
+    expect((await phone.next('snapshot', 0)).view.event.id).toBe(eventId);
+  });
+
+  it('reopening an event that ended early takes the champion screen down', async () => {
+    const admin = await lockedEvent();
+    const events = (await call('/api/events', undefined, { cookie: admin })).body as { id: string; active: boolean }[];
+    const eventId = events.find((e) => e.active)!.id;
+    await command({ type: 'endEvent', eventId }, { cookie: admin });
+    await command({ type: 'activateEvent', eventId }, { cookie: admin });
+    const phone = await connect({ role: 'public' });
+    expect((await phone.next('snapshot', 0)).view).toMatchObject({ championShown: false, ended: false });
+  });
 });

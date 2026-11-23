@@ -55,6 +55,27 @@ describe('penalty review', () => {
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'decidePenalty', tapId: 'pen-1', decision: 'reject' }));
   });
 
+  it('labels decided penalties from their stored reason', () => {
+    const e = withPending();
+    const decided = { ...e, penaltyReasons: [{ id: 'other', name: 'Other', kind: 'time' as const, amountMs: 1000 }],
+      taps: e.taps.map((t) => (t.id === 'pen-1' ? { ...t, review: { status: 'approved' as const, reasonId: 'unsafe', reasonName: 'Unsafe conduct', dq: true } } : t)) };
+    console_(decided, async () => ({ ok: true }));
+    expect(screen.getByText('Approved · Unsafe conduct')).toBeTruthy();
+    const row = screen.getByTestId(`team-${teamId(e, 'T2')}`);
+    expect(row.querySelector('button[data-action="remove-penalty"]')!.textContent).toBe('−DQ');
+  });
+
+  it('falls back to a listed reason when the picked one is removed', async () => {
+    const send = vi.fn(async () => ({ ok: true }));
+    const e = runRound(lockedFour(), seedTimes);
+    const { rerender } = console_(e, send);
+    fireEvent.change(within(screen.getByTestId(`team-${teamId(e, 'T1')}`)).getByLabelText('Penalty reason'), { target: { value: 'early' } });
+    const trimmed = { ...e, penaltyReasons: [{ id: 'sealed', name: 'Bag not sealed', kind: 'time' as const, amountMs: 5000 }] };
+    rerender(<ConsolePage me={me('control')} view={ctlViewOf(trimmed)} send={send} serverNow={() => 0} status="open" />);
+    fireEvent.click(screen.getByTestId(`team-${teamId(e, 'T1')}`).querySelector('button[data-action="add-penalty"]')!);
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'addPenalty', round: 1, teamId: teamId(e, 'T1'), reasonId: 'sealed' }));
+  });
+
   it('adds a race-control penalty with a reason', async () => {
     const send = vi.fn(async () => ({ ok: true }));
     const e = runRound(lockedFour(), seedTimes);
@@ -84,6 +105,14 @@ describe('show champion', () => {
     fireEvent.input(bags, { target: { value: '1,234' } });
     fireEvent.click(within(sheet).getByRole('button', { name: 'Show' }));
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'showChampion', bagTotal: '1,234' }));
+  });
+
+  it('can be hidden even when rounds are left (e.g. after reopening an ended event)', async () => {
+    const send = vi.fn(async () => ({ ok: true }));
+    console_({ ...runRound(lockedFour(), seedTimes), championShown: true }, send);
+    expect(screen.queryByRole('button', { name: 'Show champion' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Hide champion' }));
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'hideChampion' }));
   });
 
   it('can hide it again', async () => {
@@ -126,6 +155,13 @@ describe('admin: penalty list and ending the event', () => {
     expect(within(sheet).getByText(/3 rounds not raced yet/)).toBeTruthy();
     fireEvent.click(within(sheet).getByRole('button', { name: 'End event' }));
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'endEvent', eventId: 'ev1' }));
+  });
+
+  it('warns about penalties still waiting for a decision', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([{ id: 'ev1', name: 'Test', date: '2026-11-24', active: true, ended: false }]), { status: 200 })));
+    withRunner(<Events view={ctlViewOf(withPending())} />, async () => ({ ok: true }));
+    fireEvent.click(await screen.findByRole('button', { name: 'End event' }));
+    expect(within(screen.getByRole('dialog', { name: /End Test\?/ })).getByText(/1 penalty is still waiting for a decision/)).toBeTruthy();
   });
 
   it('marks ended events and asks before reopening one', async () => {

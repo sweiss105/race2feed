@@ -117,6 +117,7 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
   const tables = tablesOfStation(station, e.setup.tableCount, perStation(e));
   const results = buildProgress(e).results[e.round.current] ?? {};
   const name = new Map(e.setup.teams.map((t) => [t.id, t.name]));
+  const pens = penaltyIndex(e);
   const teams = teamsInRound(d, e.round.current)
     .filter((t) => stationOfTable(t.table, perStation(e)) === station)
     .sort((a, b) => a.table - b.table)
@@ -125,6 +126,7 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
       name: name.get(teamId) ?? teamId,
       table,
       result: results[teamId] ?? null,
+      dq: pens.get(`${e.round.current}:${teamId}`)?.dq ?? null,
       taps: e.taps
         .filter((t) => t.round === e.round.current && t.teamId === teamId)
         .map((t) => {
@@ -162,6 +164,7 @@ export function controlView(e: LiveEvent, d: DerivedEvent, extras: { devices: un
         return {
           tapId: t.id, round: t.round, teamId: t.teamId, status: r.status, amountMs: t.amountMs ?? 0,
           refereeReasonId: r.refereeReasonId ?? null, refereeNote: r.refereeNote ?? null, reasonId: r.reasonId ?? null, createdAt: t.createdAt,
+          reasonName: r.reasonName ?? null, dq: Boolean(r.dq), removed: t.removedAt !== null,
         };
       })
       .reverse(),

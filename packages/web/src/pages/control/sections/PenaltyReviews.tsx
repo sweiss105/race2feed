@@ -29,8 +29,10 @@ export function PenaltyReviews({ view }: { view: ControlView }) {
             {decided.map((r) => (
               <li key={r.tapId}>
                 <span class="grow"><span class="headline">{teamName(view, r.teamId)}</span> <span class="footnote secondary">Round {r.round}</span></span>
-                <span class={`footnote ${r.status === 'approved' ? '' : 'secondary'}`}>
-                  {r.status === 'approved' ? `Approved · ${reasonName(r.reasonId) ?? ''}` : 'Rejected'}
+                <span class={`footnote ${r.status === 'approved' && !r.removed ? '' : 'secondary'}`}>
+                  {r.status === 'rejected' ? 'Rejected'
+                    : r.removed ? 'Removed'
+                    : `Approved · ${r.reasonName ?? reasonName(r.reasonId) ?? (r.dq ? 'DQ' : `+${r.amountMs / 1000}s`)}`}
                 </span>
               </li>
             ))}
@@ -45,7 +47,8 @@ function ReviewCard({ review, view }: { review: Review; view: ControlView }) {
   const runner = useRunner();
   // Follows the referee's pick (which may arrive after the card appears) until race control chooses.
   const [picked, setReasonId] = useState<string | null>(null);
-  const reasonId = picked ?? review.refereeReasonId ?? '';
+  const known = (id: string | null) => (id && view.penaltyReasons.some((r) => r.id === id) ? id : null);
+  const reasonId = known(picked) ?? known(review.refereeReasonId) ?? '';
   const key = `review-${review.tapId}`;
   const refereeReason = view.penaltyReasons.find((r) => r.id === review.refereeReasonId);
   return (

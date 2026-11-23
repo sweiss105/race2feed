@@ -79,6 +79,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       if (!ctx.actor.deviceId || tap.deviceId !== ctx.actor.deviceId) return fail('not_your_tap', 'Only the tablet that made a tap can undo it.');
       if (e.round.phase !== 'running' || tap.round !== current) return fail('round_not_running', 'The race is over; ask race control.');
       if (ctx.now - tap.createdAt > e.settings.undoWindowMs) return fail('undo_expired', 'Too late to undo; ask race control.');
+      if (tap.kind === 'penalty' && tap.review && tap.review.status !== 'pending') return fail('already_decided', 'Race control has already decided this penalty.');
       return ok({ ...e, taps: e.taps.map((t) => (t.id === tap.id ? { ...t, removedAt: ctx.now } : t)) });
     }
     case 'setResult': {

@@ -40,7 +40,7 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
             disabled={round.phase !== 'open'} onClick={act({ type: 'startRace' })}>Start</Button>
           <Button kind={round.phase === 'running' ? 'primary' : 'secondary'} busy={runner.busy('finishRace')}
             disabled={round.phase !== 'running'} onClick={act({ type: 'finishRace' })}>Finish</Button>
-          {noRoundsLeft && <ChampionButton view={view} />}
+          {(noRoundsLeft || view.championShown) && <ChampionButton view={view} />}
         </div>
       </header>
       {['openNextRound', 'startRace', 'finishRace', 'hideChampion'].map((k) => runner.error(k) && <p key={k} class="err" role="alert">{runner.error(k)}</p>)}
@@ -212,7 +212,7 @@ function Results({ view }: { view: ControlView }) {
                     onAdd={(reasonId) => void runner.run({ type: 'addPenalty', round, teamId: x.teamId, reasonId }, `${key}-pen`)} />
                   {pens.length > 0 && (
                     <Button kind="destructive" data-action="remove-penalty" busy={runner.busy(`${key}-pen`)}
-                      onClick={() => void runner.run({ type: 'removePenalty', tapId: pens.at(-1)!.id }, `${key}-pen`)}>−{(pens.at(-1)!.amountMs ?? 0) / 1000}s</Button>
+                      onClick={() => void runner.run({ type: 'removePenalty', tapId: pens.at(-1)!.id }, `${key}-pen`)}>{pens.at(-1)!.review?.dq ? '−DQ' : `−${(pens.at(-1)!.amountMs ?? 0) / 1000}s`}</Button>
                   )}
                 </div></td>
               </tr>
@@ -247,7 +247,9 @@ function TimeEntry({ onSet }: { onSet(rawMs: number): void }) {
 }
 
 function AddPenalty({ view, busy, onAdd }: { view: ControlView; busy: boolean; onAdd(reasonId: string): void }) {
-  const [reasonId, setReasonId] = useState(view.penaltyReasons[0]?.id ?? '');
+  const [picked, setReasonId] = useState<string | null>(null);
+  // Fall back to the first reason if the picked one was removed from the list.
+  const reasonId = picked && view.penaltyReasons.some((r) => r.id === picked) ? picked : view.penaltyReasons[0]?.id ?? '';
   return (
     <span class="reason-add">
       <select class="input" aria-label="Penalty reason" value={reasonId} onChange={(e) => setReasonId((e.target as HTMLSelectElement).value)}>

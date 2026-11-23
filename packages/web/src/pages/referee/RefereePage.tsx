@@ -146,7 +146,7 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
                   onClick={() => void tap(t, 'finish')}>
                   <span>{t.name}</span>
                   <span class="table">Table {t.table}</span>
-                  {done && <span class="time">{timeText({ status: t.result!.status, officialMs: t.result!.rawMs === null ? null : t.result!.rawMs + t.result!.penaltiesMs, penaltiesMs: t.result!.penaltiesMs })}</span>}
+                  {done && <span class="time">{timeText({ status: t.result!.status, officialMs: t.result!.rawMs === null ? null : t.result!.rawMs + t.result!.penaltiesMs, penaltiesMs: t.result!.penaltiesMs, dq: t.dq })}</span>}
                   {busy && !done && !waiting && <span class="table">Sending…</span>}
                   {waiting && !done && <span class="table">Waiting to send</span>}
                 </button>
@@ -168,7 +168,7 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
         <p class="title-2">Round {round.current} finished</p>
         <ul class="list" style={{ textAlign: 'left', minWidth: '18rem' }}>
           {view.teams.map((t) => (
-            <li key={t.teamId}><span class="headline">{t.name}</span><span class="tabular">{t.result ? timeText({ status: t.result.status, officialMs: t.result.rawMs === null ? null : t.result.rawMs + t.result.penaltiesMs, penaltiesMs: t.result.penaltiesMs }) : '—'}</span></li>
+            <li key={t.teamId}><span class="headline">{t.name}</span><span class="tabular">{t.result ? timeText({ status: t.result.status, officialMs: t.result.rawMs === null ? null : t.result.rawMs + t.result.penaltiesMs, penaltiesMs: t.result.penaltiesMs, dq: t.dq }) : '—'}</span></li>
           ))}
         </ul>
         <PenaltyNotes view={view} send={send} />

@@ -62,7 +62,7 @@ The console's menu on the left has these sections for admin: **Race, Teams, Setu
 1. Go to **Events**.
 2. Type the **Event name**, pick the **Date** and enter the number of **Tables** at the venue.
 3. Press **Create event**.
-4. If no other event is active, the new event becomes **Active** straight away. Otherwise, press **Make active** on its row.
+4. If no event is active and none has just ended, the new event becomes **Active** straight away. Otherwise, press **Make active** on its row when you're ready. (Creating next year's event right after ending this one doesn't take the champion off everyone's phones.)
 
 Only one event is active at a time. Older events are kept for history, and you can download any of them with the **CSV** or **JSON** links on its row.
 
@@ -285,7 +285,7 @@ The projector changes screens by itself. To show a particular screen, use the **
 
 ### Show the champion
 
-When the last round is finished:
+When the last round is finished and every penalty has been decided (Show champion is refused while one is still under review):
 
 1. Press **Show champion**.
 2. Enter or confirm the number of bags packed, then press **Show**.
@@ -342,7 +342,7 @@ When race control has switched penalties on, each team has a smaller **+5s** but
 
 - **When:** any time from the start until race control presses Finish, before or after the team's finish tap.
 - **Stacking:** each tap adds one penalty. The button shows how many, for example **×2**.
-- **Undo:** each penalty tap has its own **Undo**, just like a finish tap.
+- **Undo:** each penalty tap has its own **Undo**, just like a finish tap, unless race control has already decided that penalty.
 - **Don't mix them up:** the penalty button is deliberately smaller, and it's an outlined button rather than a solid one like the finish button.
 
 ### After the race: penalty notes
@@ -453,7 +453,7 @@ When the event is over:
 
 1. Go to **Events**.
 2. Press **End event** on the active event.
-3. Confirm. If some rounds haven't been raced, the confirmation warns you.
+3. Confirm. The confirmation warns you if some rounds haven't been raced, or if any penalty is still waiting for a decision (decide those first, or they stay "under review" in the final results).
 
 When an event ends:
 - It's marked **Ended** and is no longer active.
@@ -466,7 +466,7 @@ When an event ends:
 
 On the ended event's row in **Events**, press **Make active** and confirm. Then:
 - Referee tablets must be **paired again**.
-- The champion screen may still be showing. Race control can press **Hide champion** to return to the normal screens.
+- If the event was ended before its last round, the champion screen is taken down automatically. If it was ended after the last round, the champion stays up; race control can press **Hide champion** at any time.
 
 ---
 

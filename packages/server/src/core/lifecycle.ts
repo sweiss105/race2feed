@@ -3,6 +3,16 @@ import { done, fail, perStation, type CommandResult, type Ctx, type LifecycleCom
 import { buildProgress, derive, teamsInRound } from './results';
 import { checkCorrection } from './corrections';
 
+/** Referee penalties still waiting for race control, in rounds raced so far. */
+export function pendingPenalties(e: LiveEvent) {
+  return e.taps
+    .filter((t) => t.kind === 'penalty' && t.removedAt === null && t.review?.status === 'pending' && t.round <= e.round.current)
+    .map((t) => ({ tapId: t.id, round: t.round, teamId: t.teamId }));
+}
+
+const pendingFail = (pending: ReturnType<typeof pendingPenalties>) =>
+  fail('penalties_pending', `${pending.length} penalt${pending.length === 1 ? 'y needs' : 'ies need'} a decision first.`, pending);
+
 export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): CommandResult {
   const ok = (event: LiveEvent) => done(event, cmd, ctx);
 
@@ -12,10 +22,8 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       if (e.round.phase === 'open' || e.round.phase === 'running') {
         return fail('round_in_progress', 'Finish the current round first.');
       }
-      const pending = e.taps
-        .filter((t) => t.kind === 'penalty' && t.removedAt === null && t.review?.status === 'pending' && t.round <= e.round.current)
-        .map((t) => ({ tapId: t.id, round: t.round, teamId: t.teamId }));
-      if (pending.length) return fail('penalties_pending', `${pending.length} penalt${pending.length === 1 ? 'y needs' : 'ies need'} a decision first.`, pending);
+      const pending = pendingPenalties(e);
+      if (pending.length) return pendingFail(pending);
       const d = derive(e);
       const next = d.rounds[e.round.current];
       if (!next) return fail('event_complete', 'Every round has been raced.');
@@ -84,6 +92,8 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       if (e.round.phase !== 'finished' || e.round.current !== rounds || rounds === 0) {
         return fail('not_finished', 'Show the champion once the last round is finished.');
       }
+      const pending = pendingPenalties(e);
+      if (pending.length) return pendingFail(pending);
       const bags = typeof cmd.bagTotal === 'string' ? cmd.bagTotal.trim().slice(0, 40) : '';
       return ok({ ...e, championShown: true, bagTotal: bags || e.bagTotal });
     }

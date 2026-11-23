@@ -138,15 +138,19 @@ function PenaltyList({ view }: { view: ControlView }) {
   const runner = useRunner();
   const toRows = () => view.penaltyReasons.map((r) => ({ id: r.id, name: r.name, kind: r.kind, seconds: String((r.amountMs ?? 0) / 1000) }));
   const [rows, setRows] = useState<ReasonRow[]>(toRows);
+  const [dirty, setDirty] = useState(false);
   const [saved, setSaved] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
-  const update = (i: number, patch: Partial<ReasonRow>) => { setSaved(false); setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r))); };
+  // Follow the server's list (e.g. another admin saved it) until this form has unsaved edits.
+  const serverList = JSON.stringify(view.penaltyReasons);
+  useEffect(() => { if (!dirty) setRows(toRows()); }, [serverList]);
+  const edited = (f: (rs: ReasonRow[]) => ReasonRow[]) => { setSaved(false); setDirty(true); setRows(f); };
+  const update = (i: number, patch: Partial<ReasonRow>) => edited((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   const add = () => {
-    setSaved(false);
     const ids = new Set(rows.map((r) => r.id));
     let n = rows.length + 1;
     while (ids.has(`reason-${n}`)) n++;
-    setRows((rs) => [...rs, { id: `reason-${n}`, name: '', kind: 'time', seconds: '5' }]);
+    edited((rs) => [...rs, { id: `reason-${n}`, name: '', kind: 'time', seconds: '5' }]);
   };
   const save = async () => {
     setSaved(false);
@@ -155,7 +159,7 @@ function PenaltyList({ view }: { view: ControlView }) {
       : { id: r.id, name: r.name.trim(), kind: 'time' as const, amountMs: Math.round(Number(r.seconds) * 1000) }));
     const ack = await runner.run({ type: 'setPenaltyReasons', reasons }, 'setPenaltyReasons');
     setProblems(ack && !ack.ok && Array.isArray(ack.detail) ? (ack.detail as string[]) : []);
-    if (ack?.ok) setSaved(true);
+    if (ack?.ok) { setSaved(true); setDirty(false); }
   };
   const label = (r: ReasonRow, i: number) => r.name.trim() || `penalty ${i + 1}`;
   return (
@@ -174,7 +178,7 @@ function PenaltyList({ view }: { view: ControlView }) {
             value={r.kind === 'dq' ? '' : r.seconds} placeholder={r.kind === 'dq' ? '—' : 'sec'}
             onInput={(e) => update(i, { seconds: (e.target as HTMLInputElement).value })} />
           <Button kind="plain" aria-label={`Remove ${label(r, i)}`} disabled={rows.length === 1}
-            onClick={() => { setSaved(false); setRows((rs) => rs.filter((_, j) => j !== i)); }}>Remove</Button>
+            onClick={() => edited((rs) => rs.filter((_, j) => j !== i))}>Remove</Button>
         </div>
       ))}
       <div class="race-actions">

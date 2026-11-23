@@ -208,8 +208,8 @@ export class Hub extends DurableObject<Env> {
 
   private async hubCommand(actor: Actor, cmd: HubCommand): Promise<CommandResult | { ok: true; reply: unknown }> {
     const now = Date.now();
-    const reply = (value: unknown, detail: unknown = cmd) => {
-      this.audit(this.active?.id ?? null, actor, cmd.type, detail);
+    const reply = (value: unknown, detail: unknown = cmd, eventId: string | null = this.active?.id ?? null) => {
+      this.audit(eventId, actor, cmd.type, detail);
       return { ok: true as const, reply: value };
     };
     switch (cmd.type) {
@@ -217,7 +217,8 @@ export class Hub extends DurableObject<Env> {
         if (!cmd.name?.trim()) return fail('invalid', 'Event name is required.');
         if (!Number.isInteger(cmd.tableCount) || cmd.tableCount < 1) return fail('invalid', 'Table count must be at least 1.');
         const event = newEvent(crypto.randomUUID(), cmd.name.trim(), cmd.date, cmd.tableCount);
-        const makeActive = this.active === null;
+        // Don't replace an ended event that phones are still showing; admin activates the new one when ready.
+        const makeActive = this.active === null && this.ended === null;
         this.sql.exec('INSERT INTO events (id, name, created_at, active, doc) VALUES (?, ?, ?, ?, ?)',
           event.id, event.name, now, makeActive ? 1 : 0, JSON.stringify(event));
         if (makeActive) this.active = event;
@@ -231,7 +232,11 @@ export class Hub extends DurableObject<Env> {
           this.sql.exec('UPDATE events SET active = CASE WHEN id = ? THEN 1 ELSE 0 END', cmd.eventId);
           const row = this.sql.exec<{ doc: string }>('SELECT doc FROM events WHERE id = ?', cmd.eventId).toArray()[0]!;
           const doc = JSON.parse(row.doc) as LiveEvent;
-          if (doc.endedAt) this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify({ ...doc, endedAt: null }), cmd.eventId);
+          if (doc.endedAt) {
+            // Keep the champion up only if the event really was over when it ended.
+            const over = doc.round.phase === 'finished' && doc.round.current > 0 && doc.round.current === (this.safeDerive(doc)?.rounds.length ?? -1);
+            this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify({ ...doc, endedAt: null, championShown: over && doc.championShown }), cmd.eventId);
+          }
         });
         this.active = this.loadActive();
         this.ended = this.loadEnded();
@@ -256,7 +261,7 @@ export class Hub extends DurableObject<Env> {
         this.ended = event;
         if (wasActive) this.closeSockets((a) => a.actor.role === 'referee');
         await this.afterChange(cmd);
-        return reply({ eventId: event.id }, { eventId: event.id });
+        return reply({ eventId: event.id }, { eventId: event.id }, event.id);
       }
       case 'setPassword': {
         if (cmd.role !== 'admin' && cmd.role !== 'control') return fail('invalid', 'Role must be admin or control.');

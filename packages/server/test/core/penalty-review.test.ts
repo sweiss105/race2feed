@@ -115,4 +115,23 @@ describe('penalty review', () => {
     expect(e.taps.at(-1)).toMatchObject({ amountMs: 10_000, source: 'control', review: { status: 'approved', reasonName: 'Started early' } });
     expect(code(run(e, { type: 'openNextRound' }))).toBe('ok');
   });
+
+  it('the champion cannot be shown while a final-round penalty is pending', () => {
+    let e = runRound(runRound(runRound(lockedFour(), seed), seed), seed);
+    e = startNext(e);
+    ({ e } = refPenalty(e, 'T1'));
+    e = finish(e, seed);
+    expect(code(run(e, { type: 'showChampion', bagTotal: '10' }))).toBe('penalties_pending');
+    const tapId = e.taps.find((t) => t.kind === 'penalty')!.id;
+    e = ok(run(e, { type: 'decidePenalty', tapId, decision: 'reject' }));
+    expect(code(run(e, { type: 'showChampion', bagTotal: '10' }))).toBe('ok');
+  });
+
+  it('a referee cannot undo a penalty race control already decided', () => {
+    let e = startNext(runRound(runRound(lockedFour(), seed), seed));
+    ({ e } = refPenalty(e, 'T1'));
+    const tapId = e.taps.find((t) => t.kind === 'penalty')!.id;
+    e = ok(run(e, { type: 'decidePenalty', tapId, decision: 'approve', reasonId: 'sealed' }));
+    expect(code(run(e, { type: 'undoTap', tapId }, referee(1)))).toBe('already_decided');
+  });
 });

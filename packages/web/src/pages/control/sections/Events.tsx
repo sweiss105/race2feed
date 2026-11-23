@@ -26,6 +26,7 @@ export function Events({ view }: { view: ControlView | null }) {
 
   const activate = async (ev: EventRow) => { await runner.run({ type: 'activateEvent', eventId: ev.id }, `activate-${ev.id}`); load(); };
   const left = roundsLeft(view);
+  const undecided = view?.penaltyReviews.filter((r) => r.status === 'pending').length ?? 0;
 
   return (
     <>
@@ -69,6 +70,11 @@ export function Events({ view }: { view: ControlView | null }) {
       {confirm?.kind === 'end' && (
         <Sheet title={`End ${confirm.event.name}?`} onClose={() => setConfirm(null)}>
           {left > 0 && <p class="callout" style={{ color: 'var(--danger)' }}><strong>{left} round{left === 1 ? '' : 's'} not raced yet.</strong></p>}
+          {undecided > 0 && (
+            <p class="callout" style={{ color: 'var(--danger)' }}>
+              <strong>{undecided} penalt{undecided === 1 ? 'y is' : 'ies are'} still waiting for a decision.</strong> {undecided === 1 ? 'It stays' : 'They stay'} “under review” in the final results; decide {undecided === 1 ? 'it' : 'them'} on the Race page first.
+            </p>
+          )}
           <p class="callout">Results are locked, referee tablets are signed out, and phones and the projector keep showing the champion and final results until another event is made active.</p>
           <p class="footnote secondary">You can reopen it later with Make active.</p>
           <div class="sheet-actions">

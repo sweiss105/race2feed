@@ -1,6 +1,6 @@
 # Race to Feed — Event App Design
 
-Status: **Agreed design, pre-implementation** · 2026-11-23
+Status: **Implemented; kept current with the code** · 2026-11-23
 
 This app replaces the `Race_to_Feed_Final_Bracket` Google Sheet that we used to run the event. It handles seeding, brackets, live timing, referee input, race control, participant lookup and projector screens. It runs on Cloudflare (Workers + a Durable Object) at `r2f.weiss-audio.com`.
 

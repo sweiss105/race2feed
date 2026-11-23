@@ -1,5 +1,4 @@
 import { DurableObject } from 'cloudflare:workers';
-import { officialMs } from '@race2feed/engine';
 import type { Env } from './worker';
 import { applyCommand } from './core/apply';
 import { fail, newEvent, type Actor, type Command, type CommandResult, type LiveEvent } from './core/model';

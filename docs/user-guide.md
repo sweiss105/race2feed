@@ -64,7 +64,7 @@ The console's menu on the left has these sections for admin: **Race, Teams, Setu
 3. Press **Create event**.
 4. If no event is active and none has just ended, the new event becomes **Active** straight away. Otherwise, press **Make active** on its row when you're ready. (Creating next year's event right after ending this one doesn't take the champion off everyone's phones.)
 
-Only one event is active at a time. Older events are kept for history, and you can download any of them with the **CSV** or **JSON** links on its row.
+Only one event is active at a time. Older events are kept for history, and you can download any of them with the **CSV** or **JSON** links on its row. In the CSV, text that starts with `=`, `+`, `-` or `@` is exported with a leading apostrophe so spreadsheets show it as text instead of running it as a formula.
 
 ### 2. Add teams
 

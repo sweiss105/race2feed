@@ -1,0 +1,365 @@
+# Race to Feed — Event App Design
+
+Status: **Agreed design, pre-implementation** · 2026-11-23
+
+This app replaces the `Race_to_Feed_Final_Bracket` Google Sheet that we used to run the event. It handles seeding, brackets, live timing, referee input, race control, participant lookup and projector screens. It runs as a single self-hosted service on a home server.
+
+---
+
+## 1. Background: what the spreadsheet does
+
+These are the behaviors the app must reproduce. Section 3 covers where the app deliberately generalizes them.
+
+- **50 teams in 3 categories:** High School (14), Community (16), Corporate (20). Each team races at a numbered table.
+- **Seeding (rounds 1–4):** teams are split into Group A (26 teams, tables 1–26) and Group B (24 teams, tables 1–24).
+  - Group A races rounds 1 and 3, and Group B races rounds 2 and 4.
+  - Each team has two timed runs (m:ss). Teams are ranked within their category by total time. Ties go to the faster single run, then to sheet order. `DNS` ranks last.
+- **Bracket placement by category seed:**
+
+  | Seeds | High School | Community | Corporate |
+  |---|---|---|---|
+  | 1–4 | Gold | Gold | Gold |
+  | 5–8 | Silver | Silver | Silver |
+  | 9–12 | Bronze (9–14, 6 teams) | Bronze | Bronze |
+  | 13–16 | | Copper | Copper |
+  | 17–20 | | | Tin |
+
+- **4-team brackets:** semis 1v4 and 2v3, then a final and a 3rd-place race.
+- **6-team bracket (HS Bronze):**
+  - First race: 9v14, 10v13, 11v12.
+  - The three winners then race for places 1–3, and the three losers race for places 4–6.
+- **Round order:**
+  - Lower brackets (Bronze, Copper, Tin, HS Bronze) race in rounds 5 and 7.
+  - Upper brackets (Gold, Silver) race in rounds 6 and 8.
+  - Round 9 is the Grand Championship: a single 3-team race between the three Gold winners.
+- **Final standings:** every team gets a place within its category (Gold = 1–4, Silver = 5–8, …).
+- **Projector:** about 36 display tabs: per-round table lists, seeding results, per-bracket diagrams, final standings and a champion screen. Someone had to switch tabs by hand.
+- **Result entry:** in bracket rounds, winners were entered by hand (type `1`). The bag total ("9,816 bags of food packed!") was typed text.
+
+Weaknesses this design fixes:
+- The sheet is hard-wired to 50 teams and fixed category sizes.
+- Time entry relies on a trick: "4:05" is parsed as hours:minutes and then rescaled.
+- The projector needs manual tab switching.
+- There's no concurrency control or audit trail.
+- There's no live timing.
+
+---
+
+## 2. Goals and non-goals
+
+**Goals**
+- Run a full event end to end without a spreadsheet: setup, seeding, brackets, the Grand Championship and final standings.
+- Support any number of teams, categories and venue tables.
+- Live timing from one master clock, with finish times captured by referees on tablets.
+- Race start and finish driven from Bitfocus Companion (Stream Deck).
+- A read-only participant view on phones, with team search, highlighting and "your next table".
+- A projector view that follows the event automatically.
+- Deploy with Docker Compose on a home server.
+
+**Non-goals (for now)**
+- Registration or payment.
+- Running more than one event at the same time. Past events are kept for history, but only one event is live.
+- Offline operation without the server. See Risks (§12).
+
+---
+
+## 3. Event model
+
+### 3.1 Terms
+
+| Term | Meaning |
+|---|---|
+| **Event** | One competition day. Every event is kept for history; one is active. |
+| **Category** | A division such as High School, Community or Corporate. Teams are ranked within their category. |
+| **Team** | Name and category. |
+| **Table** | One physical race station, numbered 1..T. One team per table per round. |
+| **Station** | A fixed **pair of adjacent tables** (1&2, 3&4, …) covered by one referee tablet. With an odd table count, the last station is a single table. |
+| **Seeding group** | A set of teams that race in the same seeding rounds. |
+| **Bracket** | A seeded set of 4–7 teams within a category (Gold, Silver, Bronze, Copper, Tin, …). |
+| **Round** | One start-to-finish run of the master clock. All races in a round start together. |
+| **Race** | A group of 1–3 teams whose finish times are compared: a seeding run, a head-to-head or a 3-team race. One race can span two stations. |
+
+### 3.2 Setup (admin)
+
+1. **Create the event.** Enter the name, date and **venue table count** (e.g. 26).
+2. **Import teams from CSV** (`team,category`), then add, edit or remove teams in the admin page. Late entries are allowed until seeding starts.
+3. **Seeding groups (auto-suggested, editable):**
+   - The app creates the fewest groups that fit the table count (e.g. 50 teams with 26 tables gives A = 26 and B = 24).
+   - It keeps categories together within a group where possible, and assigns tables in order.
+   - Admin can move teams between groups and tables. Duplicate table assignments are rejected.
+4. **Bracket plan (auto-suggested per category, editable until seeding locks):**
+   - Split the category's seeds into brackets of 4, in tier order: Gold, Silver, Bronze, Copper, Tin, then generic names.
+   - Leftover teams (1–3) are folded into the **last** bracket, which becomes 5, 6 or 7 teams. For example, HS 14 teams gives 4 + 4 + 6.
+   - Admin can change bracket sizes (4–7) and rename tiers.
+   - A category with fewer than 4 teams gets one bracket of that size. A size of 2–3 skips the heats and races once, ranked by time.
+5. **Grand Championship:** by default the winner of each category's top bracket. Admin can turn this on or off.
+6. **Credentials:** set the admin and race-control passwords, pair referee tablets (§9) and create a Companion API key.
+
+### 3.3 Round structure
+
+- **Seeding rounds:** each seeding group races twice, and groups take turns (A, B, A, B; with three groups, A, B, C, A, B, C). This gives `2 × groups` seeding rounds.
+- **Bracket rounds:**
+  - Brackets are split into a **lower set** (each category's brackets below Silver) and an **upper set** (Gold and Silver).
+  - The order is: lower set first race, upper set first race, lower set placement race, upper set placement race. This matches rounds 5–8 in the sheet.
+  - If a set needs more teams than there are tables, the app splits it into additional rounds and keeps whole brackets together.
+- **Grand Championship:** one final round.
+- **Tables in a bracket round:** the brackets in a round are laid out across tables in order (category, then tier). Each race's teams sit on consecutive tables. The app never splits a 2-team race across two stations when it can avoid it; a 3-team race always spans two stations.
+
+### 3.4 Bracket formats ("heats then placement")
+
+One rule covers every bracket size from 4 to 7 teams. Each team races exactly twice.
+
+1. **Heats (first race):**
+   - Pair seeds outside-in: best vs worst, second-best vs second-worst, and so on.
+   - If the bracket size is odd, the middle seed joins the last (closest-seeded) pair to make a 3-team heat.
+   - Heat winners are decided by time.
+2. **Placement (second race):**
+   - The **winners race:** all heat winners race for places 1..H, where H is the number of heats.
+   - The **others race:** everyone else races for places H+1..N.
+   - Places within each race are decided by time.
+
+| Size | Heats | Winners race | Others race |
+|---|---|---|---|
+| 4 | 1v4, 2v3 | 2 teams → places 1–2 (final) | 2 teams → places 3–4 (3rd-place race) |
+| 5 | 1v5, 2v4v3 | 2 → 1–2 | 3 → 3–5 |
+| 6 | 1v6, 2v5, 3v4 | 3 → 1–3 | 3 → 4–6 |
+| 7 | 1v7, 2v6, 3v5v4 | 3 → 1–3 | 4 → 4–7 |
+
+Sizes 4 and 6 reproduce the sheet's formats exactly.
+
+> **To confirm before build:**
+> - In the agreed example the 5-team heats were shown as `9v12, 10v11v13`. The rule above gives `9v13, 10v12v11` instead. Pick one and lock it in tests.
+> - The 7-team "others race" has 4 teams, which spans two stations. That works under the timing rules (§5).
+
+### 3.5 Ranking rules
+
+**Within a race:**
+1. Finishers, by time (fastest first).
+2. **DNF** (did not finish).
+3. **DNS** (did not start).
+
+**Exact tie** (equal to the hundredth of a second):
+- The race is flagged **TIE**, and race control must pick the order.
+- A round can't be advanced while any tie is unresolved.
+
+**Seeding rank within a category:**
+1. Teams with two finished runs rank above teams with fewer finished runs.
+2. Then by lowest total time.
+3. Then by fastest single run.
+4. Then by import order (the equivalent of the sheet's "higher on the sheet").
+
+**Final standings within a category:**
+- A team's place is the bracket's starting place (the sum of the sizes of the brackets above it) plus its place within the bracket.
+
+**Grand Championship:**
+- Ranked by time in its single race. The winner is the **Grand Champion**.
+
+---
+
+## 4. Round and race lifecycle
+
+```
+            Open next round                 all stations Ready
+ [Draft] ─────────────────▶ [Open] ───────────────────────────▶ [Armed]
+                              ▲  │                                  │
+                              │  │ race control overrides a station │ Companion START
+                              │  ▼                                  ▼
+                              │  (station: Ready / Excluded)    [Running]  ← master clock
+                              │                                     │  referees tap finishes
+                              │                                     │  race control: DNF / DNS / edit
+                              │                                     ▼
+                              │                       Companion FINISH (only when every team
+                              │                       has a time, DNF or DNS)
+                              │                                     ▼
+                              └────── Open next round ◀──────── [Finished] (results locked,
+                                       (blocked while ties          clock stopped/reset)
+                                        are unresolved)
+```
+
+- **Open:**
+  - Assignments for the round go out to referees, participants and the projector.
+  - Stations with no teams this round are excluded automatically.
+  - Each referee presses **Ready**, which locks in.
+- **Start gate:**
+  - Companion **START** is refused until every active station is Ready (or overridden).
+  - Race control can override any station: force it Ready, set it back to not ready, or exclude it.
+- **Running:**
+  - The server starts the master clock.
+  - Referee tablets show one button per team at their tables.
+- **Finish gate:**
+  - Companion **RACE FINISHED** is refused until every team in the round has a time, DNF or DNS.
+  - Race control sees the list of teams still outstanding and can mark them DNF or DNS.
+  - When finish succeeds, the clock stops and resets, and the round's results are locked.
+- **Next round:** race control reviews results, resolves any ties, then presses **Open next round**.
+  - Matchups for the next round are generated from the locked results and published at that moment, not before.
+- **Late corrections:**
+  - Race control can edit a finished round's results until a later round that depends on them is opened.
+  - After that, an edit needs an explicit **unlock**. It warns which later matchups would change and regenerates any that haven't run yet.
+
+---
+
+## 5. Timing
+
+- **One master clock per round,** owned by the server and started by Companion START.
+- **Times are stamped on the tablet and synced to the server:**
+  - Each referee tablet continually estimates its clock offset from the server, NTP-style: repeated ping round trips over the live connection, using a median of recent samples.
+  - A tap is recorded as `tablet_time_at_touch + offset`, and elapsed time is that minus the round start.
+  - If a tap is made while Wi-Fi is down, the tablet **queues** it and sends it with its original timestamp when the connection comes back. The result is unaffected.
+- **Precision and display:**
+  - Times are stored in milliseconds and displayed to hundredths (`m:ss.hh`).
+  - Ties are compared at the displayed precision (hundredths).
+- **Validation:** taps before the start or after finish are rejected. Each team gets one active time; the first tap wins unless it's undone or edited.
+- **Head-to-head across stations:** every time is on the same master clock, so a race spanning stations (3- or 4-team races) needs no special handling.
+
+---
+
+## 6. Corrections and audit
+
+- **Referee undo:** a referee can undo their own tap for about **10 seconds**. The window length is configurable.
+- **After the undo window:** only **race control** can edit a time, clear it, or set DNF or DNS.
+- **Audit log:** every state change goes in an append-only log, viewable in race control:
+  - taps, undos, edits, overrides, tie decisions, round transitions and logins
+  - each entry records who, which device, when, and the old and new values
+
+---
+
+## 7. Pages
+
+### 7.1 Admin (password)
+- Manage events, import and edit teams, set the venue table count.
+- Edit seeding groups and table assignments.
+- Edit the bracket plan and set Grand Championship eligibility.
+- Manage credentials and the Companion API key.
+- Type the **bag total** shown on the champion screen.
+
+### 7.2 Race control (password)
+- **Grid of every station:** each shows not ready / Ready / excluded, the teams with their times and status, and any overrides.
+- **Master clock** and round state, plus a "waiting on N teams" list with one-click DNF and DNS.
+- **Tie resolution**, time edits and clears, and the audit log.
+- **Open next round,** with a results review first.
+- **Referee pairing:** a QR code per station, a paired-device list, and revoke.
+- **Projector override:** pin any screen (e.g. the champion reveal) or return to automatic.
+- **Backup controls:** START and FINISH buttons that follow the same gates as Companion.
+
+### 7.3 Referee (paired tablet, QR)
+- Shows the station's table numbers and the current round's teams.
+- **Ready** button. Once pressed it stays locked; only race control can clear it.
+- While running, one large button per team. A tap shows that team's time and an **Undo** countdown.
+- Shows connection status and any taps queued offline.
+
+### 7.4 Participant (public, read-only, phone-first)
+- **Team search** highlights the team in every bracket and list where it appears.
+- The phone **remembers the team** (local storage), so later visits open straight to it.
+- **"Your next race":** round, table number and opponent(s). Before the round is opened it says "waiting for Round N to finish".
+- **Brackets:** all categories and tiers, live-updating.
+- **Race times:** the team's and its opponents' finish times, plus seeding totals and rank within category.
+- **Full schedule:** every team's table for the current round.
+
+### 7.5 Projector (public URL, full-screen)
+- **Changes screen automatically by round state:**
+
+  | State | Screen |
+  |---|---|
+  | Open | Table assignments for the round |
+  | Running | Large master clock and a finish ticker |
+  | Finished | Updated seeding results, brackets or standings |
+  | Event complete | Final standings, then the champion |
+
+- Race control can **pin** any screen, which overrides automatic mode.
+- Screens match the sheet's displays: per-round table lists, seeding results by category, bracket diagrams, final standings and the champion with the bag total. The colours of the Gold, Silver, Bronze, Copper and Tin tiers are kept.
+
+---
+
+## 8. Bitfocus Companion module
+
+A custom Companion module (`companion-module-race2feed`) connects to the server with the API key over a live (WebSocket) connection.
+
+- **Actions:** Start race, Race finished, and optionally Pin projector screen and Return projector to automatic.
+- **Feedbacks** (button colours):
+  - START is green when all stations are Ready and red or grey otherwise.
+  - FINISH is amber while teams are outstanding and green when it can be pressed.
+  - The round state shows as a colour.
+- **Variables:**
+  - `clock` (m:ss while running)
+  - `round` (e.g. "Round 5")
+  - `ready_count`, `station_count`
+  - `outstanding` (teams without a result)
+  - `state`
+- **Rejected commands:** if START or FINISH is refused because of a gate, the module shows the reason (e.g. "3 stations not ready") as a variable and briefly flashes the button.
+
+---
+
+## 9. Access and security
+
+The server is reachable from the internet, so:
+
+| Role | How they authenticate |
+|---|---|
+| Admin | Password |
+| Race control | Password (separate from admin) |
+| Referee | Device token, paired by scanning a station's QR code in race control. Bound to one station and revocable. |
+| Companion | API key created in admin. Can be rotated. |
+| Participant, projector | Public, read-only |
+
+- HTTPS terminates at the user's existing reverse proxy, which must pass WebSockets through.
+- Login attempts are rate-limited, session cookies are `HttpOnly` and `Secure`, and every write endpoint requires an authenticated role.
+- Public endpoints expose only what the participant and projector pages show. They expose no device, audit or credential data.
+
+---
+
+## 10. Architecture (proposed)
+
+- **One service** serves the web pages, a JSON API and a WebSocket hub. The WebSocket hub pushes state changes to every page and to Companion.
+- **Proposed stack (open to change):**
+  - TypeScript on Node.js for the server, so the Companion module (also Node and TypeScript) can share types.
+  - SQLite for storage.
+  - A lightweight front end served by the same container.
+- **The server is the single source of truth.** Pages subscribe to the live state, and everything is recomputed from stored races and results, nothing from client-side state. This keeps the rules testable and the pages simple.
+- **Core data:**
+  - Event, Category, Team, Table/Station, SeedingGroup, Bracket, Round, Race
+  - RaceEntry (team, table, time in ms, status: pending / finished / DNF / DNS)
+  - TieDecision, Device, ApiKey, AuditLog
+- **The rules engine is a pure module with no I/O:** group and table assignment, seeding rank, bracket plan, heat and placement generation, and final standings. This makes it straightforward to unit-test.
+
+---
+
+## 11. Deployment
+
+- **Docker Compose:** one container, with a named volume for the SQLite database and backups.
+- **Configuration through environment variables:** public base URL, initial admin password, and the port to listen on.
+- **Behind the user's reverse proxy** for HTTPS and WebSockets.
+- **Backups:** automatic database snapshots at each round transition, plus an admin "export event" option (JSON and CSV).
+
+---
+
+## 12. Risks
+
+| Risk | Mitigation |
+|---|---|
+| **Venue internet outage.** Timing, start and finish all depend on reaching the home server. | Queued taps cover short dropouts (§5). Bring a phone hotspot as a backup uplink for race control and the Companion machine. A local fallback (a venue box) can be designed later if needed. |
+| A referee tablet is lost or misused | Pairing is per device and revocable, and taps are audit-logged. |
+| A wrong time decides a head-to-head | The referee can undo, race control can edit, results are reviewed before the next round opens, and every change is logged. |
+| The home server is exposed to the internet | Role authentication, rate limiting and a read-only public surface (§9). |
+
+---
+
+## 13. Acceptance: reproduce the last event
+
+The previous event's data, taken from the sheet, is the regression fixture:
+
+- **Seeding:** importing the 50 teams with their groups, tables and two seeding times must reproduce the sheet's **rank within category** for every team. That includes the tie rules and the m:ss to seconds conversion.
+- **Brackets:**
+  - The bracket plan must reproduce the sheet's assignments (HS 4/4/6, Community 4/4/4/4, Corporate 4/4/4/4/4).
+  - Round 5–8 matchups must reproduce the sheet's table assignments.
+- **Results:** feeding in the recorded race outcomes must reproduce:
+  - the sheet's **final standings** for every category
+  - the Grand Champion (Riverbend Middle School)
+- **Note on bracket-round timing:** the sheet recorded only winners in bracket rounds, not times. The fixture uses synthetic times that agree with those winners.
+
+---
+
+## 14. Future features
+
+The user has more features in mind; add them here as they are defined.
+
+- _TBD_

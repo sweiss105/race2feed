@@ -12,15 +12,22 @@ function teams(counts: number[]): Team[] {
 }
 
 describe('suggestSeedingGroups', () => {
-  it('splits 14/16/20 on 26 tables into two groups of 25', () => {
+  it('fills groups in category order: 14/16/20 on 26 tables gives 26 and 24', () => {
     const ts = teams([14, 16, 20]);
     const { groups, tableOf } = suggestSeedingGroups(cats, ts, 26);
     expect(groups.map((g) => g.id)).toEqual(['A', 'B']);
-    expect(groups.map((g) => g.teamIds.length)).toEqual([25, 25]);
-    const inA = (c: string) => groups[0]!.teamIds.filter((id) => id.startsWith(c)).length;
-    expect([inA('hs'), inA('cm'), inA('co')]).toEqual([7, 8, 10]);
-    expect(groups[0]!.teamIds.map((id) => tableOf[id])).toEqual(Array.from({ length: 25 }, (_, i) => i + 1));
-    expect(groups[0]!.teamIds.slice(0, 2)).toEqual(['hs0', 'hs1']);
+    expect(groups.map((g) => g.teamIds.length)).toEqual([26, 24]);
+    const count = (g: number, c: string) => groups[g]!.teamIds.filter((id) => id.startsWith(c)).length;
+    expect([count(0, 'hs'), count(0, 'cm'), count(0, 'co')]).toEqual([14, 12, 0]);
+    expect([count(1, 'hs'), count(1, 'cm'), count(1, 'co')]).toEqual([0, 4, 20]);
+    expect(groups[0]!.teamIds.map((id) => tableOf[id])).toEqual(Array.from({ length: 26 }, (_, i) => i + 1));
+    expect(groups[1]!.teamIds.map((id) => tableOf[id])).toEqual(Array.from({ length: 24 }, (_, i) => i + 1));
+  });
+
+  it('keeps a small category whole when it fits', () => {
+    const { groups } = suggestSeedingGroups(cats, teams([30, 3]), 26);
+    expect(groups.map((g) => g.teamIds.length)).toEqual([26, 7]);
+    expect(groups[1]!.teamIds.filter((id) => id.startsWith('cm')).length).toBe(3);
   });
 
   it('fits exactly at capacity in one group', () => {

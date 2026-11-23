@@ -3,8 +3,10 @@ import type { Category, EventInput, SeedingGroup, Team } from './types';
 const groupId = (i: number) => String.fromCharCode(65 + i);
 
 /**
- * Fewest groups that fit the tables. Each category is split evenly across
- * groups; leftover teams go one at a time to the currently smallest group.
+ * Fewest groups that fit the tables. Teams are taken in category order, then
+ * team order, and each group is filled to the table count before the next one
+ * starts, so categories stay together and only the last group is short.
+ * Tables are numbered 1..k in that order within each group.
  */
 export function suggestSeedingGroups(
   categories: Category[],
@@ -12,25 +14,14 @@ export function suggestSeedingGroups(
   tableCount: number,
 ): { groups: SeedingGroup[]; tableOf: Record<string, number> } {
   const g = Math.max(1, Math.ceil(teams.length / tableCount));
-  const members: Team[][] = Array.from({ length: g }, () => []);
   const catIndex = new Map(categories.map((c, i) => [c.id, i]));
-
-  for (const category of categories) {
-    const own = teams.filter((t) => t.categoryId === category.id).sort((a, b) => a.order - b.order);
-    const base = Math.floor(own.length / g);
-    let next = 0;
-    for (const group of members) group.push(...own.slice(next, (next += base)));
-    for (const team of own.slice(next)) {
-      const smallest = members.reduce((best, grp, i) => (grp.length < members[best]!.length ? i : best), 0);
-      members[smallest]!.push(team);
-    }
-  }
+  const ordered = [...teams].sort(
+    (a, b) => (catIndex.get(a.categoryId) ?? 0) - (catIndex.get(b.categoryId) ?? 0) || a.order - b.order,
+  );
 
   const tableOf: Record<string, number> = {};
-  const groups = members.map((list, i) => {
-    list.sort(
-      (a, b) => (catIndex.get(a.categoryId) ?? 0) - (catIndex.get(b.categoryId) ?? 0) || a.order - b.order,
-    );
+  const groups = Array.from({ length: g }, (_, i) => {
+    const list = ordered.slice(i * tableCount, (i + 1) * tableCount);
     list.forEach((t, k) => (tableOf[t.id] = k + 1));
     return { id: groupId(i), teamIds: list.map((t) => t.id) };
   });

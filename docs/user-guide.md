@@ -93,7 +93,7 @@ Things to know about importing:
 ### 3. Seeding groups, tables and brackets
 
 Go to **Setup** and press **Suggest groups and brackets**. The app:
-- **Splits teams into seeding groups** that fit your tables (for example, 50 teams with 26 tables gives Group A with 26 and Group B with 24). It keeps categories together where possible and gives each team a table.
+- **Splits teams into seeding groups** that fit your tables (for example, 50 teams with 26 tables gives Group A with 26 and Group B with 24). It fills each group in category order, so categories stay together and only the last group is short. That last group can be much smaller (27 teams on 26 tables gives 26 and 1), so move teams between groups to even them out if you want. Each team gets a table.
 - **Suggests a bracket plan** for each category, in fours (Gold, Silver, Bronze, Copper, Tin). Leftover teams join the last bracket, making it 5, 6 or 7 teams.
 
 You can then adjust:

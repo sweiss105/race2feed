@@ -18,12 +18,6 @@
 .segmented button { min-height: 2.25rem; border: 0; border-radius: calc(var(--radius-m) - 2px); background: transparent; font-weight: 500; font-size: 0.9375rem; cursor: pointer; }
 .segmented button[aria-selected="true"] { background: var(--surface); box-shadow: var(--shadow-s); font-weight: 600; }
 
-.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border-radius: var(--radius-l); overflow: hidden; }
-.list > li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-height: 3rem; }
-.list > li + li { border-top: 0.5px solid var(--separator); }
-.list .num { min-width: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--secondary-label); }
-.list .grow { flex: 1; min-width: 0; }
-.list li.me { background: var(--highlight); }
 .section-title { margin: var(--space-5) var(--space-1) var(--space-2); }
 
 .p-ended { margin: var(--space-4) 0 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-m); background: var(--surface-2); }

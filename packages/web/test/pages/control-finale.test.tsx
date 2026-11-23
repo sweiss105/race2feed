@@ -40,6 +40,14 @@ describe('penalty review', () => {
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'decidePenalty', tapId: 'pen-1', decision: 'approve', reasonId: 'count' }));
   });
 
+  it("picks up the referee's reason when the note arrives after the card is shown", () => {
+    const e = withPending();
+    const noNote = { ...e, taps: e.taps.map((t) => (t.id === 'pen-1' ? { ...t, review: { status: 'pending' as const } } : t)) };
+    const { rerender } = console_(noNote, async () => ({ ok: true }));
+    rerender(<ConsolePage me={me('control')} view={ctlViewOf(e)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    expect((within(screen.getByRole('region', { name: 'Penalties to review' })).getByLabelText('Penalty') as HTMLSelectElement).value).toBe('early');
+  });
+
   it('rejects a penalty', async () => {
     const send = vi.fn(async () => ({ ok: true }));
     console_(withPending(), send);

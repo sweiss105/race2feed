@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { pairReferee, setUpEvent, TEAMS } from './helpers';
+import { pairReferee, readyAndStart, setUpEvent, timeEveryone, TEAMS } from './helpers';
 
 const OUT = 'test-results/screens';
 /** Waits for entrance animations (projector fades, undo bar) to settle before capturing. */
@@ -7,29 +7,6 @@ const shot = async (page: Page, name: string) => {
   await page.waitForTimeout(600);
   await page.screenshot({ path: `${OUT}/${name}.png`, fullPage: false });
 };
-
-async function readyAndStart(admin: Page) {
-  await expect(admin.locator('.pill')).toHaveText('open');
-  const notReady = admin.locator('.station').getByRole('button', { name: 'Ready', exact: true });
-  while (await notReady.count()) {
-    await notReady.first().click();
-    await admin.waitForTimeout(150);
-  }
-  await expect(notReady).toHaveCount(0);
-  await admin.getByRole('button', { name: 'Start' }).click();
-  await expect(admin.locator('.pill')).toHaveText('running');
-}
-
-async function timeEveryone(admin: Page, times: Record<string, string>) {
-  const results = admin.getByRole('region', { name: 'Results' });
-  for (const [name, time] of Object.entries(times)) {
-    const row = results.locator('tr', { has: admin.getByRole('cell', { name, exact: true }) });
-    if ((await row.count()) === 0) continue;
-    await row.getByLabel('Time (m:ss.hh)').fill(time);
-    await row.getByRole('button', { name: 'Set' }).click();
-    await expect(row).toContainText(time);
-  }
-}
 
 test('screens for visual review', async ({ browser }) => {
   test.setTimeout(180_000);

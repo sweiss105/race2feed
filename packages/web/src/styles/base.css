@@ -86,3 +86,11 @@ button, input, select, textarea { font: inherit; color: inherit; }
   *, *::before, *::after { transition-duration: 1ms !important; animation-duration: 1ms !important; scroll-behavior: auto !important; }
   .btn:active:not(:disabled) { transform: none; }
 }
+
+/* Grouped list (inset, iOS-style), shared by every page. */
+.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border-radius: var(--radius-l); overflow: hidden; }
+.list > li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-height: 3rem; }
+.list > li + li { border-top: 0.5px solid var(--separator); }
+.list .num { min-width: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--secondary-label); }
+.list .grow { flex: 1; min-width: 0; }
+.list li.me { background: var(--highlight); }

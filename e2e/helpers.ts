@@ -46,3 +46,28 @@ export async function pairReferee(browser: Browser, admin: Page, viewport?: { wi
   await expect(ref.getByText('Tables 1 & 2')).toBeVisible();
   return ref;
 }
+
+/** Readies every station from the console, then starts the race. */
+export async function readyAndStart(admin: Page) {
+  await expect(admin.locator('.pill')).toHaveText('open');
+  const notReady = admin.locator('.station').getByRole('button', { name: 'Ready', exact: true });
+  while (await notReady.count()) {
+    await notReady.first().click();
+    await admin.waitForTimeout(150);
+  }
+  await expect(notReady).toHaveCount(0);
+  await admin.getByRole('button', { name: 'Start' }).click();
+  await expect(admin.locator('.pill')).toHaveText('running');
+}
+
+/** Enters a console time for each named team that races this round. */
+export async function timeEveryone(admin: Page, times: Record<string, string>) {
+  const results = admin.getByRole('region', { name: 'Results' });
+  for (const [name, time] of Object.entries(times)) {
+    const row = results.locator('tr', { has: admin.getByRole('cell', { name, exact: true }) });
+    if ((await row.count()) === 0) continue;
+    await row.getByLabel('Time (m:ss.hh)').fill(time);
+    await row.getByRole('button', { name: 'Set' }).click();
+    await expect(row).toContainText(time);
+  }
+}

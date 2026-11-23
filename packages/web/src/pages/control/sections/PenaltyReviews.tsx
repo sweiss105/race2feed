@@ -17,7 +17,7 @@ export function PenaltyReviews({ view }: { view: ControlView }) {
   const reasonName = (id: string | null) => view.penaltyReasons.find((r) => r.id === id)?.name ?? null;
   return (
     <section class="panel" aria-label="Penalties to review">
-      <h3 class="headline">Penalties to review{pending.length > 0 && <span class="pill open" style={{ marginLeft: 'var(--space-2)' }}>{pending.length}</span>}</h3>
+      <h3 class="headline">Penalties to review{pending.length > 0 && <span class="count-badge" aria-label={`${pending.length} waiting`}>{pending.length}</span>}</h3>
       {pending.length === 0 && <p class="callout secondary">All penalties decided.</p>}
       <div class="review-grid">
         {pending.map((r) => <ReviewCard key={r.tapId} review={r} view={view} />)}
@@ -43,7 +43,9 @@ export function PenaltyReviews({ view }: { view: ControlView }) {
 
 function ReviewCard({ review, view }: { review: Review; view: ControlView }) {
   const runner = useRunner();
-  const [reasonId, setReasonId] = useState(review.refereeReasonId ?? '');
+  // Follows the referee's pick (which may arrive after the card appears) until race control chooses.
+  const [picked, setReasonId] = useState<string | null>(null);
+  const reasonId = picked ?? review.refereeReasonId ?? '';
   const key = `review-${review.tapId}`;
   const refereeReason = view.penaltyReasons.find((r) => r.id === review.refereeReasonId);
   return (

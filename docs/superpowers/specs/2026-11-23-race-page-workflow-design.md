@@ -16,7 +16,9 @@ After the first live tests the event owner wants race control to be harder to ge
 6. Only one referee tab is live per tablet.
 7. A refused saved tap always tells the referee.
 8. The test gaps listed in the last review are closed.
-9. Race control and admin become one role with one password.
+9. Race control and admin become one role.
+10. The console is signed in to with an emailed one-time code through Cloudflare Access; passwords leave the app's screens.
+11. A referee gives their name when pairing a tablet, and the log shows it.
 
 ## Not in scope
 
@@ -39,6 +41,10 @@ After the first live tests the event owner wants race control to be harder to ge
 - **Close the listed test gaps.**
 - **Penalty switch moves to Settings.**
 - **Race control and admin are merged.** They are the same people.
+- **Console sign-in is Cloudflare Access with an emailed one-time code** and a list of allowed emails kept in Cloudflare's dashboard.
+- **One emergency password is kept as a Cloudflare secret**, with no password anywhere in the app's screens.
+- **Cloudflare Access is set up before the app change is deployed.**
+- **Referees enter their name when pairing.**
 
 ## Design
 
@@ -92,19 +98,32 @@ Calls made here, not by the owner:
 - Unchanged: the next round cannot open and the champion cannot be shown while a penalty is pending.
 - The switch reads **Time penalties** and sits in Settings under the event's settings. With the roles merged (below), everyone who signs in to the console can reach it. Companion's `penalties_enabled` variable is unchanged.
 
-### One console role
+### One console role, signed in through Cloudflare Access
 
-- The console has one sign-in and one password. The sign-in page loses its "Sign in as" choice.
-- Everyone who signs in sees every section: Race, Teams, Setup, Devices, Settings, Events and Log.
-- Settings has one password to change, labelled **Console password**. The race-control password is removed.
-- On the server the `control` role is removed and `admin` remains; every command either role could send is allowed for `admin`. The first-time password still comes from the `ADMIN_PASSWORD` secret.
-- **At deploy:** any stored race-control password and any race-control sign-in are deleted, so anyone signed in with the race-control password is signed out and signs in again with the console password. Log entries already written keep the name they were written with.
-- Referee tablets (pairing), Companion (API key), phones and the projector are unchanged.
-- **Consequence:** everyone running races can now also change setup before it is locked, change the password, end the event and download exports. The owner has said these are the same people.
-- Wording: the console and its documents say "race control" for the people and "console password" for the credential; the word "admin" stays only inside the code (call made here).
+**Role.** The `control` role is removed and `admin` remains; every command either could send is allowed for `admin`. Everyone who signs in sees every section: Race, Teams, Setup, Devices, Settings, Events and Log. The screens and guides say "race control" for the people; "admin" survives only in the code (call made here).
+
+**Normal sign-in.**
+- A Cloudflare Access application covers `r2f.weiss-audio.com/control`, `/control/*` and `/api/control/*`. Its one policy allows a list of email addresses, with one-time PIN as the sign-in method. The list is managed in Cloudflare's Zero Trust dashboard, not in the app.
+- The console page and every console request (commands, lists, export, and the console's live connection) move under `/api/control/`. The Worker accepts a console request only if it carries Access's signed token, checked against the team's public keys and the application's audience tag. Both values are Worker variables (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`). If either is missing the console is refused, never opened.
+- The person's email from the token is the actor name in the log.
+- Session length is set in Cloudflare (proposed: 7 days; the maximum is one month), so people sign in before event day.
+- Sign out sends the browser to Access's sign-out address.
+- Removed: the app's sign-in page, the password section in Settings, the `setPassword` command, the stored password and session tables' use for console sign-in, and the `ADMIN_PASSWORD` secret.
+
+**Emergency sign-in.**
+- For the case where Access or email is down. A separate address, `/emergency`, outside the Access application, shows a single password box. The password is the Worker secret `EMERGENCY_PASSWORD`; if the secret is not set, the address answers "not found".
+- A correct password sets a 12-hour session cookie and opens the same console, which then talks to `/api/emergency/…`, the same handlers reached without Access and gated by that cookie. Wrong attempts are rate-limited per address as sign-in is today.
+- Log entries from it are named "emergency sign-in". Nothing in the normal screens links to it; it is described in the user guide's troubleshooting section and the README.
+
+**Local development and tests.** `wrangler dev` has no Access in front of it. A Worker variable `DEV_CONSOLE_USER`, set only in `.dev.vars` and the test configuration, makes the Worker treat console requests as signed in as that name. It is refused if the request arrives on the production hostname (call made here).
+
+**Deploy order.** (1) Create the Access application and policy and confirm the sign-in page appears at `/control` on the current version, which then asks for the old password as well. (2) Set `ACCESS_TEAM_DOMAIN`, `ACCESS_AUD` and `EMERGENCY_PASSWORD`. (3) Deploy this version.
+
+**Unchanged:** Companion (API key), phones and the projector.
 
 ### Referee tablet
 
+- **Name at pairing.** After scanning the station code, the tablet asks "Your name" before it pairs (required, up to 40 characters). The name is stored with the device, shown in the Devices list as "Dana — Tables 5 & 6", and used as the actor in the log ("Dana (station 3)"). Every referee action is already logged: Ready, each finish tap, each penalty tap, each undo and each penalty note, with the time and the full detail; this change adds who.
 - **One live tab.** The first referee tab on a tablet holds a browser lock. A second tab shows "The referee page is already open in another tab on this tablet" and a **Use this tab instead** button; pressing it makes the first tab go idle with the same message. On a browser without the lock feature the page behaves as it does today.
 - **Refused saved taps.** A refusal for a saved tap is shown whichever sending loop received it, and names the round: "The saved tap for Alpha in round 3 was refused: …".
 
@@ -122,6 +141,7 @@ Calls made here, not by the owner:
 
 - **Auto-finish on the server (chosen)** against on the console page. A console timer stops if the laptop sleeps or the tab closes, and two open consoles would both fire. The server already owns the clock and the finish rules.
 - **Pending penalty with no time (chosen, owner's decision)** against keeping a hidden 5 seconds. Hidden time shows numbers nobody chose.
+- **Cloudflare Access in front of the console (chosen, owner's decision)** against building an emailed-code sign-in inside the app. Access is already part of the hosting, and the app then holds no sign-in secrets except the emergency one.
 - **Remove the race-control role outright (chosen)** against keeping two sign-ins with the same access. Two passwords for one job is one more thing to lose on the day.
 - **Browser lock for one live tab (chosen)** against sharing one queue between tabs. Sharing fixes the queue and leaves two screens that can both tap.
 

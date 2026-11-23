@@ -1,9 +1,10 @@
 import type { EntryResult, Team } from './types';
 import { officialMs } from './race';
+import { hundredths } from './time';
 
 /**
  * Rank within category by: finished runs (desc), total official time,
- * best single run, then team order.
+ * best single run (both at displayed hundredths), then team order.
  */
 export function rankSeeding(
   teams: Team[],
@@ -17,8 +18,8 @@ export function rankSeeding(
     return {
       team,
       finished: times.length,
-      total: times.reduce((sum, ms) => sum + ms, 0),
-      best: times.length ? Math.min(...times) : Infinity,
+      total: hundredths(times.reduce((sum, ms) => sum + ms, 0)),
+      best: times.length ? hundredths(Math.min(...times)) : Infinity,
     };
   });
 

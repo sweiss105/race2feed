@@ -21,8 +21,17 @@ describe('layoutTables', () => {
     expect(out.map((r) => r.tables)).toEqual([[1, 2], [3, 4, 5], [6, 7, 8], [9, 10]]);
   });
 
-  it('splits a head-to-head only when nothing can be moved', () => {
-    const out = layoutTables([race('a', 3), race('b', 2)]);
-    expect(out.map((r) => r.tables)).toEqual([[1, 2, 3], [4, 5]]);
+  it('moves a lone 3-team race behind the head-to-heads', () => {
+    const a = race('a', 3), b = race('b', 2);
+    const out = layoutTables([a, b]);
+    expect(out.map((r) => r.race)).toEqual([b, a]);
+    expect(out.map((r) => r.tables)).toEqual([[1, 2], [3, 4, 5]]);
+  });
+
+  it('never splits a head-to-head when a 3-team heat sits mid-round (9 + 8 teams)', () => {
+    const sizes = [2, 2, 2, 3, 2, 2, 2, 2];
+    const out = layoutTables(sizes.map((n, i) => race(`r${i}`, n)));
+    const split = out.filter((r) => r.race.length === 2 && r.tables[0]! % 2 === 0);
+    expect(split).toEqual([]);
   });
 });

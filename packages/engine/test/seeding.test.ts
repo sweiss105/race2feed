@@ -22,6 +22,12 @@ describe('rankSeeding', () => {
     expect(r).toEqual({ b: 1, a: 2 });
   });
 
+  it('compares totals at displayed hundredths, then the better single run', () => {
+    const ms = (v: number): EntryResult => ({ status: 'finished', rawMs: v, penaltiesMs: 0 });
+    const r = rankSeeding([team('a', 0), team('b', 1)], { a: ms(200_000), b: ms(190_000) }, { a: ms(200_000), b: ms(210_009) });
+    expect(r).toEqual({ b: 1, a: 2 });
+  });
+
   it('two finished runs beat one', () => {
     const r = rankSeeding([team('a', 0), team('b', 1)], { a: fin(100), b: fin(300) }, { a: dns, b: fin(300) });
     expect(r).toEqual({ b: 1, a: 2 });

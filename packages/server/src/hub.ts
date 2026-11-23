@@ -4,6 +4,8 @@ import type { Env } from './worker';
 import { applyCommand } from './core/apply';
 import { fail, newEvent, type Actor, type Command, type CommandResult, type LiveEvent } from './core/model';
 import { buildProgress, derive } from './core/results';
+import { companionView, controlView, publicRoundUpdate, publicView, refereeView } from './core/views';
+import { credentials, hasCredentials, type Credentials } from './http';
 import { hashPassword, randomToken, sha256Hex, verifyPassword, type StoredPassword } from './auth/crypto';
 import { LOCKOUT_WINDOW_MS, loginAllowed } from './auth/ratelimit';
 
@@ -16,7 +18,31 @@ export type HubCommand =
   | { type: 'createPairingCode'; station: number }
   | { type: 'revokeDevice'; deviceId: string };
 
-export interface Credentials { session?: string; device?: string; apiKey?: string }
+export type { Credentials };
+
+interface Attachment { actor: Actor; cred: Credentials }
+
+const PUBLIC: Actor = { role: 'public', label: 'public' };
+const PUBLIC_INTERVAL_MS = 1000;
+
+/** Commands after which participant phones get a full snapshot instead of a round update. */
+function needsSnapshot(cmd: Command | HubCommand, current: number): boolean {
+  switch (cmd.type) {
+    case 'openNextRound': case 'finishRace': case 'decideTie': case 'pinProjector':
+    case 'removePenalty': case 'activateEvent':
+    case 'importTeams': case 'addTeam': case 'renameTeam': case 'removeTeam': case 'setTableCount':
+    case 'suggestSetup': case 'setGroups': case 'setBrackets': case 'setGrandChampionship':
+    case 'lockSetup': case 'unlockSetup': case 'setBagTotal':
+      return true;
+    case 'setResult': case 'addPenalty':
+      return cmd.round < current;
+    default:
+      return false;
+  }
+}
+
+const tagFor = (a: Actor) =>
+  a.role === 'admin' || a.role === 'control' ? 'control' : a.role === 'referee' ? `referee:${a.station}` : a.role;
 
 const SESSION_MS = 12 * 60 * 60 * 1000;
 const PAIRING_MS = 10 * 60 * 1000;
@@ -46,6 +72,7 @@ CREATE TABLE IF NOT EXISTS login_failures (ip TEXT, at INTEGER);
 export class Hub extends DurableObject<Env> {
   private sql: SqlStorage;
   private active: LiveEvent | null = null;
+  private lastPublicSent = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -152,13 +179,11 @@ export class Hub extends DurableObject<Env> {
       this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify(event), event.id);
       this.audit(event.id, actor, result.audit.action, result.audit.detail);
     });
+    const previousRound = this.active.round.current;
     this.active = event;
-    this.afterChange(cmd as Command);
+    await this.afterChange(cmd as Command, previousRound);
     return result;
   }
-
-  /** Hook for live updates (WebSockets). */
-  protected afterChange(_cmd: Command | HubCommand): void {}
 
   private async hubCommand(actor: Actor, cmd: HubCommand): Promise<CommandResult | { ok: true; reply: unknown }> {
     const now = Date.now();
@@ -184,7 +209,7 @@ export class Hub extends DurableObject<Env> {
           this.sql.exec('UPDATE events SET active = CASE WHEN id = ? THEN 1 ELSE 0 END', cmd.eventId);
         });
         this.active = this.loadActive();
-        this.afterChange(cmd);
+        await this.afterChange(cmd);
         return reply({ eventId: cmd.eventId });
       }
       case 'setPassword': {
@@ -218,8 +243,130 @@ export class Hub extends DurableObject<Env> {
       }
       case 'revokeDevice':
         this.sql.exec('UPDATE devices SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL', now, cmd.deviceId);
-        this.afterChange(cmd);
+        await this.afterChange(cmd);
         return reply(null);
+    }
+  }
+
+  // ---------- live connections ----------
+
+  async fetch(request: Request): Promise<Response> {
+    if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Expected WebSocket', { status: 426 });
+    let actor = PUBLIC;
+    let cred: Credentials = {};
+    if (new URL(request.url).searchParams.get('role') !== 'public') {
+      cred = credentials(request);
+      if (hasCredentials(cred)) {
+        const found = await this.authenticate(cred);
+        if (!found) return new Response('Unauthorized', { status: 401 });
+        actor = found;
+      }
+    }
+    const [client, server] = Object.values(new WebSocketPair()) as [WebSocket, WebSocket];
+    this.ctx.acceptWebSocket(server, [tagFor(actor)]);
+    server.serializeAttachment({ actor, cred } satisfies Attachment);
+    server.send(this.initialMessage(actor));
+    return new Response(null, { status: 101, webSocket: client });
+  }
+
+  async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
+    const att = ws.deserializeAttachment() as Attachment;
+    let msg: { type?: string; t0?: unknown; id?: unknown; cmd?: unknown };
+    try {
+      msg = JSON.parse(typeof message === 'string' ? message : new TextDecoder().decode(message));
+    } catch {
+      return;
+    }
+    let actor = att.actor;
+    if (actor.role !== 'public') {
+      const current = await this.authenticate(att.cred);
+      if (!current) {
+        ws.close(4401, 'unauthorized');
+        return;
+      }
+      actor = current;
+    }
+    if (msg.type === 'ping') {
+      ws.send(JSON.stringify({ type: 'pong', t0: msg.t0, t1: Date.now() }));
+      return;
+    }
+    if (msg.type === 'cmd') {
+      const cmd = msg.cmd as { type?: unknown } | undefined;
+      const result = actor.role === 'public' || !cmd || typeof cmd.type !== 'string'
+        ? fail('forbidden', 'You are not allowed to do that.')
+        : await this.command(actor, cmd as Command);
+      const { ok } = result;
+      const extra = ok ? ('reply' in result && result.reply !== undefined ? { reply: result.reply } : {})
+        : { code: (result as { code: string }).code, message: (result as { message: string }).message, detail: (result as { detail?: unknown }).detail };
+      ws.send(JSON.stringify({ type: 'ack', id: msg.id, ok, ...extra }));
+    }
+  }
+
+  async webSocketClose(): Promise<void> {}
+
+  async alarm(): Promise<void> {
+    this.sendPublicRound();
+  }
+
+  private initialMessage(actor: Actor): string {
+    const e = this.active;
+    if (!e) return JSON.stringify({ type: actor.role === 'public' ? 'snapshot' : 'view', view: null });
+    const d = derive(e);
+    switch (actor.role) {
+      case 'public': return JSON.stringify({ type: 'snapshot', view: publicView(e, d) });
+      case 'companion': return JSON.stringify({ type: 'view', view: companionView(e, d) });
+      case 'referee': return JSON.stringify({ type: 'view', view: refereeView(e, d, actor.station ?? 0) });
+      default: return JSON.stringify({ type: 'view', view: controlView(e, d, this.controlExtras()) });
+    }
+  }
+
+  private controlExtras() {
+    const id = this.active?.id ?? '';
+    return {
+      devices: this.sql.exec('SELECT id, station, label, created_at, revoked_at, last_seen FROM devices WHERE event_id = ? ORDER BY station', id).toArray(),
+      audit: this.sql.exec('SELECT at, actor, action, detail FROM audit WHERE event_id = ? ORDER BY id DESC LIMIT 50', id).toArray(),
+    };
+  }
+
+  private send(tag: string, message: string) {
+    for (const ws of this.ctx.getWebSockets(tag)) {
+      try { ws.send(message); } catch { /* socket already closing */ }
+    }
+  }
+
+  private sendPublicRound() {
+    if (!this.active) return;
+    this.lastPublicSent = Date.now();
+    this.send('public', JSON.stringify({ type: 'round', update: publicRoundUpdate(this.active, derive(this.active)) }));
+  }
+
+  /** Pushes fresh views to every connected role after a change. */
+  private async afterChange(cmd: Command | HubCommand, previousRound = this.active?.round.current ?? 0): Promise<void> {
+    if (cmd.type === 'revokeDevice') {
+      for (const ws of this.ctx.getWebSockets()) {
+        if ((ws.deserializeAttachment() as Attachment).actor.deviceId === cmd.deviceId) ws.close(4401, 'device revoked');
+      }
+    }
+    const e = this.active;
+    if (!e) return;
+    const d = derive(e);
+    this.send('control', JSON.stringify({ type: 'view', view: controlView(e, d, this.controlExtras()) }));
+    this.send('companion', JSON.stringify({ type: 'view', view: companionView(e, d) }));
+    const stations = new Set<number>();
+    for (const ws of this.ctx.getWebSockets()) {
+      const { actor } = ws.deserializeAttachment() as Attachment;
+      if (actor.role === 'referee' && actor.station !== undefined) stations.add(actor.station);
+    }
+    for (const s of stations) this.send(`referee:${s}`, JSON.stringify({ type: 'view', view: refereeView(e, d, s) }));
+
+    if (needsSnapshot(cmd, previousRound)) {
+      await this.ctx.storage.deleteAlarm();
+      this.lastPublicSent = Date.now();
+      this.send('public', JSON.stringify({ type: 'snapshot', view: publicView(e, d) }));
+    } else if (Date.now() - this.lastPublicSent >= PUBLIC_INTERVAL_MS) {
+      this.sendPublicRound();
+    } else if ((await this.ctx.storage.getAlarm()) === null) {
+      await this.ctx.storage.setAlarm(this.lastPublicSent + PUBLIC_INTERVAL_MS);
     }
   }
 

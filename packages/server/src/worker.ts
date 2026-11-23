@@ -1,4 +1,5 @@
-import { Hub, type Credentials } from './hub';
+import { Hub } from './hub';
+import { credentials, DEVICE_COOKIE, SESSION_COOKIE } from './http';
 
 export { Hub };
 
@@ -11,30 +12,8 @@ export interface Env {
 export const json = (body: unknown, status = 200, headers: HeadersInit = {}): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
 
-const SESSION_COOKIE = 'r2f_session';
-const DEVICE_COOKIE = 'r2f_device';
-
 const setCookie = (name: string, value: string, maxAgeSeconds: number) =>
   `${name}=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSeconds}`;
-
-function cookies(request: Request): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const part of (request.headers.get('cookie') ?? '').split(';')) {
-    const i = part.indexOf('=');
-    if (i > 0) out[part.slice(0, i).trim()] = part.slice(i + 1).trim();
-  }
-  return out;
-}
-
-export function credentials(request: Request): Credentials {
-  const c = cookies(request);
-  const auth = request.headers.get('authorization') ?? '';
-  return {
-    ...(c[SESSION_COOKIE] ? { session: c[SESSION_COOKIE] } : {}),
-    ...(c[DEVICE_COOKIE] ? { device: c[DEVICE_COOKIE] } : {}),
-    ...(auth.startsWith('Bearer ') ? { apiKey: auth.slice(7).trim() } : {}),
-  };
-}
 
 async function body(request: Request): Promise<Record<string, unknown>> {
   try {

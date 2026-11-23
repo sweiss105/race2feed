@@ -8,7 +8,8 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc -p packages/engine --noEmit && tsc -p packages/server --noEmit",
-    "dev": "wrangler dev -c packages/server/wrangler.jsonc"
+    "dev": "wrangler dev -c packages/server/wrangler.jsonc",
+    "deploy": "wrangler deploy -c packages/server/wrangler.jsonc"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

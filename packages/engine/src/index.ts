@@ -6,3 +6,4 @@ export * from './seeding';
 export * from './brackets';
 export * from './groups';
 export * from './schedule';
+export * from './layout';

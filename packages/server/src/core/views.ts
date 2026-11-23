@@ -116,6 +116,7 @@ export function controlView(e: LiveEvent, d: DerivedEvent, extras: { devices: un
     stations: e.stations,
     settings: e.settings,
     setupLocked: e.setupLocked,
+    projectorPin: e.projectorPin,
     setup: e.setup,
     taps: e.taps,
     overrides: e.overrides,

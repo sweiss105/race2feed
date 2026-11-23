@@ -51,3 +51,7 @@ export function previousEventDone(): LiveEvent {
 import { refereeView } from '../../../server/src/core/views';
 import type { RefereeView } from '../../src/lib/types';
 export const refViewOf = (e: LiveEvent, station = 1): RefereeView => refereeView(e, derive(e), station);
+
+import { controlView } from '../../../server/src/core/views';
+import type { ControlView } from '../../src/lib/types';
+export const ctlViewOf = (e: LiveEvent): ControlView => controlView(e, derive(e), { devices: [], audit: [] });

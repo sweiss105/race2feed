@@ -115,6 +115,7 @@ describe('companionView and controlView', () => {
     const c = controlView(e, derive(e), { devices: [], audit: [] });
     expect(c.taps.map((t) => t.id)).toContain('pen');
     expect(c.overrides.length).toBe(4);
+    expect(c.projectorPin).toBeNull();
   });
 
   it('counts ready stations and outstanding teams', () => {

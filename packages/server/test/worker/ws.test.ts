@@ -173,4 +173,25 @@ describe('live connections', () => {
     const s = await connect({ cookie: both, query: 'role=referee' });
     expect((await s.next('view')).view.station.number).toBe(1);
   });
+
+  it('refuses the referee socket without a device cookie, even for an admin session or an API key', async () => {
+    const { exports } = await import('cloudflare:workers');
+    const admin = await lockedEvent();
+    const key = (await command({ type: 'createApiKey', label: 'Deck' }, { cookie: admin })).body.reply.key;
+    const upgrade = (headers: Record<string, string>) =>
+      exports.default.fetch('https://r2f.test/api/ws?role=referee', { headers: { upgrade: 'websocket', ...headers } });
+    expect((await upgrade({ cookie: admin })).status).toBe(401);
+    expect((await upgrade({ authorization: `Bearer ${key}` })).status).toBe(401);
+  });
+
+  it('pairing a tablet sends no snapshot to a public screen', async () => {
+    const admin = await lockedEvent();
+    const pub = await connect({ role: 'public' });
+    await pub.next('snapshot', 0);
+    const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;
+    const since = pub.messages.length;
+    await call('/api/pair', { code });
+    await settle();
+    expect(pub.messages.slice(since).filter((m) => m.type === 'snapshot')).toEqual([]);
+  });
 });

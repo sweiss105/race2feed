@@ -25,4 +25,23 @@ describe('eventCsv', () => {
     expect(csv).toContain(`'+Plus Team`);
     expect(csv).not.toMatch(/(^|,)"?[=+@-]/m);
   });
+
+  it('prefixes every formula-leading character in team names but leaves numbers alone', () => {
+    let e = lockedFour();
+    const renames: [string, string][] = [['T1', '@At'], ['T2', '-Dash'], ['T3', '=Eq'], ['T4', '+Plus']];
+    for (const [from, name] of renames) e = ok(run(e, { type: 'renameTeam', teamId: teamId(e, from), name }));
+    e = ok(run(e, { type: 'setPenaltiesEnabled', enabled: true }));
+    e = ok(run(e, { type: 'openNextRound' }));
+    for (const [s, st] of Object.entries(e.stations)) if (!st.excluded) e = ok(run(e, { type: 'overrideStation', station: Number(s), state: 'ready' }));
+    e = ok(run(e, { type: 'startRace' }));
+    e = ok(run(e, { type: 'tapPenalty', teamId: teamId(e, '@At'), clientTapId: 'p1' }, referee(1)));
+    for (const t of e.setup.teams) e = ok(run(e, { type: 'setResult', round: 1, teamId: t.id, set: { kind: 'time', rawMs: 150_000 } }));
+    e = ok(run(e, { type: 'finishRace' }, control, 2_000_001));
+
+    const rows = eventCsv(e).split('\n').map((l) => l.split(','));
+    for (const name of ['@At', '-Dash', '=Eq', '+Plus']) expect(rows.some((r) => r[1] === `'${name}`)).toBe(true);
+    const penalised = rows.find((r) => r[1] === "'@At")!;
+    expect(penalised[6]).toBe('5000');
+    expect(penalised[6]).not.toContain("'");
+  });
 });

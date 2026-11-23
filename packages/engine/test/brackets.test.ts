@@ -104,5 +104,13 @@ describe('validateBracketPlan', () => {
     it('does not complain when there are enough tables', () => {
       expect(validateBracketPlan(grand(5, true))).not.toContain(msg);
     });
+    it('needs a table per category winner only when two or more categories have brackets', () => {
+      const one = { ...input([spec(0, 1, 4), spec(1, 5, 4)], 8, 1), grandChampionship: true };
+      expect(validateBracketPlan(one).filter((m) => m.includes('Grand Championship'))).toEqual([]);
+      const cats = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }];
+      const teams = [...teamsOf(4, 'a'), ...teamsOf(4, 'b')];
+      const two: EventInput = { tableCount: 1, categories: cats, teams, groups: [], tableOf: {}, brackets: suggestBracketPlan(cats, teams), grandChampionship: true };
+      expect(validateBracketPlan(two).some((m) => m.includes('Grand Championship') && m.includes('2 category winners but only 1 tables'))).toBe(true);
+    });
   });
 });

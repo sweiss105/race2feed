@@ -76,3 +76,24 @@ describe('closing live connections', () => {
     await expect(ctl.next('view', since)).resolves.toBeTruthy();
   });
 });
+
+describe('events stored before line-ups existed', () => {
+  it('backfills lineups for rounds 1 and 2 when such an event is activated', async () => {
+    const { lockedFour, runRound } = await import('../core/helpers');
+    const times = { T1: 60_000, T2: 61_000, T3: 62_000, T4: 63_000 };
+    const raced = runRound(runRound(lockedFour(), times), times);
+    const legacy = { ...raced, id: 'legacy-no-lineups', name: 'Legacy' } as Record<string, unknown>;
+    delete legacy.lineups;
+    delete legacy.bracketMembers;
+    await runInDurableObject(hub(), (_i, state) => {
+      state.storage.sql.exec('INSERT INTO events (id, name, created_at, active, doc) VALUES (?, ?, ?, 0, ?)',
+        'legacy-no-lineups', 'Legacy', Date.now(), JSON.stringify(legacy));
+    });
+    const admin = await loginAdmin();
+    const activated = await command({ type: 'activateEvent', eventId: 'legacy-no-lineups' }, { cookie: admin });
+    expect(activated.status).toBe(200);
+    const res = await call('/api/export?event=legacy-no-lineups&format=json', undefined, { cookie: admin });
+    expect(res.status).toBe(200);
+    expect(Object.keys(res.body.event.lineups)).toEqual(['1', '2']);
+  });
+});

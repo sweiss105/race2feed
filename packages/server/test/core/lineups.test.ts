@@ -83,6 +83,23 @@ describe('saved line-ups', () => {
     expect(derive(after).blockers).toEqual(['Round 3: tie in r3:t:0:heat1']);
   });
 
+  it('blocks the next round when a correction ties a round-3 heat', () => {
+    let e = ok(handleSetup(blank(12), { type: 'importTeams', csv: csvFor({ T: 12 }) }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'setGrandChampionship', enabled: false }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
+    const seedTimes = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`T ${i + 1}`, 60_000 + (i + 1) * 1_000]));
+    e = runRound(runRound(e, seedTimes), seedTimes);
+    e = runRound(e, Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`T ${i + 1}`, 70_000 + (i + 1) * 1_000])));
+    expect(derive(e).blockers).toEqual([]);
+    // Round 3 is the Bronze bracket; heat 1 is T 9 v T 12: give T 12 the same time as T 9.
+    const tie = { type: 'setResult' as const, round: 3, teamId: teamId(e, 'T 12'), set: { kind: 'time' as const, rawMs: 79_000 }, confirmUnlock: true };
+    e = ok(handleTaps(e, tie, ctx(control, 9_000_000)));
+    expect(derive(e).blockers.length).toBeGreaterThan(0);
+    const next = handleLifecycle(e, { type: 'openNextRound' }, ctx(control, 9_000_001));
+    expect(next.ok ? 'ok' : next.code).toBe('blocked');
+  });
+
   it('backfills line-ups for an event stored before they existed', () => {
     const e = runRound(runRound(lockedFour(), times), times);
     const legacy = { ...e, lineups: undefined, bracketMembers: undefined };

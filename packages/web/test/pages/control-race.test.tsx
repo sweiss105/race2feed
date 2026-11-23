@@ -97,6 +97,11 @@ describe('race section', () => {
     expect(dialog.textContent).toContain('The corrected results will not match who raced there.');
   });
 
+  it('lists several opened rounds that keep their line-ups', async () => {
+    const { dialog } = await askToUnlock([3, 4]);
+    expect(dialog.textContent).toContain('Round 3, Round 4 were opened with their original line-ups and keep them.');
+  });
+
   it('warns that brackets stay as they were set when a correction changes seeding', async () => {
     const { dialog } = await askToUnlock([], true);
     const warning = 'Brackets were set when the first bracket round opened. Teams stay in those brackets, even if this changes their seeding.';

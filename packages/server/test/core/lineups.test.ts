@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { handleLifecycle } from '../../src/core/lifecycle';
 import { handleSetup } from '../../src/core/setup';
 import { handleTaps } from '../../src/core/taps';
-import { derive } from '../../src/core/results';
+import { derive, teamsInRound } from '../../src/core/results';
 import { backfillLineups } from '../../src/core/lineups';
 import type { LiveEvent } from '../../src/core/model';
 import { admin, blank, control, csvFor, ctx, lockedFour, ok, runRound, teamId } from './helpers';
@@ -52,6 +52,19 @@ describe('saved line-ups', () => {
     const ids = [3, 4].flatMap((round) => derive(e).rounds[round - 1]!.races.flatMap((r) => r.entrants.map((x) => x.teamId)));
     expect(ids).toHaveLength(12);
     expect(new Set(ids).size).toBe(12);
+  });
+
+  it('a correction that ties an earlier heat keeps the running round\'s teams', () => {
+    let e = runRound(runRound(lockedFour(), times), times);
+    e = runRound(e, { T1: 50_000, T4: 55_000, T2: 51_000, T3: 56_000 });
+    e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(control)));
+    for (const s of Object.keys(e.stations)) e = ok(handleLifecycle(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, ctx(control)));
+    e = ok(handleLifecycle(e, { type: 'startRace' }, ctx(control)));
+    expect(e.round).toMatchObject({ current: 4, phase: 'running' });
+    const tie = { type: 'setResult' as const, round: 3, teamId: teamId(e, 'T4'), set: { kind: 'time' as const, rawMs: 50_000 }, confirmUnlock: true };
+    const after = ok(handleTaps(e, tie, ctx(control, 9_000_000)));
+    expect(teamsInRound(derive(after), 4).map((x) => x.teamId).sort()).toEqual(['T1', 'T2', 'T3', 'T4'].map((n) => teamId(e, n)).sort());
+    expect(derive(after).blockers).toEqual(['Round 3: tie in r3:t:0:heat1']);
   });
 
   it('backfills line-ups for an event stored before they existed', () => {

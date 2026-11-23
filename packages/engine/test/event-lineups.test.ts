@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { buildRoundPlan } from '../src/schedule';
 import { deriveEvent } from '../src/event';
 import type { EventInput, EventProgress, SavedRace } from '../src/types';
-import { makeEvent, fin, previousEvent } from './helpers/events';
+import { makeEvent, fin, previousEvent, seedInOrder } from './helpers/events';
 
 const entrants = (ev: ReturnType<typeof deriveEvent>, round: number) =>
   ev.rounds[round - 1]!.races.map((r) => r.entrants.map((e) => [e.teamId, e.table]));
@@ -77,6 +77,35 @@ describe('deriveEvent with saved bracket membership', () => {
     expect([ev.seedRank?.['c8'], ev.seedRank?.['c7']]).toEqual([8, 9]);
     const raced = [...teamsOf(ev, 3), ...teamsOf(ev, 4)].flat().sort();
     expect(raced).toEqual(input.teams.map((t) => t.id).sort());
+  });
+});
+
+describe('deriveEvent with an undecided tie before an opened round', () => {
+  // Categories c and d, four teams each, on 8 tables, grand on.
+  // Rounds: 1–2 seeding, 3 heats, 4 placement, 5 grand.
+  const input = makeEvent([['c', 4], ['d', 4]], 8, true);
+  const toSaved = (ev: ReturnType<typeof deriveEvent>, round: number): SavedRace[] =>
+    ev.rounds[round - 1]!.races.map((r) => ({
+      id: r.id, label: r.label, bracketId: r.bracketId, role: r.role,
+      teams: r.entrants.map((x) => x.teamId), tables: r.entrants.map((x) => x.table), fallbackOrder: r.fallbackOrder,
+    }));
+  const heats = (): EventProgress['results'] => ({
+    ...seedInOrder(input, [1, 2]),
+    3: Object.fromEntries(input.teams.map((t, i) => [t.id, fin(50 + i)])),
+  });
+
+  it('keeps the races of an opened round and still blocks the unopened round', () => {
+    const clean = deriveEvent(input, { finishedRounds: 3, results: heats(), tieDecisions: {} });
+    const lineups = { 3: toSaved(clean, 3), 4: toSaved(clean, 4) };
+    const tieRace = clean.rounds[2]!.races[0]!;
+    const [a, b] = tieRace.entrants.map((x) => x.teamId) as [string, string];
+    const results = heats();
+    results[3]![b] = results[3]![a]!; // an exact hundredths tie, no decision
+    const ev = deriveEvent(input, { finishedRounds: 3, results, tieDecisions: {}, lineups });
+    expect(ev.blockers).toEqual([`Round 3: tie in ${tieRace.id}`]);
+    expect(ev.rounds[3]!.status).not.toBe('blocked');
+    expect(ev.rounds[3]!.races.map((r) => r.entrants)).toEqual(clean.rounds[3]!.races.map((r) => r.entrants));
+    expect(ev.rounds[4]).toMatchObject({ status: 'blocked', races: [] });
   });
 });
 

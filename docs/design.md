@@ -197,6 +197,7 @@ All times in this section are **official times**: the raw time plus any penaltie
   - Each round's line-up is saved when the round is opened, and bracket membership when the first bracket round is opened.
   - After a later round has opened, an edit needs an explicit **unlock**, which names any opened rounds that keep a line-up the corrected results no longer match.
   - Opened rounds are never rebuilt; rounds not yet opened are built from the corrected results.
+  - If a correction leaves an undecided tie in an earlier round, opened rounds keep their races; only rounds not yet opened wait for the tie decision.
 
 ### 3.6 Tables per referee
 

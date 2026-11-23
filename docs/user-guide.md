@@ -235,6 +235,7 @@ The newest change always wins, so you can correct a referee's tap by entering th
 - Press **Change anyway** to go ahead. Seeding ranks, places and standings are worked out again from the corrected results, and rounds you haven't opened yet are built from them.
 - **A team stays in the bracket it raced in**, even if its corrected seed would now put it in a different bracket.
 - You can correct an earlier round even while the current round is open or running: the current round's line-up doesn't change.
+- If a correction creates a tie in an earlier round, the round that's open or running carries on as it is. Decide the tie before you open the next round.
 
 ### Time penalties
 

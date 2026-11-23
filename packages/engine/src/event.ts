@@ -57,7 +57,9 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
   const seedingRounds = plan.filter((r): r is Extract<RoundSpec, { kind: 'seeding' }> => r.kind === 'seeding');
 
   for (const spec of plan) {
-    if (!open) {
+    const saved = progress.lineups?.[spec.round];
+    // An opened round keeps its races even after an undecided tie earlier on; only unopened rounds wait.
+    if (!open && !saved) {
       rounds.push({ spec, status: 'blocked', races: [] });
       continue;
     }
@@ -67,7 +69,6 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
     }
 
     const results = progress.results[spec.round] ?? {};
-    const saved = progress.lineups?.[spec.round];
     const laid: { race: Draft; tables: number[] }[] = saved
       ? saved.map((race) => ({ race, tables: race.tables }))
       : layRaces(spec, draftRaces(spec));

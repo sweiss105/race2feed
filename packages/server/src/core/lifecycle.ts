@@ -12,6 +12,10 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       if (e.round.phase === 'open' || e.round.phase === 'running') {
         return fail('round_in_progress', 'Finish the current round first.');
       }
+      const pending = e.taps
+        .filter((t) => t.kind === 'penalty' && t.removedAt === null && t.review?.status === 'pending' && t.round <= e.round.current)
+        .map((t) => ({ tapId: t.id, round: t.round, teamId: t.teamId }));
+      if (pending.length) return fail('penalties_pending', `${pending.length} penalt${pending.length === 1 ? 'y needs' : 'ies need'} a decision first.`, pending);
       const d = derive(e);
       const next = d.rounds[e.round.current];
       if (!next) return fail('event_complete', 'Every round has been raced.');

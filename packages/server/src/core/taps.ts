@@ -2,6 +2,7 @@ import { stationOfTable } from '@race2feed/engine';
 import { done, fail, type CommandResult, type Ctx, type LiveEvent, type Tap, type TapCommand } from './model';
 import { buildProgress, derive, teamsInRound } from './results';
 import { checkCorrection } from './corrections';
+import { reasonsOf, reviewOf } from './reasons';
 
 /** Clock skew allowed between a synced tablet and the server. */
 const FUTURE_TOLERANCE_MS = 2000;
@@ -69,6 +70,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
         clientTapId: cmd.clientTapId, kind: 'penalty', round: current, teamId: cmd.teamId,
         amountMs: e.settings.penaltyMs, source: 'referee',
       });
+      tap.review = { status: 'pending' };
       return ok({ ...e, taps: [...e.taps, tap] });
     }
     case 'undoTap': {
@@ -93,7 +95,16 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
     case 'addPenalty': {
       if (!validRound(cmd.round)) return fail('invalid', `Round ${cmd.round} has not been raced.`);
       if (!inRound(cmd.round, cmd.teamId)) return fail('not_in_round', 'That team is not in this round.');
-      const tap = newTap({ kind: 'penalty', round: cmd.round, teamId: cmd.teamId, amountMs: e.settings.penaltyMs, source: 'control' });
+      const reason = reasonsOf(e).find((r) => r.id === cmd.reasonId);
+      if (!reason) return fail('invalid', 'Choose a reason from the penalty list.');
+      const tap = newTap({
+        kind: 'penalty', round: cmd.round, teamId: cmd.teamId,
+        amountMs: reason.kind === 'time' ? reason.amountMs ?? 0 : 0, source: 'control',
+      });
+      tap.review = {
+        status: 'approved', reasonId: reason.id, reasonName: reason.name, decidedAt: ctx.now,
+        ...(reason.kind === 'dq' ? { dq: true } : {}),
+      };
       return correct(cmd.round, cmd.confirmUnlock, { ...e, taps: [...e.taps, tap] });
     }
     case 'removePenalty': {
@@ -104,5 +115,39 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
     }
     case 'setPenaltiesEnabled':
       return ok({ ...e, settings: { ...e.settings, penaltiesEnabled: cmd.enabled } });
+    case 'notePenalty': {
+      const tap = e.taps.find((t) => t.id === cmd.tapId && t.kind === 'penalty');
+      if (!tap || tap.removedAt !== null) return fail('not_found', 'That penalty no longer exists.');
+      if (!ctx.actor.deviceId || tap.deviceId !== ctx.actor.deviceId) return fail('not_your_tap', 'Only the tablet that gave the penalty can add its note.');
+      if (reviewOf(tap).status !== 'pending') return fail('already_decided', 'Race control has already decided this penalty.');
+      if (tap.round === current && e.round.phase !== 'finished') return fail('round_not_finished', 'Add notes once race control finishes the round.');
+      if (!reasonsOf(e).some((r) => r.id === cmd.reasonId)) return fail('invalid', 'Choose a reason from the list.');
+      const note = typeof cmd.note === 'string' ? cmd.note.trim().slice(0, 200) : '';
+      const review = { ...reviewOf(tap), refereeReasonId: cmd.reasonId, ...(note ? { refereeNote: note } : {}) };
+      return ok({ ...e, taps: e.taps.map((t) => (t.id === tap.id ? { ...t, review } : t)) });
+    }
+    case 'decidePenalty': {
+      const tap = e.taps.find((t) => t.id === cmd.tapId && t.kind === 'penalty');
+      if (!tap) return fail('not_found', 'That penalty no longer exists.');
+      const previous = reviewOf(tap);
+      // A tap undone by its referee (removed while still pending) is gone, not rejected.
+      if (tap.removedAt !== null && previous.status === 'pending') return fail('not_found', 'That penalty was undone.');
+      let updated: Tap;
+      if (cmd.decision === 'reject') {
+        updated = { ...tap, removedAt: tap.removedAt ?? ctx.now, review: { ...previous, status: 'rejected', decidedAt: ctx.now, dq: false } };
+      } else if (cmd.decision === 'approve') {
+        const reason = reasonsOf(e).find((r) => r.id === cmd.reasonId);
+        if (!reason) return fail('invalid', 'Choose a reason from the penalty list to approve.');
+        updated = {
+          ...tap,
+          removedAt: null,
+          amountMs: reason.kind === 'time' ? reason.amountMs ?? 0 : 0,
+          review: { ...previous, status: 'approved', reasonId: reason.id, reasonName: reason.name, decidedAt: ctx.now, dq: reason.kind === 'dq' },
+        };
+      } else {
+        return fail('invalid', 'Decision must be approve or reject.');
+      }
+      return correct(tap.round, cmd.confirmUnlock, { ...e, taps: e.taps.map((t) => (t.id === tap.id ? updated : t)) });
+    }
   }
 }

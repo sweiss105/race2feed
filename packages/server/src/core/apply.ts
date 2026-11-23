@@ -6,16 +6,16 @@ import { handleTaps } from './taps';
 const SETUP = ['importTeams', 'addTeam', 'renameTeam', 'removeTeam', 'setTableCount', 'suggestSetup', 'setGroups',
   'setBrackets', 'setGrandChampionship', 'lockSetup', 'unlockSetup', 'setSettings', 'setBagTotal', 'setPenaltyReasons'] as const;
 const LIFECYCLE = ['openNextRound', 'stationReady', 'overrideStation', 'startRace', 'finishRace', 'decideTie', 'pinProjector'] as const;
-const TAPS = ['tapFinish', 'tapPenalty', 'undoTap', 'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled'] as const;
+const TAPS = ['tapFinish', 'tapPenalty', 'undoTap', 'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled', 'notePenalty', 'decidePenalty'] as const;
 
 const CONTROL = ['openNextRound', 'overrideStation', 'startRace', 'finishRace', 'decideTie', 'pinProjector',
-  'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled'];
+  'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled', 'decidePenalty'];
 
 /** Roles allowed to send each command. Admin may do everything race control can, plus setup. */
 export const PERMISSIONS: Record<Command['type'], Role[]> = Object.fromEntries([
   ...SETUP.map((t) => [t, ['admin']]),
   ...CONTROL.map((t) => [t, ['admin', 'control']]),
-  ...['stationReady', 'tapFinish', 'tapPenalty', 'undoTap'].map((t) => [t, ['referee']]),
+  ...['stationReady', 'tapFinish', 'tapPenalty', 'undoTap', 'notePenalty'].map((t) => [t, ['referee']]),
 ]) as Record<Command['type'], Role[]>;
 for (const t of ['startRace', 'finishRace', 'pinProjector'] as const) PERMISSIONS[t] = [...PERMISSIONS[t], 'companion'];
 // Race control can fix a misspelled team name on the day (setup otherwise stays admin-only).

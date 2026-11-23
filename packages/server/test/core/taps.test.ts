@@ -106,7 +106,7 @@ describe('penalties', () => {
 
   it('race control can add and remove penalties even when switched off', () => {
     let e = ok(tapFinish(running(), 'T1', START + 200_000));
-    e = ok(handleTaps(e, { type: 'addPenalty', round: 1, teamId: teamId(e, 'T1') }, ctx(control)));
+    e = ok(handleTaps(e, { type: 'addPenalty', round: 1, teamId: teamId(e, 'T1'), reasonId: 'sealed' }, ctx(control)));
     expect(result(e, 'T1')?.penaltiesMs).toBe(5_000);
     const tapId = e.taps.find((t) => t.kind === 'penalty')!.id;
     e = ok(handleTaps(e, { type: 'removePenalty', tapId }, ctx(control)));

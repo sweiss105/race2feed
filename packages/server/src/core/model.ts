@@ -95,9 +95,11 @@ export type TapCommand =
   | { type: 'tapPenalty'; teamId: string; clientTapId: string }
   | { type: 'undoTap'; tapId: string }
   | { type: 'setResult'; round: number; teamId: string; set: OverrideSet; confirmUnlock?: boolean }
-  | { type: 'addPenalty'; round: number; teamId: string; confirmUnlock?: boolean }
+  | { type: 'addPenalty'; round: number; teamId: string; reasonId: string; confirmUnlock?: boolean }
   | { type: 'removePenalty'; tapId: string; confirmUnlock?: boolean }
-  | { type: 'setPenaltiesEnabled'; enabled: boolean };
+  | { type: 'setPenaltiesEnabled'; enabled: boolean }
+  | { type: 'notePenalty'; tapId: string; reasonId: string; note?: string }
+  | { type: 'decidePenalty'; tapId: string; decision: 'approve' | 'reject'; reasonId?: string; confirmUnlock?: boolean };
 
 export type Command = SetupCommand | LifecycleCommand | TapCommand;
 

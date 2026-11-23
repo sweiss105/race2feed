@@ -26,8 +26,20 @@ export function buildProgress(e: LiveEvent): EventProgress {
     else if (Number.isFinite(o.set.rawMs)) push(k, { at: o.at, result: { status: 'finished', rawMs: o.set.rawMs } });
   }
 
+  // An approved DQ penalty disqualifies the team from that race, whatever its time.
+  const dq = new Set<string>();
+  for (const tap of e.taps) {
+    if (tap.kind === 'penalty' && tap.removedAt === null && tap.review?.status === 'approved' && tap.review.dq) dq.add(key(tap.round, tap.teamId));
+  }
+
   const results: EventProgress['results'] = {};
+  for (const k of dq) if (!facts.has(k)) facts.set(k, []);
   for (const [k, list] of facts) {
+    if (dq.has(k)) {
+      const [roundText, teamId] = k.split('\u0000') as [string, string];
+      (results[Number(roundText)] ??= {})[teamId] = { status: 'dnf', rawMs: null, penaltiesMs: penalties.get(k) ?? 0 };
+      continue;
+    }
     const last = [...list].sort((a, b) => a.at - b.at).at(-1)!;
     if (!last.result) continue;
     const [roundText, teamId] = k.split('\u0000') as [string, string];

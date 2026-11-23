@@ -34,4 +34,10 @@ describe('layoutTables', () => {
     const split = out.filter((r) => r.race.length === 2 && r.tables[0]! % 2 === 0);
     expect(split).toEqual([]);
   });
+  it('keeps the bracket order when each table has its own referee', () => {
+    const a = race('a', 3), b = race('b', 2);
+    const out = layoutTables([a, b], 1);
+    expect(out.map((r) => r.race)).toEqual([a, b]);
+    expect(out.map((r) => r.tables)).toEqual([[1, 2, 3], [4, 5]]);
+  });
 });

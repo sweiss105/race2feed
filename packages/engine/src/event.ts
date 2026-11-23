@@ -72,7 +72,7 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
     const results = progress.results[spec.round] ?? {};
     const laid = spec.kind === 'seeding'
       ? drafts.map((d) => ({ race: d, tables: d.teams.map((id) => input.tableOf[id] ?? 0) }))
-      : layoutTables(drafts.map((d) => d.teams)).map(({ race, tables }) => ({
+      : layoutTables(drafts.map((d) => d.teams), input.tablesPerStation ?? 2).map(({ race, tables }) => ({
           race: drafts.find((d) => d.teams === race)!,
           tables,
         }));

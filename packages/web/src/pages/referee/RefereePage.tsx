@@ -7,6 +7,7 @@ import type { TapQueue } from '../../lib/queue';
 import { Button } from '../../ui/Button';
 import { timeText } from '../../ui/Time';
 import { useNow } from '../../lib/useNow';
+import { stationLabel } from '../../lib/selectors';
 
 type Team = RefereeView['teams'][number];
 
@@ -100,7 +101,7 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   const meta = (
     <div class="ref-meta">
       <div>
-        <div class="headline">Tables {station.tables.join(' & ')}</div>
+        <div class="headline">{stationLabel(station.tables)}</div>
         <div class="footnote secondary">{round.current ? `Round ${round.current}` : 'Waiting for the first round'}</div>
       </div>
       {running && <div class="ref-clock" aria-label="Race clock">{formatMs(Math.max(0, now - round.startedAt!), 'seconds')}</div>}

@@ -75,6 +75,7 @@ export type SetupCommand =
   | { type: 'renameTeam'; teamId: string; name: string }
   | { type: 'removeTeam'; teamId: string }
   | { type: 'setTableCount'; tableCount: number }
+  | { type: 'setTablesPerReferee'; count: 1 | 2 }
   | { type: 'suggestSetup' }
   | { type: 'setGroups'; groups: SeedingGroup[]; tableOf: Record<string, number> }
   | { type: 'setBrackets'; brackets: BracketSpec[] }
@@ -145,3 +146,6 @@ export function done(event: LiveEvent, cmd: Command, ctx: Ctx, reply?: unknown):
 export function fail(code: string, message: string, detail?: unknown): CommandResult {
   return { ok: false, code, message, ...(detail === undefined ? {} : { detail }) };
 }
+
+/** Tables each referee covers in this event. */
+export const perStation = (e: LiveEvent): 1 | 2 => e.setup.tablesPerStation ?? 2;

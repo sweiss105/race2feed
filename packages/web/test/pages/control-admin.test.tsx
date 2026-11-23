@@ -75,4 +75,17 @@ describe('admin sections', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save penalty' }));
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setSettings', penaltyMs: 7000 }));
   });
+
+  it('chooses how many tables each referee covers until setup is locked', async () => {
+    const send = vi.fn(async () => ({ ok: true }));
+    withRunner(<Setup view={ctlViewOf(blank(4))} />, send);
+    const group = screen.getByRole('radiogroup', { name: 'Tables per referee' });
+    expect(screen.getByRole('radio', { name: 'One referee per two tables' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(screen.getByRole('radio', { name: 'One referee per table' }));
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setTablesPerReferee', count: 1 }));
+    expect(group).toBeTruthy();
+    cleanup();
+    withRunner(<Setup view={ctlViewOf(lockedFour())} />, send);
+    expect((screen.getByRole('radio', { name: 'One referee per table' }) as HTMLButtonElement).disabled).toBe(true);
+  });
 });

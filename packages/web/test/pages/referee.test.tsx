@@ -235,4 +235,14 @@ describe('pairing', () => {
       expect(screen.queryByRole('region', { name: /Penalty for T1/ })).toBeNull();
     });
   });
+
+  it('labels a one-table station and shows just its team', async () => {
+    cleanup();
+    let e = lockedFour();
+    e = { ...e, setup: { ...e.setup, tablesPerStation: 1 } };
+    e = start(openNext(e));
+    render(<RefereePage view={refViewOf(e, 3)} status="open" clock={{ synced: () => true, serverNow: () => NOW }} queue={new TapQueue(new MemoryStorage())} send={async () => ({ ok: true })} newId={() => 'x'} />);
+    expect(screen.getByText('Table 3', { selector: '.ref-meta .headline' })).toBeTruthy();
+    expect((await screen.findAllByRole('button', { name: /^T\d/ })).length).toBe(1);
+  });
 });

@@ -14,4 +14,9 @@ describe('stations', () => {
     expect(stationCount(25)).toBe(13);
     expect(stationCount(26)).toBe(13);
   });
+  it('can give each table its own referee', () => {
+    expect(stationOfTable(3, 1)).toBe(3);
+    expect(tablesOfStation(3, 26, 1)).toEqual([3]);
+    expect(stationCount(25, 1)).toBe(25);
+  });
 });

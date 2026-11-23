@@ -89,6 +89,9 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
     case 'setTableCount':
       if (!Number.isInteger(cmd.tableCount) || cmd.tableCount < 1) return fail('invalid', 'Table count must be at least 1.');
       return ok(withSetup(e, { tableCount: cmd.tableCount }));
+    case 'setTablesPerReferee':
+      if (cmd.count !== 1 && cmd.count !== 2) return fail('invalid', 'A referee covers 1 or 2 tables.');
+      return ok(withSetup(e, { tablesPerStation: cmd.count }));
     case 'suggestSetup': {
       if (!e.setup.teams.length) return fail('no_teams', 'Import teams first.');
       if (e.setup.tableCount < 1) return fail('invalid', 'Table count must be at least 1.');

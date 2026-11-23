@@ -1,5 +1,5 @@
 import { officialMs, stationOfTable, tablesOfStation, type DerivedEvent, type EntryResult } from '@race2feed/engine';
-import type { LiveEvent, ProjectorScreen } from './model';
+import { perStation, type LiveEvent, type ProjectorScreen } from './model';
 import { buildProgress, teamsInRound } from './results';
 import { reasonsOf, reviewOf } from './reasons';
 
@@ -114,11 +114,11 @@ function outstanding(e: LiveEvent, d: DerivedEvent) {
 }
 
 export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
-  const tables = tablesOfStation(station, e.setup.tableCount);
+  const tables = tablesOfStation(station, e.setup.tableCount, perStation(e));
   const results = buildProgress(e).results[e.round.current] ?? {};
   const name = new Map(e.setup.teams.map((t) => [t.id, t.name]));
   const teams = teamsInRound(d, e.round.current)
-    .filter((t) => stationOfTable(t.table) === station)
+    .filter((t) => stationOfTable(t.table, perStation(e)) === station)
     .sort((a, b) => a.table - b.table)
     .map(({ teamId, table }) => ({
       teamId,

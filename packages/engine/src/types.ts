@@ -28,6 +28,8 @@ export interface EventInput {
   tableOf: Record<string, number>;
   brackets: BracketSpec[];
   grandChampionship: boolean;
+  /** Tables each referee covers; defaults to 2 (a pair of adjacent tables). */
+  tablesPerStation?: 1 | 2;
 }
 
 export interface EventProgress {

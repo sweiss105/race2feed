@@ -94,3 +94,10 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .list .num { min-width: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--secondary-label); }
 .list .grow { flex: 1; min-width: 0; }
 .list li.me { background: var(--highlight); }
+
+/* Segmented control, shared by every page. */
+.segmented { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 2px; margin: var(--space-4) 0; border-radius: var(--radius-m); background: var(--surface-2); }
+.segmented button { min-height: 2.25rem; border: 0; border-radius: calc(var(--radius-m) - 2px); background: transparent; font-weight: 500; font-size: 0.9375rem; cursor: pointer; }
+.segmented button[aria-selected="true"] { background: var(--surface); box-shadow: var(--shadow-s); font-weight: 600; }
+.segmented button:disabled { cursor: default; opacity: 0.5; }
+.segmented button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

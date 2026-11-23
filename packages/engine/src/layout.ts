@@ -1,11 +1,18 @@
+import type { TablesPerStation } from './stations';
+
 /**
  * Assigns consecutive tables from 1, keeping head-to-heads on whole referee
  * stations. Odd-sized races flip station parity, so they are kept in pairs:
  * - before an even-sized race on an even table, the next odd race moves in front;
  * - an odd race on an odd table with no other odd race left moves behind the
  *   remaining even races.
+ * With one referee per table there are no pairs to keep whole, so races keep their order.
  */
-export function layoutTables<T>(races: T[][]): { race: T[]; tables: number[] }[] {
+export function layoutTables<T>(races: T[][], perStation: TablesPerStation = 2): { race: T[]; tables: number[] }[] {
+  if (perStation === 1) {
+    let next = 1;
+    return races.map((race) => ({ race, tables: race.map(() => next++) }));
+  }
   const queue = [...races];
   const out: { race: T[]; tables: number[] }[] = [];
   let next = 1;

@@ -1,5 +1,5 @@
 import { stationOfTable } from '@race2feed/engine';
-import { done, fail, type CommandResult, type Ctx, type LiveEvent, type Tap, type TapCommand } from './model';
+import { done, fail, perStation, type CommandResult, type Ctx, type LiveEvent, type Tap, type TapCommand } from './model';
 import { buildProgress, derive, teamsInRound } from './results';
 import { checkCorrection } from './corrections';
 import { reasonsOf, reviewOf } from './reasons';
@@ -20,7 +20,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
   const refereeCheck = (teamId: string): CommandResult | null => {
     if (e.round.phase !== 'running') return fail('round_not_running', 'No race is running.');
     const entrant = teamsInRound(derive(e), current).find((t) => t.teamId === teamId);
-    if (!entrant || stationOfTable(entrant.table) !== ctx.actor.station) {
+    if (!entrant || stationOfTable(entrant.table, perStation(e)) !== ctx.actor.station) {
       return fail('not_your_team', 'That team is not at your tables this round.');
     }
     return null;

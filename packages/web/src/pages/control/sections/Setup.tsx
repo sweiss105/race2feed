@@ -31,6 +31,7 @@ export function Setup({ view }: { view: ControlView }) {
         <Switch checked={view.setup.grandChampionship} label="Grand Championship" disabled={locked}
           onToggle={(enabled) => runner.run({ type: 'setGrandChampionship', enabled })} />
       </div>
+      <TablesPerReferee view={view} />
       {runner.error('suggestSetup') && <p class="err">{runner.error('suggestSetup')}</p>}
       <div class="panel"><Problems items={problems} /></div>
       <Brackets view={view} />
@@ -139,6 +140,36 @@ function Groups({ view }: { view: ControlView }) {
           ))}
         </tbody>
       </table>
+    </section>
+  );
+}
+
+function TablesPerReferee({ view }: { view: ControlView }) {
+  const runner = useRunner();
+  const current = view.setup.tablesPerStation ?? 2;
+  const [shown, setShown] = useState<1 | 2 | null>(null);
+  const value = shown ?? current;
+  useEffect(() => setShown(null), [current]);
+  const choose = async (count: 1 | 2) => {
+    if (count === value) return;
+    setShown(count);
+    const ack = await runner.run({ type: 'setTablesPerReferee', count });
+    if (!ack?.ok) setShown(null);
+  };
+  return (
+    <section class="panel card stack" aria-labelledby="tables-per-referee">
+      <h3 id="tables-per-referee" class="headline">Referees</h3>
+      <div class="segmented" role="radiogroup" aria-label="Tables per referee" style={{ margin: 0, maxWidth: '30rem' }}>
+        {([[2, 'One referee per two tables'], [1, 'One referee per table']] as const).map(([n, label]) => (
+          <button key={n} type="button" role="radio" aria-checked={value === n ? 'true' : 'false'} aria-selected={value === n ? 'true' : 'false'}
+            disabled={view.setupLocked} onClick={() => void choose(n)}>{label}</button>
+        ))}
+      </div>
+      <p class="footnote secondary" style={{ margin: 0 }}>
+        {value === 2 ? 'Each referee times a pair of tables (1 & 2, 3 & 4, …).' : 'Each table has its own referee and tablet.'}
+        {view.setupLocked && ' Unlock setup to change this.'}
+      </p>
+      {runner.error('setTablesPerReferee') && <p class="err">{runner.error('setTablesPerReferee')}</p>}
     </section>
   );
 }

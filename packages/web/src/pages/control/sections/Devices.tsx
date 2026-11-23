@@ -3,6 +3,8 @@ import type { ControlView } from '../../../lib/types';
 import { Button } from '../../../ui/Button';
 import { QR } from '../../../ui/QR';
 import { useRunner } from '../runner';
+import { stationCount, tablesOfStation } from '@race2feed/engine';
+import { stationLabel } from '../../../lib/selectors';
 
 interface Device { id: string; station: number; label: string; created_at: number; revoked_at: number | null; last_seen: number | null }
 interface Pairing { station: number; code: string; expiresAt: number }
@@ -10,7 +12,8 @@ interface Pairing { station: number; code: string; expiresAt: number }
 export function Devices({ view }: { view: ControlView }) {
   const runner = useRunner();
   const [pairing, setPairing] = useState<Pairing | null>(null);
-  const stations = Math.ceil(view.setup.tableCount / 2);
+  const per = view.setup.tablesPerStation ?? 2;
+  const stations = stationCount(view.setup.tableCount, per);
   const devices = (view.devices as Device[]).filter((d) => d.revoked_at === null);
   const pair = async (station: number) => {
     const ack = await runner.run({ type: 'createPairingCode', station }, `pair-${station}`);
@@ -27,7 +30,7 @@ export function Devices({ view }: { view: ControlView }) {
           <thead><tr><th>Station</th><th>Paired devices</th><th /></tr></thead>
           <tbody>
             {Array.from({ length: stations }, (_, i) => i + 1).map((s) => {
-              const tables = s * 2 > view.setup.tableCount ? `Table ${s * 2 - 1}` : `Tables ${s * 2 - 1} & ${s * 2}`;
+              const tables = stationLabel(tablesOfStation(s, view.setup.tableCount, per));
               const mine = devices.filter((d) => d.station === s);
               return (
                 <tr key={s}>

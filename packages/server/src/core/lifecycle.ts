@@ -1,5 +1,5 @@
 import { stationCount, stationOfTable } from '@race2feed/engine';
-import { done, fail, type CommandResult, type Ctx, type LifecycleCommand, type LiveEvent } from './model';
+import { done, fail, perStation, type CommandResult, type Ctx, type LifecycleCommand, type LiveEvent } from './model';
 import { buildProgress, derive, teamsInRound } from './results';
 import { checkCorrection } from './corrections';
 
@@ -20,9 +20,9 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       const next = d.rounds[e.round.current];
       if (!next) return fail('event_complete', 'Every round has been raced.');
       if (next.status !== 'ready') return fail('blocked', 'The next round is waiting on a decision.', d.blockers);
-      const busy = new Set(next.races.flatMap((r) => r.entrants.map((x) => stationOfTable(x.table))));
+      const busy = new Set(next.races.flatMap((r) => r.entrants.map((x) => stationOfTable(x.table, perStation(e)))));
       const stations: LiveEvent['stations'] = {};
-      for (let s = 1; s <= stationCount(e.setup.tableCount); s++) stations[s] = { ready: false, excluded: !busy.has(s) };
+      for (let s = 1; s <= stationCount(e.setup.tableCount, perStation(e)); s++) stations[s] = { ready: false, excluded: !busy.has(s) };
       return ok({
         ...e,
         round: { current: e.round.current + 1, phase: 'open', startedAt: null, finishedAt: null },

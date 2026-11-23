@@ -1,13 +1,15 @@
-/** A referee station covers a fixed pair of adjacent tables (1&2, 3&4, …). */
-export function stationOfTable(table: number): number {
-  return Math.ceil(table / 2);
+/** How many adjacent tables one referee covers: a pair (1&2, 3&4, …) or a single table. */
+export type TablesPerStation = 1 | 2;
+
+export function stationOfTable(table: number, perStation: TablesPerStation = 2): number {
+  return Math.ceil(table / perStation);
 }
 
-export function tablesOfStation(station: number, tableCount: number): number[] {
-  const first = station * 2 - 1;
-  return first + 1 <= tableCount ? [first, first + 1] : [first];
+export function tablesOfStation(station: number, tableCount: number, perStation: TablesPerStation = 2): number[] {
+  const first = (station - 1) * perStation + 1;
+  return Array.from({ length: perStation }, (_, i) => first + i).filter((t) => t <= tableCount);
 }
 
-export function stationCount(tableCount: number): number {
-  return Math.ceil(tableCount / 2);
+export function stationCount(tableCount: number, perStation: TablesPerStation = 2): number {
+  return Math.ceil(tableCount / perStation);
 }

@@ -81,3 +81,6 @@ export function champions(state: PublicView): Winner[] {
     return { key: c.id, title: `${c.name} champion`, teamId: team?.id ?? null, name: team?.name ?? null, subtitle: null };
   });
 }
+
+/** "Table 3" or "Tables 3 & 4". */
+export const stationLabel = (tables: number[]) => (tables.length === 1 ? `Table ${tables[0]}` : `Tables ${tables.join(' & ')}`);

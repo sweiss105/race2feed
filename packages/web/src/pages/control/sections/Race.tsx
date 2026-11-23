@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'preact/hooks';
-import { formatMs, parseClockTime } from '@race2feed/engine';
+import { formatMs, parseClockTime, tablesOfStation } from '@race2feed/engine';
 import type { ControlView } from '../../../lib/types';
 import { Button } from '../../../ui/Button';
 import { timeText } from '../../../ui/Time';
-import { teamName } from '../../../lib/selectors';
+import { stationLabel, teamName } from '../../../lib/selectors';
 import { useNow } from '../../../lib/useNow';
 import { useRunner } from '../runner';
 import { Switch } from '../../../ui/Switch';
@@ -86,7 +86,7 @@ function Stations({ view }: { view: ControlView }) {
           const cls = s.excluded ? 'excluded' : s.ready ? 'ready' : 'notready';
           return (
             <div class={`station ${cls}`} key={n}>
-              <div class="headline">Tables {station * 2 - 1}&nbsp;&amp;&nbsp;{station * 2}</div>
+              <div class="headline">{stationLabel(tablesOfStation(station, view.setup.tableCount, view.setup.tablesPerStation ?? 2))}</div>
               <div class="footnote secondary">{s.excluded ? 'No teams' : s.ready ? 'Ready' : 'Not ready'}</div>
               <div class="mini">
                 {!s.ready && !s.excluded && <Button kind="secondary" busy={runner.busy(`station-${station}`)} onClick={set(station, 'ready')}>Ready</Button>}

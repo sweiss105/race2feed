@@ -252,3 +252,33 @@ The engine is unchanged: a DQ is ranked as `dnf`.
   5. **End event:** the referee page shows the "Scan" screen, and the phone still shows the champion.
 - [ ] **Step 2:** Run `npm run e2e`; expect PASS. Add champion and review screenshots and review them visually against the apple-design checklist.
 - [ ] **Step 3: Commit:** `test(e2e): penalty review, champion and end of event`
+
+### Task 8: Tables per referee (1 or 2)
+
+**Files:**
+- Modify: `packages/engine/src/{types,stations,layout,event}.ts`
+- Modify: `packages/server/src/core/{model,setup,apply,lifecycle,taps,views}.ts`
+- Modify: `packages/web/src/pages/{referee/RefereePage,control/sections/Race,control/sections/Devices,control/sections/Setup}.tsx`
+- Test: engine `stations.test.ts` and `layout.test.ts`; server `setup.test.ts` and `lifecycle.test.ts`; web `control-admin.test.tsx` and `referee.test.tsx`
+
+**Interfaces:**
+- **Engine:**
+  - `EventInput.tablesPerStation?: 1 | 2` (default 2).
+  - `stationOfTable(table, perStation = 2)`, `tablesOfStation(station, tableCount, perStation = 2)` and `stationCount(tableCount, perStation = 2)`.
+  - `layoutTables(races, perStation = 2)` applies the parity rule only when `perStation === 2`. `deriveEvent` passes `input.tablesPerStation ?? 2`.
+- **Server:**
+  - Setup command `setTablesPerReferee {count: 1 | 2}` (admin, refused once setup is locked).
+  - Every station computation (opening a round, referee team checks, views) uses `e.setup.tablesPerStation ?? 2`.
+- **Pages:**
+  - Setup gets a segmented control: "One referee per table" / "One referee per two tables".
+  - Station labels read "Table 3" or "Tables 3 & 4" from the station's tables.
+
+- [ ] **Step 1: Write the failing tests.**
+  - `stationOfTable(3, 1) === 3`, `tablesOfStation(3, 26, 1)` gives `[3]` and `stationCount(25, 1) === 25`.
+  - With per-station 1, `layoutTables([[a,b,c],[d,e]], 1)` keeps the original order.
+  - With per-station 1, opening a 4-team round gives 4 stations, and a station-3 referee can tap table 3 only.
+  - `setTablesPerReferee` is refused after lock.
+  - The Setup control sends the command.
+  - A referee view for a one-table station shows one team button and the label "Table 3".
+- [ ] **Step 2:** FAIL → implement → PASS. Re-run the engine acceptance test; it must still reproduce the previous event with the default of 2.
+- [ ] **Step 3: Commit:** `feat: choose one or two tables per referee`

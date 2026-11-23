@@ -196,6 +196,18 @@ All times in this section are **official times**: the raw time plus any penaltie
   - Race control can edit a finished round's results until a later round that depends on them is opened.
   - After that, an edit needs an explicit **unlock**. It warns which later matchups would change and regenerates any that haven't run yet.
 
+### 3.6 Tables per referee
+
+*Added after the first live test, at the user's request.*
+
+- Admin chooses per event, in Setup, either **One referee per two tables** (the default, as in §3.1) or **One referee per table**. It can be changed until setup is locked.
+- **One per table:**
+  - Each referee station is one table.
+  - The referee screen shows one big team button, with its +5s.
+  - Head-to-heads are judged by two referees on the same master clock, so times still decide.
+  - The layout rule about keeping head-to-heads on one station no longer applies.
+- **Everything follows the choice:** station counts, the Ready/Start check, pairing, the referee screen and the console's station labels.
+
 ### 4.1 Show champion and end the event
 
 *Added after the first live test, at the user's request.*

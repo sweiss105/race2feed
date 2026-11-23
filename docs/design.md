@@ -196,6 +196,23 @@ All times in this section are **official times**: the raw time plus any penaltie
   - Race control can edit a finished round's results until a later round that depends on them is opened.
   - After that, an edit needs an explicit **unlock**. It warns which later matchups would change and regenerates any that haven't run yet.
 
+### 4.1 Show champion and end the event
+
+*Added after the first live test, at the user's request.*
+
+**Show champion** (race control, once the last round is finished):
+- Race control enters or confirms the bags-packed number.
+- The projector and **every participant phone** switch to a champion screen showing the Grand Champion, the bag total and the final standings by category.
+- Without a Grand Championship, the screen shows each category's winner instead.
+- **Hide champion** returns everyone to the normal screens. The bag number can be changed at any time.
+
+**End event** (admin, Events page, after a confirmation that warns if rounds remain unraced):
+- The event is marked **Ended** and is no longer active.
+- Its results are locked: no further commands are accepted for it.
+- All referee tablets are signed out and their pairings revoked.
+- **Phones and the projector keep showing the ended event's champion and final results** (read-only) until admin activates another event. Exports keep working.
+- **Make active** on an ended event reopens it, after a confirmation. Tablets must be paired again.
+
 ---
 
 ## 5. Timing

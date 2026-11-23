@@ -1,6 +1,6 @@
 import type { Ack } from './types';
 
-export interface QueuedTap { clientTapId: string; cmd: object }
+export interface QueuedTap { clientTapId: string; cmd: object; /** Round the tap was made in. */ round?: number }
 
 /** Refusals that will never succeed on retry. */
 export const NON_RETRYABLE = new Set([
@@ -28,6 +28,13 @@ export class TapQueue {
     } catch {
       /* storage full or blocked: keep going in memory */
     }
+  }
+
+  /** Removes entries matching `pred` (e.g. taps from a round that is over). */
+  drop(pred: (entry: QueuedTap) => boolean) {
+    const all = this.all();
+    const keep = all.filter((e) => !pred(e));
+    if (keep.length !== all.length) this.save(keep);
   }
 
   add(entry: QueuedTap) {

@@ -20,7 +20,7 @@
 .race-head .left { display: flex; align-items: baseline; gap: var(--space-3); }
 .race-clock { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .pill { display: inline-block; padding: 0.15rem 0.65rem; border-radius: 999px; font-size: 0.8125rem; font-weight: 600; background: var(--surface-2); text-transform: capitalize; }
-.pill.running { background: var(--accent); color: var(--on-accent); }
+.pill.running { background: var(--accent-fill); color: var(--on-accent); }
 .pill.open { background: var(--warning); color: #000; }
 .race-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center; }
 .switch { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; }

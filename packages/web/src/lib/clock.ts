@@ -6,6 +6,8 @@ const USE = 5;
 /** Estimates the server clock from ping/pong round trips (NTP-style). */
 export class ClockSync {
   private samples: Sample[] = [];
+  /** Samples from before a sleep: still usable until fresh ones arrive. */
+  private stale: Sample[] = [];
   private timer: unknown = null;
   private interval = 0;
 
@@ -44,18 +46,27 @@ export class ClockSync {
     if (this.samples.length > KEEP) this.samples.shift();
   }
 
-  /** Forget old samples (e.g. after waking from sleep) so new taps use fresh ones. */
-  reset() {
+  /**
+   * After waking from sleep: prefer fresh samples as soon as one arrives, but keep the old
+   * offset usable so taps still work (and queue) if the network is down on wake.
+   */
+  markStale() {
+    if (this.samples.length) this.stale = this.samples;
     this.samples = [];
   }
 
   synced(): boolean {
-    return this.samples.length >= 3;
+    return this.samples.length >= 3 || this.stale.length >= 3;
+  }
+
+  private source(): Sample[] {
+    return this.samples.length ? this.samples : this.stale;
   }
 
   offset(): number {
-    if (!this.samples.length) return 0;
-    const best = [...this.samples].sort((a, b) => a.rtt - b.rtt).slice(0, USE).map((s) => s.offset).sort((a, b) => a - b);
+    const source = this.source();
+    if (!source.length) return 0;
+    const best = [...source].sort((a, b) => a.rtt - b.rtt).slice(0, USE).map((s) => s.offset).sort((a, b) => a - b);
     const mid = Math.floor(best.length / 2);
     return Math.round(best.length % 2 ? best[mid]! : (best[mid - 1]! + best[mid]!) / 2);
   }

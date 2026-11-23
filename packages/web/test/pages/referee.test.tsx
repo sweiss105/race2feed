@@ -88,6 +88,68 @@ describe('referee page', () => {
     expect(queue.all()).toEqual([]);
   });
 
+  it('shows taps waiting to send, so a referee does not tap twice', async () => {
+    let e = start(openNext(lockedFour()));
+    e = { ...e, settings: { ...e.settings, penaltiesEnabled: true } };
+    const queue = new TapQueue(new MemoryStorage());
+    let n = 0;
+    render(<RefereePage view={refViewOf(e)} status="offline" clock={{ synced: () => true, serverNow: () => NOW }} queue={queue}
+      send={async () => { throw 'offline'; }} newId={() => `q-${++n}`} />);
+    // First load still needs one flush; status starts offline here, so seed it as already flushed by allowing taps after sync.
+    const pen = await screen.findByRole('button', { name: /penalty for T1/ });
+    await waitFor(() => expect((pen as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(pen);
+    await waitFor(() => expect(pen.textContent).toContain('×1'));
+    fireEvent.click(await enabledButton(/^T1/));
+    const t1 = await screen.findByRole('button', { name: /^T1/ });
+    await waitFor(() => expect(t1.textContent).toContain('Waiting to send'));
+    expect((t1 as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/2 taps waiting to send/)).toBeTruthy();
+  });
+
+  it('keeps retrying a tap that timed out while still connected', async () => {
+    const e = start(openNext(lockedFour()));
+    const queue = new TapQueue(new MemoryStorage());
+    let calls = 0;
+    const send = async () => { calls++; if (calls <= 2) throw 'timeout'; return { ok: true }; };
+    render(<RefereePage view={refViewOf(e)} status="open" clock={{ synced: () => true, serverNow: () => NOW }} queue={queue}
+      send={send} newId={() => 'slow-1'} retryMs={40} />);
+    fireEvent.click(await enabledButton(/^T1/));
+    await waitFor(() => expect(queue.all()).toEqual([]), { timeout: 2000 });
+  });
+
+  it('drops queued taps from an earlier round instead of sending them now', async () => {
+    const e = start(openNext(lockedFour()));
+    const storage = new MemoryStorage();
+    new TapQueue(storage).add({ clientTapId: 'old-round', round: 0, cmd: { type: 'tapPenalty', teamId: 'x', clientTapId: 'old-round' } });
+    const { sent } = setup(e, { queue: new TapQueue(storage) });
+    await enabledButton(/^T1/);
+    expect(sent.find((c) => c.clientTapId === 'old-round')).toBeUndefined();
+    expect(new TapQueue(storage).all()).toEqual([]);
+  });
+
+  it('undoes its own tap even if race control added one after it', async () => {
+    let e = start(openNext(lockedFour()));
+    e = { ...e, settings: { ...e.settings, penaltiesEnabled: true } };
+    const queue = new TapQueue(new MemoryStorage());
+    const sent: any[] = [];
+    const send = async (c: any) => { sent.push(c); return { ok: true }; };
+    const clock = { synced: () => true, serverNow: () => NOW };
+    const { rerender } = render(<RefereePage view={refViewOf(e)} status="open" clock={clock} queue={queue} send={send} newId={() => 'mine'} />);
+    const pen = await screen.findByRole('button', { name: /penalty for T1/ });
+    await waitFor(() => expect((pen as HTMLButtonElement).disabled).toBe(false));
+    fireEvent.click(pen);
+    await screen.findByRole('button', { name: /Undo/ });
+    const t1 = teamId(e, 'T1');
+    const withTaps = { ...e, taps: [
+      { id: 'srv-ref', clientTapId: 'mine', kind: 'penalty' as const, round: 1, teamId: t1, amountMs: 5000, source: 'referee' as const, deviceId: 'dev1', createdAt: NOW, removedAt: null },
+      { id: 'srv-ctl', kind: 'penalty' as const, round: 1, teamId: t1, amountMs: 5000, source: 'control' as const, createdAt: NOW + 1, removedAt: null },
+    ] };
+    rerender(<RefereePage view={refViewOf(withTaps)} status="open" clock={clock} queue={queue} send={send} newId={() => 'x'} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Undo/ }));
+    await waitFor(() => expect(sent).toContainEqual({ type: 'undoTap', tapId: 'srv-ref' }));
+  });
+
   it('blocks taps until the clock is synced', async () => {
     setup(start(openNext(lockedFour())), { synced: false });
     const buttons = await screen.findAllByRole('button', { name: /^T[12]/ });

@@ -32,12 +32,12 @@ describe('LiveConnection', () => {
   it('reconnects with growing, jittered delays', () => {
     const { conn } = make();
     conn.start();
-    FakeWebSocket.last().emitClose(1006); // attempt 0 → 1000 ms
-    vi.advanceTimersByTime(999);
+    FakeWebSocket.last().emitClose(1006); // attempt 0, random 0.5 → 1000 + 500 ms
+    vi.advanceTimersByTime(1499);
     expect(FakeWebSocket.instances.length).toBe(1);
     vi.advanceTimersByTime(1);
     expect(FakeWebSocket.instances.length).toBe(2);
-    FakeWebSocket.last().emitClose(1006); // attempt 1 → 2000 ms
+    FakeWebSocket.last().emitClose(1006); // attempt 1 → 1000 + 1000 ms
     vi.advanceTimersByTime(1999);
     expect(FakeWebSocket.instances.length).toBe(2);
     vi.advanceTimersByTime(1);
@@ -48,13 +48,13 @@ describe('LiveConnection', () => {
     const { conn } = make();
     conn.start();
     FakeWebSocket.last().emitClose(1006);
-    vi.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1500);
     FakeWebSocket.last().emitClose(1006);
     vi.advanceTimersByTime(2000);
     FakeWebSocket.last().open();
     vi.advanceTimersByTime(10_000);
     FakeWebSocket.last().emitClose(1006);
-    vi.advanceTimersByTime(1000);
+    vi.advanceTimersByTime(1500); // back to attempt 0
     expect(FakeWebSocket.instances.length).toBe(4);
   });
 

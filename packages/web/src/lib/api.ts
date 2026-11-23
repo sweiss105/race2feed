@@ -11,6 +11,20 @@ export async function logout(): Promise<void> {
   await fetch('/api/logout', { method: 'POST' });
 }
 
+/**
+ * Whether this browser is signed in. Only 401/403 mean "signed out"; a server error or a
+ * network failure is "unknown", so pages keep retrying instead of logging people out.
+ */
+export async function authState(fetchFn: (path: string) => Promise<Response> = (p) => fetch(p)): Promise<'in' | 'out' | 'unknown'> {
+  try {
+    const res = await fetchFn('/api/me');
+    if (res.ok) return 'in';
+    return res.status === 401 || res.status === 403 ? 'out' : 'unknown';
+  } catch {
+    return 'unknown';
+  }
+}
+
 export async function me(): Promise<Me | null> {
   const res = await fetch('/api/me');
   return res.ok ? ((await res.json()) as Me) : null;

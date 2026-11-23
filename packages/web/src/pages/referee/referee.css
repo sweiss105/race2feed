@@ -16,13 +16,13 @@
 .ref-tap {
   -webkit-tap-highlight-color: transparent; touch-action: manipulation; user-select: none;
   min-height: 7.5rem; width: 100%; border: 0; border-radius: var(--radius-l);
-  background: var(--accent); color: var(--on-accent);
+  background: var(--accent-fill); color: var(--on-accent);
   display: grid; place-content: center; gap: var(--space-1); padding: var(--space-4);
   font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em; line-height: 1.15;
   transition: transform 90ms ease-out, background-color 90ms ease-out;
   cursor: pointer;
 }
-.ref-tap:active:not(:disabled) { transform: scale(0.97); background: var(--accent-pressed); }
+.ref-tap:active:not(:disabled) { transform: scale(0.97); background: var(--accent-fill-pressed); }
 .ref-tap:disabled { opacity: 1; background: var(--surface-2); color: var(--label); cursor: default; }
 .ref-tap .table { font-size: 0.9375rem; font-weight: 600; opacity: 0.85; letter-spacing: 0; }
 .ref-tap .time { font-size: 2.25rem; font-variant-numeric: tabular-nums; }

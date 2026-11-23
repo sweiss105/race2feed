@@ -99,7 +99,7 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
       result: results[teamId] ?? null,
       taps: e.taps
         .filter((t) => t.round === e.round.current && t.teamId === teamId)
-        .map(({ id, kind, createdAt, removedAt }) => ({ id, kind, createdAt, removedAt })),
+        .map(({ id, clientTapId, kind, createdAt, removedAt }) => ({ id, clientTapId: clientTapId ?? null, kind, createdAt, removedAt })),
     }));
   const s = e.stations[station] ?? { ready: false, excluded: true };
   return {

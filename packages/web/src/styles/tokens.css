@@ -2,6 +2,9 @@
 :root {
   --accent: #D71920;
   --accent-pressed: #B3141A;
+  /* Fills behind white text (buttons): must keep 4.5:1 with white in every theme. */
+  --accent-fill: #D71920;
+  --accent-fill-pressed: #B3141A;
   --on-accent: #FFFFFF;
 
   --bg: #F5F5F7;
@@ -56,6 +59,8 @@
     --danger: #FF6961;
     --accent: #FF3B41;
     --accent-pressed: #E0262C;
+    --accent-fill: #E0262C;
+    --accent-fill-pressed: #C8161C;
     --highlight: rgba(255, 59, 65, 0.22);
     --shadow-s: none;
     --shadow-m: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -75,6 +80,8 @@
   --warning: #FFB340;
   --danger: #FF6961;
   --accent: #FF3B41;
+  --accent-fill: #E0262C;
+  --accent-fill-pressed: #C8161C;
   --highlight: rgba(255, 59, 65, 0.22);
   --shadow-s: none;
   --shadow-m: 0 8px 24px rgba(0, 0, 0, 0.5);

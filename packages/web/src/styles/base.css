@@ -62,8 +62,8 @@ button, input, select, textarea { font: inherit; color: inherit; }
 .btn:active:not(:disabled) { transform: scale(0.97); }
 .btn:disabled { opacity: 0.45; cursor: default; }
 .btn:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-.btn-primary { background: var(--accent); color: var(--on-accent); }
-.btn-primary:active:not(:disabled) { background: var(--accent-pressed); }
+.btn-primary { background: var(--accent-fill); color: var(--on-accent); }
+.btn-primary:active:not(:disabled) { background: var(--accent-fill-pressed); }
 .btn-secondary { background: var(--surface-2); color: var(--label); }
 .btn-destructive { background: transparent; color: var(--danger); box-shadow: inset 0 0 0 1.5px currentColor; }
 .btn-plain { background: transparent; color: var(--accent); padding: 0 var(--space-2); }

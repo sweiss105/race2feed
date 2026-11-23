@@ -1,16 +1,28 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { LiveConnection, wsUrl, type LiveStatus } from '../../lib/live';
 import { ClockSync } from '../../lib/clock';
-import { login, logout, me as fetchMe, type Me } from '../../lib/api';
+import { authState, login, logout, me as fetchMe, type Me } from '../../lib/api';
 import type { ControlView } from '../../lib/types';
 import { Login } from './Login';
 import { ConsolePage } from './ConsolePage';
 
 export function App() {
-  const [me, setMe] = useState<Me | null | 'loading'>('loading');
-  const refresh = () => void fetchMe().then(setMe).catch(() => setMe(null));
+  const [me, setMe] = useState<Me | null | 'loading' | 'unreachable'>('loading');
+  const refresh = () => {
+    void (async () => {
+      const state = await authState();
+      if (state === 'unknown') {
+        // Server error or no network: don't drop to the login form, try again shortly.
+        setMe('unreachable');
+        setTimeout(refresh, 3000);
+        return;
+      }
+      setMe(state === 'out' ? null : await fetchMe().catch(() => null));
+    })();
+  };
   useEffect(refresh, []);
   if (me === 'loading') return <div class="center-page"><p class="secondary">Loading…</p></div>;
+  if (me === 'unreachable') return <div class="center-page"><p class="secondary">Can’t reach the server — retrying…</p></div>;
   if (!me || (me.role !== 'admin' && me.role !== 'control')) return <Login login={login} onSignedIn={refresh} />;
   return <LiveConsole me={me} onSignOut={() => void logout().then(() => setMe(null))} onSignedOut={() => setMe(null)} />;
 }
@@ -22,7 +34,7 @@ function LiveConsole({ me, onSignOut, onSignedOut }: { me: Me; onSignOut(): void
     let clockRef: ClockSync | null = null;
     const c = new LiveConnection({
       url: wsUrl('/api/ws'),
-      checkAuth: async () => (await fetchMe().catch(() => null)) !== null,
+      checkAuth: async () => (await authState()) !== 'out',
       onStatus: (s) => {
         setStatus(s);
         if (s === 'open') clockRef?.start(5000);

@@ -18,24 +18,37 @@ export interface RefereeProps {
   send(cmd: object): Promise<Ack>;
   newId(): string;
   vibrate?(ms: number): void;
+  /** How often to retry unsent taps while connected. */
+  retryMs?: number;
 }
 
 interface Recent { clientTapId: string; teamId: string; kind: 'finish' | 'penalty'; until: number }
 
-export function RefereePage({ view, status, clock, queue, send, newId, vibrate }: RefereeProps) {
-  const [flushed, setFlushed] = useState(false);
+export function RefereePage({ view, status, clock, queue, send, newId, vibrate, retryMs = 5000 }: RefereeProps) {
+  // Taps wait for the first flush only if something was left queued from before.
+  const [flushed, setFlushed] = useState(() => queue.all().length === 0);
+  const [queued, setQueued] = useState(() => queue.all());
+  const refreshQueue = () => setQueued(queue.all());
   const [sending, setSending] = useState<Set<string>>(new Set());
   const [recent, setRecent] = useState<Recent | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Send taps left over from before a reload or a dropout. New taps wait for the first flush
   // after page load; after that a dropout does not block tapping (taps queue and send later).
+  const currentRound = view?.round.current;
   useEffect(() => {
-    if (status !== 'open') return;
+    if (status !== 'open' || currentRound === undefined) return;
     let live = true;
-    void queue.flush(send).then(() => { if (live) setFlushed(true); });
-    return () => { live = false; };
-  }, [status, queue, send]);
+    const flush = () => {
+      // Taps from a finished round can't apply any more (and a penalty would land in the wrong round).
+      queue.drop((e) => e.round !== undefined && e.round !== currentRound);
+      void queue.flush(send).then(() => { if (live) { setFlushed(true); refreshQueue(); } });
+    };
+    flush();
+    // Retry anything still unsent (e.g. a command that timed out on a live connection).
+    const timer = setInterval(() => { if (queue.all().length) flush(); }, retryMs);
+    return () => { live = false; clearInterval(timer); };
+  }, [status, queue, send, currentRound, retryMs]);
 
   useEffect(() => {
     if (!recent) return;
@@ -51,17 +64,20 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate }
   const canTap = clock.synced() && flushed;
 
   const tap = async (team: Team, kind: 'finish' | 'penalty') => {
+    if (!clock.synced()) return;
     const clientTapId = newId();
     const cmd = kind === 'finish'
       ? { type: 'tapFinish', teamId: team.teamId, atServerMs: clock.serverNow(), clientTapId }
       : { type: 'tapPenalty', teamId: team.teamId, clientTapId };
-    queue.add({ clientTapId, cmd });
+    queue.add({ clientTapId, cmd, round: round.current });
+    refreshQueue();
     vibrate?.(15);
     setError(null);
     setSending((s) => new Set(s).add(`${kind}:${team.teamId}`));
     try {
       const ack = await send(cmd);
       queue.settle(clientTapId, ack);
+      refreshQueue();
       if (ack.ok) setRecent({ clientTapId, teamId: team.teamId, kind, until: Date.now() + settings.undoWindowMs });
       else setError(ack.message ?? 'The tap was refused.');
     } catch {
@@ -74,7 +90,7 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate }
   const undo = async () => {
     if (!recent) return;
     const team = view.teams.find((t) => t.teamId === recent.teamId);
-    const tapId = team?.taps.filter((t) => t.kind === recent.kind && t.removedAt === null).at(-1)?.id;
+    const tapId = team?.taps.find((t) => t.clientTapId === recent.clientTapId && t.removedAt === null)?.id;
     if (!tapId) return;
     setRecent(null);
     const ack = await send({ type: 'undoTap', tapId }).catch(() => null);
@@ -109,19 +125,29 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate }
     body = (
       <>
         {!canTap && <p class="ref-notice footnote secondary">{clock.synced() ? 'Sending saved taps…' : 'Syncing clock…'}</p>}
+        {queued.length > 0 && (
+          <p class="ref-notice footnote" role="status" style={{ color: 'var(--warning)' }}>
+            {queued.length} tap{queued.length === 1 ? '' : 's'} waiting to send — they go automatically when the connection is back.
+          </p>
+        )}
         <div class="ref-teams">
           {view.teams.map((t) => {
             const done = t.result !== null;
             const busy = sending.has(`finish:${t.teamId}`);
-            const penalties = t.taps.filter((x) => x.kind === 'penalty' && x.removedAt === null).length;
+            const mineQueued = queued.filter((q) => (q.cmd as { teamId?: string }).teamId === t.teamId);
+            const waiting = mineQueued.some((q) => (q.cmd as { type: string }).type === 'tapFinish');
+            const sentIds = new Set(t.taps.map((x) => x.clientTapId));
+            const penalties = t.taps.filter((x) => x.kind === 'penalty' && x.removedAt === null).length
+              + mineQueued.filter((q) => (q.cmd as { type: string }).type === 'tapPenalty' && !sentIds.has(q.clientTapId)).length;
             return (
               <div class="ref-team" key={t.teamId}>
-                <button type="button" class={`ref-tap${canTap ? '' : ' syncing'}`} disabled={!canTap || done || busy}
+                <button type="button" class={`ref-tap${canTap ? '' : ' syncing'}`} disabled={!canTap || done || busy || waiting}
                   onClick={() => void tap(t, 'finish')}>
                   <span>{t.name}</span>
                   <span class="table">Table {t.table}</span>
                   {done && <span class="time">{timeText({ status: t.result!.status, officialMs: t.result!.rawMs === null ? null : t.result!.rawMs + t.result!.penaltiesMs, penaltiesMs: t.result!.penaltiesMs })}</span>}
-                  {busy && !done && <span class="table">Sending…</span>}
+                  {busy && !done && !waiting && <span class="table">Sending…</span>}
+                  {waiting && !done && <span class="table">Waiting to send</span>}
                 </button>
                 {settings.penaltiesEnabled && (
                   <button type="button" class="ref-pen" disabled={!canTap} aria-label={`+${settings.penaltyMs / 1000}s penalty for ${t.name}`}

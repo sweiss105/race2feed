@@ -25,6 +25,18 @@ describe('ClockSync', () => {
     expect(clock.serverNow()).toBe(now + 5000);
   });
 
+  it('keeps the old offset usable after waking until fresh samples arrive', () => {
+    let now = 0;
+    const clock = new ClockSync({ send: () => {} }, () => now);
+    for (let i = 0; i < 3; i++) { const t0 = now; now += 20; clock.handlePong({ t0, t1: t0 + 10 + 5000 }); }
+    expect(clock.offset()).toBe(5000);
+    clock.markStale();
+    expect(clock.synced()).toBe(true);
+    expect(clock.offset()).toBe(5000);
+    const t0 = now; now += 20; clock.handlePong({ t0, t1: t0 + 10 + 7000 });
+    expect(clock.offset()).toBe(7000);
+  });
+
   it('pings on start and on its interval', () => {
     let now = 0;
     const sent: any[] = [];

@@ -104,6 +104,8 @@ describe('refereeView', () => {
     const v = refereeView(e, derive(e), 1);
     expect(v.station).toEqual({ number: 1, tables: [1, 2], ready: false, excluded: false });
     expect(v.teams.map((t) => [t.name, t.table])).toEqual([['T1', 1], ['T2', 2]]);
+    const tapped = { ...e, taps: [{ id: 's1', clientTapId: 'c1', kind: 'penalty' as const, round: 1, teamId: teamId(e, 'T1'), amountMs: 5000, source: 'referee' as const, deviceId: 'd', createdAt: 1, removedAt: null }] };
+    expect(refereeView(tapped, derive(tapped), 1).teams[0]!.taps[0]).toMatchObject({ id: 's1', clientTapId: 'c1' });
   });
 });
 

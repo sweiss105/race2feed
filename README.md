@@ -1,6 +1,6 @@
 # Race to Feed
 
-Race to Feed is the live web app that runs our charity food-packing race. It replaced the Google Sheet we used to run the event.
+Race to Feed is the live web app that runs a charity food-packing race. It is intended to replace the Google Sheet that is currently used to run the event.
 
 On event day:
 - **Teams** race at numbered tables.

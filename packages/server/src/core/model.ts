@@ -52,9 +52,11 @@ export interface LiveEvent {
   date: string;
   setup: EventInput;
   setupLocked: boolean;
-  settings: { penaltiesEnabled: boolean; undoWindowMs: number; penaltyMs?: number };
+  /** autoFinishMs: missing means 30 s (events stored before auto-finish); 0 turns auto-finish off. */
+  settings: { penaltiesEnabled: boolean; undoWindowMs: number; penaltyMs?: number; autoFinishMs?: number };
   bagTotal: string | null;
-  round: { current: number; phase: Phase; startedAt: number | null; finishedAt: number | null };
+  /** autoFinishAt: when the running round finishes by itself (every team has a result); see autofinish.ts. */
+  round: { current: number; phase: Phase; startedAt: number | null; finishedAt: number | null; autoFinishAt?: number | null };
   finishedRounds: number;
   stations: Record<number, { ready: boolean; excluded: boolean }>;
   taps: Tap[];
@@ -86,7 +88,7 @@ export type SetupCommand =
   | { type: 'setGrandChampionship'; enabled: boolean }
   | { type: 'lockSetup' }
   | { type: 'unlockSetup' }
-  | { type: 'setSettings'; undoWindowMs?: number }
+  | { type: 'setSettings'; undoWindowMs?: number; autoFinishMs?: number }
   | { type: 'setBagTotal'; text: string }
   | { type: 'setPenaltyReasons'; reasons: PenaltyReason[] };
 

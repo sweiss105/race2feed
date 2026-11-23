@@ -188,6 +188,10 @@ All times in this section are **official times**: the raw time plus any penaltie
   - Referee tablets show one button per team at their tables.
 - **Finish gate:**
   - Companion **RACE FINISHED** is refused until every team in the round has a time, DNF or DNS.
+  - **Auto-finish:** once every team in the running round has a result, the server sets `round.autoFinishAt` to now plus the event's **Auto-finish delay (seconds)** (default 30; never shorter than the referee undo window; 0 turns it off).
+    - Any later tap, undo, penalty or correction restarts the delay. If a team loses its result, the time is cleared.
+    - When the time arrives the server runs the same finish as the button, logged with the actor "auto-finish". If that finish is refused, the time is cleared rather than retried.
+    - The time is stored with the event and driven by the hub's single alarm, which also paces phone updates; the alarm is always set to the earlier of the two, so a countdown survives the server going idle.
   - Race control sees the list of teams still outstanding and can mark them DNF or DNS.
   - When finish succeeds, the clock stops and resets, and the round's results are locked.
 - **Next round:** race control reviews results, resolves any ties, then presses **Open next round**.
@@ -255,7 +259,7 @@ All times in this section are **official times**: the raw time plus any penaltie
   - head-to-head winners
   - exact-tie detection
   - seeding totals and seeding rank
-- **When a referee can add one:** from **START** until race control presses **RACE FINISHED**. That includes before or after the team's finish tap, since infractions are often spotted at the end.
+- **When a referee can add one:** from **START** until the round finishes (race control presses **RACE FINISHED**, or auto-finish fires, §4). That includes before or after the team's finish tap, since infractions are often spotted at the end. Each penalty tap restarts the auto-finish delay, so referees have that long after the last finish.
   - After the round is finished, only race control can add or remove penalties. This is subject to the same late-correction rules as times (§4).
 - **On/off switch:** one **event-wide** switch on race control.
   - Flipping it shows or hides the penalty buttons on every referee tablet **immediately**, even mid-race.
@@ -331,7 +335,7 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 ### 7.1 Admin (password)
 - Manage events, import and edit teams, set the venue table count.
 - Edit seeding groups and table assignments.
-- Set the referee undo window.
+- Set the referee undo window and the auto-finish delay.
 - Edit the bracket plan and set Grand Championship eligibility.
 - Manage credentials and the Companion API key.
 - Type the **bag total** shown on the champion screen.
@@ -399,6 +403,7 @@ A custom Companion module (`companion-module-race2feed`) connects to the server 
   - `outstanding` (teams without a result)
   - `state`
   - `penalties_enabled` (on/off)
+  - `auto_finish` (seconds until the round finishes by itself, from the view's `autoFinishAt`; blank when none)
 - **Rejected commands:** if START or FINISH is refused because of a gate, the module shows the reason (e.g. "3 stations not ready") as a variable and briefly flashes the button.
 
 ---

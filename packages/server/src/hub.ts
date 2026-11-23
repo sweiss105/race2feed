@@ -7,6 +7,7 @@ import { backfillLineups } from './core/lineups';
 import { eventCsv } from './core/export';
 import { companionView, controlView, publicRoundUpdate, publicView, refereeView } from './core/views';
 import { needsSnapshot } from './core/broadcast';
+import { nextAlarm } from './core/autofinish';
 import { credentials, hasCredentials, type Credentials } from './http';
 import { hashPassword, randomToken, sha256Hex, verifyPassword, type StoredPassword } from './auth/crypto';
 import { LOCKOUT_WINDOW_MS, loginAllowed, shouldTouch } from './auth/ratelimit';
@@ -37,6 +38,7 @@ async function hashCredentials(cred: Credentials): Promise<CredentialHashes> {
 
 const PUBLIC: Actor = { role: 'public', label: 'public' };
 const PUBLIC_INTERVAL_MS = 1000;
+const AUTO_FINISH: Actor = { role: 'admin', label: 'auto-finish' };
 
 const tagFor = (a: Actor) =>
   a.role === 'admin' || a.role === 'control' ? 'control' : a.role === 'referee' ? `referee:${a.station}` : a.role;
@@ -73,6 +75,8 @@ export class Hub extends DurableObject<Env> {
   /** The most recently ended event: phones and the projector keep showing it while nothing is active. */
   private ended: LiveEvent | null = null;
   private lastPublicSent = 0;
+  /** When the paced public round update is due, or null when none is waiting. In memory only, like lastPublicSent. */
+  private publicDue: number | null = null;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -372,7 +376,31 @@ export class Hub extends DurableObject<Env> {
   async webSocketClose(): Promise<void> {}
 
   async alarm(): Promise<void> {
-    this.sendPublicRound();
+    const at = this.active?.round.autoFinishAt;
+    const finishDue = typeof at === 'number' && at <= Date.now();
+    if (finishDue) await this.autoFinish();
+    // A paced update is waiting, or this alarm was for one whose time was lost when the hub went idle.
+    if (this.publicDue !== null || !finishDue) this.sendPublicRound();
+    await this.scheduleAlarm();
+  }
+
+  /** Finishes the running round when its auto-finish time arrives, exactly as the Finish button does. */
+  private async autoFinish(): Promise<void> {
+    const result = await this.command(AUTO_FINISH, { type: 'finishRace' });
+    if (result.ok || !this.active || this.active.round.autoFinishAt == null) return;
+    // Refused (e.g. a team has no result after all): drop the time so the alarm does not fire again.
+    console.error('auto-finish refused', 'code' in result ? result.code : '');
+    const event: LiveEvent = { ...this.active, round: { ...this.active.round, autoFinishAt: null } };
+    this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify(event), event.id);
+    this.active = event;
+    await this.afterChange({ type: 'autoFinishCancelled' });
+  }
+
+  /** The hub's one alarm serves both the paced phone update and auto-finish, set to whichever is due first. */
+  private async scheduleAlarm(): Promise<void> {
+    const at = nextAlarm(this.publicDue, this.active?.round.autoFinishAt);
+    if (at === null) await this.ctx.storage.deleteAlarm();
+    else if ((await this.ctx.storage.getAlarm()) !== at) await this.ctx.storage.setAlarm(at);
   }
 
   /** backfillLineups() guarded so a bad stored setup cannot stop the hub loading. */
@@ -425,6 +453,7 @@ export class Hub extends DurableObject<Env> {
     const d = this.active ? this.safeDerive(this.active) : null;
     if (!this.active || !d) return;
     this.lastPublicSent = Date.now();
+    this.publicDue = null;
     this.send('public', JSON.stringify({ type: 'round', update: publicRoundUpdate(this.active, d) }));
   }
 
@@ -445,6 +474,7 @@ export class Hub extends DurableObject<Env> {
         const sd = shown ? this.safeDerive(shown) : null;
         if (shown && sd) this.send('public', JSON.stringify({ type: 'snapshot', view: publicView(shown, sd) }));
       }
+      await this.scheduleAlarm();
       return;
     }
     this.send('control', JSON.stringify({ type: 'view', view: controlView(e, d, this.controlExtras()) }));
@@ -457,14 +487,15 @@ export class Hub extends DurableObject<Env> {
     for (const s of stations) this.send(`referee:${s}`, JSON.stringify({ type: 'view', view: refereeView(e, d, s) }));
 
     if (needsSnapshot(cmd, before ?? e)) {
-      await this.ctx.storage.deleteAlarm();
       this.lastPublicSent = Date.now();
+      this.publicDue = null;
       this.send('public', JSON.stringify({ type: 'snapshot', view: publicView(e, d) }));
     } else if (Date.now() - this.lastPublicSent >= PUBLIC_INTERVAL_MS) {
       this.sendPublicRound();
-    } else if ((await this.ctx.storage.getAlarm()) === null) {
-      await this.ctx.storage.setAlarm(this.lastPublicSent + PUBLIC_INTERVAL_MS);
+    } else {
+      this.publicDue ??= this.lastPublicSent + PUBLIC_INTERVAL_MS;
     }
+    await this.scheduleAlarm();
   }
 
   private closeSockets(match: (a: Attachment) => boolean) {

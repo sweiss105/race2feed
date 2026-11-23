@@ -42,7 +42,7 @@ Everything happens at **https://r2f.weiss-audio.com**:
 2. Each referee checks their teams are in place and presses **Ready**.
 3. When every station is Ready, race control (or the Companion **Start** button) starts the race. The master clock runs.
 4. Referees tap each team's button the moment the team finishes.
-5. When every team has a time (or is marked DNF or DNS), race control presses **Finish**.
+5. When every team has a time (or is marked DNF or DNS), the race finishes by itself 30 seconds later. Race control can press **Finish** sooner.
 6. Race control checks the results, settles any ties or penalties, and opens the next round.
 
 > **DNF** means "did not finish" and **DNS** means "did not start". Both always rank after teams that finished.
@@ -157,6 +157,7 @@ About pairing:
 Under **Settings**, for the active event:
 
 - **Referee undo window (seconds):** how long a referee can undo their own tap (default 10 seconds). Press **Save undo window**.
+- **Auto-finish delay (seconds):** how long after the last team gets a result the race finishes by itself (default 30 seconds). It is never shorter than the undo window. Set it to 0 to turn auto-finish off, so only **Finish** ends a race. Press **Save auto-finish delay**. See [Start and finish](#start-and-finish).
 - **Bags of food packed:** the number shown on the champion screen. Type just the number (for example `9,816`) and press **Save bag total**. The screen adds "bags of food packed!". Race control can also enter it when showing the champion.
 - **The penalty list:** the reasons race control chooses from when reviewing penalties. Each reason has a name and either a time (for example +10s) or **DQ** (disqualified from that race). New events start with:
 
@@ -216,6 +217,12 @@ While the round is open, a line tells you how many stations are not ready yet.
 While a round runs, the **Waiting on *N* teams** panel lists every team without a result yet, with **DNF** and **DNS** buttons for each one.
 
 When Finish succeeds, the clock stops and the round's results are locked in. Referees can no longer tap or undo.
+
+**Auto-finish:** once every team in the running round has a result, the race finishes by itself 30 seconds later (the **Auto-finish delay** in Settings).
+- **The 30 seconds start again** after any later tap, penalty, undo or correction, so referees have time to add penalties after the last finish.
+- **It is cancelled** if a team loses its result (a referee's undo, or you press **Clear**). It starts again when every team has a result.
+- **It finishes exactly as Finish does**, and the **Log** shows it as "auto-finish". You can still press **Finish** (or the Companion button) sooner.
+- It keeps counting even if nobody has the console open.
 
 Companion's Start and Finish buttons follow exactly the same rules.
 
@@ -355,7 +362,7 @@ The referee page runs in one browser tab per tablet, so two tabs never keep sepa
 
 When race control has switched penalties on, each team has a smaller **Penalty** button under its finish button. It adds no time; race control sets the length afterwards.
 
-- **When:** any time from the start until race control presses Finish, before or after the team's finish tap.
+- **When:** any time from the start until the race finishes, before or after the team's finish tap. Once every team has a result, the race finishes by itself about 30 seconds after the last tap, and each penalty tap restarts those 30 seconds.
 - **Stacking:** each tap adds one penalty. The button shows how many, for example **×2**.
 - **Undo:** each penalty tap has its own **Undo**, just like a finish tap, unless race control has already decided that penalty.
 - **Don't mix them up:** the penalty button is deliberately smaller, and it's an outlined button rather than a solid one like the finish button.

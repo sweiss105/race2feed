@@ -99,7 +99,7 @@ Content-Type: application/json
 - **Refused by a gate:** `400` with `{"ok": false, "code": "...", "message": "..."}`, for example `stations_not_ready` or `teams_outstanding`.
 - **Bad or revoked key:** `401`.
 
-A WebSocket to `/api/ws` with the same header receives `companionView` updates: `state`, `round`, `startedAt`, `readyCount`, `stationCount`, `outstanding`, `penaltiesEnabled` and `projector`.
+A WebSocket to `/api/ws` with the same header receives `companionView` updates: `state`, `round`, `startedAt`, `autoFinishAt` (when the round will finish by itself, or `null`), `readyCount`, `stationCount`, `outstanding`, `penaltiesEnabled` and `projector`.
 
 The dedicated Companion module described in design §8 is not in this repository.
 

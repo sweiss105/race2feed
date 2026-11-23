@@ -2,6 +2,7 @@ import { fail, type Command, type CommandResult, type Ctx, type LiveEvent, type 
 import { handleSetup } from './setup';
 import { handleLifecycle } from './lifecycle';
 import { handleTaps } from './taps';
+import { withAutoFinish } from './autofinish';
 
 const SETUP = ['importTeams', 'addTeam', 'renameTeam', 'removeTeam', 'setTableCount', 'setTablesPerReferee', 'suggestSetup', 'setGroups',
   'setBrackets', 'setGrandChampionship', 'lockSetup', 'unlockSetup', 'setSettings', 'setBagTotal', 'setPenaltyReasons'] as const;
@@ -29,9 +30,8 @@ export function applyCommand(e: LiveEvent, cmd: Command, ctx: Ctx): CommandResul
   if (!allowed) return fail('unknown_command', `Unknown command "${(cmd as { type: string }).type}".`);
   if (!allowed.includes(ctx.actor.role)) return fail('forbidden', 'You are not allowed to do that.');
   try {
-    if (isOneOf(SETUP, cmd.type)) return handleSetup(e, cmd as Extract<Command, { type: (typeof SETUP)[number] }>, ctx);
-    if (isOneOf(LIFECYCLE, cmd.type)) return handleLifecycle(e, cmd as Extract<Command, { type: (typeof LIFECYCLE)[number] }>, ctx);
-    if (isOneOf(TAPS, cmd.type)) return handleTaps(e, cmd as Extract<Command, { type: (typeof TAPS)[number] }>, ctx);
+    const result = dispatch(e, cmd, ctx);
+    return result.ok ? { ...result, event: withAutoFinish(e, result.event, ctx.now) } : result;
   } catch (err) {
     // Handlers are pure, so a throw leaves nothing half-applied. In setup it is a wrong-typed field;
     // elsewhere it may be a server fault, so the sender keeps the command and can try again.
@@ -39,5 +39,11 @@ export function applyCommand(e: LiveEvent, cmd: Command, ctx: Ctx): CommandResul
     if (isOneOf(SETUP, cmd.type)) return fail('invalid', 'That command is malformed.');
     return fail('server_error', 'The server could not process that. Try again.');
   }
+}
+
+function dispatch(e: LiveEvent, cmd: Command, ctx: Ctx): CommandResult {
+  if (isOneOf(SETUP, cmd.type)) return handleSetup(e, cmd as Extract<Command, { type: (typeof SETUP)[number] }>, ctx);
+  if (isOneOf(LIFECYCLE, cmd.type)) return handleLifecycle(e, cmd as Extract<Command, { type: (typeof LIFECYCLE)[number] }>, ctx);
+  if (isOneOf(TAPS, cmd.type)) return handleTaps(e, cmd as Extract<Command, { type: (typeof TAPS)[number] }>, ctx);
   return fail('unknown_command', `Unknown command "${cmd.type}".`);
 }

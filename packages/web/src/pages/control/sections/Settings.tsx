@@ -71,6 +71,9 @@ function EventSettings({ view }: { view: ControlView }) {
       <h3 class="headline">{view.event.name}</h3>
       <NumberSetting label="Referee undo window (seconds)" button="Save undo window" initial={view.settings.undoWindowMs / 1000} keyName="setSettings-undo"
         onSave={(s) => void runner.run({ type: 'setSettings', undoWindowMs: Math.round(s * 1000) }, 'setSettings-undo')} />
+      <NumberSetting label="Auto-finish delay (seconds)" button="Save auto-finish delay" initial={(view.settings.autoFinishMs ?? 30_000) / 1000} keyName="setSettings-autofinish"
+        onSave={(s) => void runner.run({ type: 'setSettings', autoFinishMs: Math.round(s * 1000) }, 'setSettings-autofinish')} />
+      <p class="footnote secondary" style={{ margin: 0 }}>The race finishes by itself this long after the last team has a result. 0 turns it off. It is never shorter than the undo window.</p>
       <div class="race-actions">
         <input class="input" style={{ flex: 1 }} aria-label="Bags of food packed" placeholder="e.g. 9,816" value={bags}
           onInput={(e) => setBags((e.target as HTMLInputElement).value)} />

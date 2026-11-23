@@ -126,6 +126,10 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
         if (!Number.isInteger(cmd.undoWindowMs) || cmd.undoWindowMs < 0) return fail('invalid', 'Undo window must be a whole number of ms.');
         settings.undoWindowMs = cmd.undoWindowMs;
       }
+      if (cmd.autoFinishMs !== undefined) {
+        if (!Number.isInteger(cmd.autoFinishMs) || cmd.autoFinishMs < 0) return fail('invalid', 'Auto-finish delay must be a whole number of ms.');
+        settings.autoFinishMs = cmd.autoFinishMs;
+      }
       return ok({ ...e, settings });
     }
     case 'setBagTotal':

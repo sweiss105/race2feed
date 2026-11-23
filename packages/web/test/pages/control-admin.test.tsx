@@ -73,6 +73,17 @@ describe('admin sections', () => {
     expect(screen.queryByLabelText('Penalty (seconds)')).toBeNull();
   });
 
+  it('saves the auto-finish delay in seconds, 30 by default', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
+    const send = vi.fn(async () => ({ ok: true }));
+    withRunner(<Settings view={ctlViewOf(lockedFour())} />, send);
+    const field = screen.getByLabelText('Auto-finish delay (seconds)') as HTMLInputElement;
+    expect(field.value).toBe('30');
+    fireEvent.input(field, { target: { value: '45' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save auto-finish delay' }));
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setSettings', autoFinishMs: 45_000 }));
+  });
+
   it('chooses how many tables each referee covers until setup is locked', async () => {
     const send = vi.fn(async () => ({ ok: true }));
     withRunner(<Setup view={ctlViewOf(blank(4))} />, send);

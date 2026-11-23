@@ -194,6 +194,7 @@ export function companionView(e: LiveEvent, d: DerivedEvent) {
     state: e.round.phase,
     round: e.round.current,
     startedAt: e.round.startedAt,
+    autoFinishAt: e.round.autoFinishAt ?? null,
     readyCount: active.filter((s) => s.ready).length,
     stationCount: active.length,
     outstanding: outstanding(e, d).length,

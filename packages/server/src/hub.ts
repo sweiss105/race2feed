@@ -14,6 +14,7 @@ import { LOCKOUT_WINDOW_MS, loginAllowed, shouldTouch } from './auth/ratelimit';
 export type HubCommand =
   | { type: 'createEvent'; name: string; date: string; tableCount: number }
   | { type: 'activateEvent'; eventId: string }
+  | { type: 'endEvent'; eventId: string }
   | { type: 'setPassword'; role: 'admin' | 'control'; password: string }
   | { type: 'createApiKey'; label: string }
   | { type: 'revokeApiKey'; id: string }
@@ -47,6 +48,7 @@ const PAIRING_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const HUB_COMMANDS: Record<HubCommand['type'], Actor['role'][]> = {
   createEvent: ['admin'],
   activateEvent: ['admin'],
+  endEvent: ['admin'],
   setPassword: ['admin'],
   createApiKey: ['admin'],
   revokeApiKey: ['admin'],
@@ -68,6 +70,8 @@ CREATE TABLE IF NOT EXISTS login_failures (ip TEXT, at INTEGER);
 export class Hub extends DurableObject<Env> {
   private sql: SqlStorage;
   private active: LiveEvent | null = null;
+  /** The most recently ended event: phones and the projector keep showing it while nothing is active. */
+  private ended: LiveEvent | null = null;
   private lastPublicSent = 0;
 
   constructor(ctx: DurableObjectState, env: Env) {
@@ -76,6 +80,7 @@ export class Hub extends DurableObject<Env> {
     ctx.blockConcurrencyWhile(async () => {
       this.sql.exec(SCHEMA);
       this.active = this.loadActive();
+      this.ended = this.loadEnded();
     });
   }
 
@@ -84,6 +89,20 @@ export class Hub extends DurableObject<Env> {
   private loadActive(): LiveEvent | null {
     const row = this.sql.exec<{ doc: string }>('SELECT doc FROM events WHERE active = 1 LIMIT 1').toArray()[0];
     return row ? (JSON.parse(row.doc) as LiveEvent) : null;
+  }
+
+  private loadEnded(): LiveEvent | null {
+    let latest: LiveEvent | null = null;
+    for (const { doc } of this.sql.exec<{ doc: string }>('SELECT doc FROM events WHERE active = 0').toArray()) {
+      const e = JSON.parse(doc) as LiveEvent;
+      if (e.endedAt && (!latest || e.endedAt > (latest.endedAt ?? 0))) latest = e;
+    }
+    return latest;
+  }
+
+  /** What participants see: the active event, or else the last one that ended. */
+  private get display(): LiveEvent | null {
+    return this.active ?? this.ended;
   }
 
   private audit(eventId: string | null, actor: Actor, action: string, detail: unknown) {
@@ -210,12 +229,34 @@ export class Hub extends DurableObject<Env> {
         if (!exists) return fail('not_found', 'No such event.');
         this.ctx.storage.transactionSync(() => {
           this.sql.exec('UPDATE events SET active = CASE WHEN id = ? THEN 1 ELSE 0 END', cmd.eventId);
+          const row = this.sql.exec<{ doc: string }>('SELECT doc FROM events WHERE id = ?', cmd.eventId).toArray()[0]!;
+          const doc = JSON.parse(row.doc) as LiveEvent;
+          if (doc.endedAt) this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify({ ...doc, endedAt: null }), cmd.eventId);
         });
         this.active = this.loadActive();
+        this.ended = this.loadEnded();
         // Tablets are paired per event: disconnect the old event's referees.
         this.closeSockets((a) => a.actor.role === 'referee');
         await this.afterChange(cmd);
         return reply({ eventId: cmd.eventId });
+      }
+      case 'endEvent': {
+        const row = this.sql.exec<{ doc: string }>('SELECT doc FROM events WHERE id = ?', cmd.eventId).toArray()[0];
+        if (!row) return fail('not_found', 'No such event.');
+        const doc = JSON.parse(row.doc) as LiveEvent;
+        if (doc.endedAt) return fail('already_ended', 'This event has already ended.');
+        const event: LiveEvent = { ...doc, endedAt: now, championShown: true, projectorPin: null };
+        this.ctx.storage.transactionSync(() => {
+          this.sql.exec('UPDATE events SET doc = ?, active = 0 WHERE id = ?', JSON.stringify(event), event.id);
+          this.sql.exec('UPDATE devices SET revoked_at = ? WHERE event_id = ? AND revoked_at IS NULL', now, event.id);
+          this.sql.exec('DELETE FROM pairing_codes WHERE event_id = ?', event.id);
+        });
+        const wasActive = this.active?.id === event.id;
+        if (wasActive) this.active = null;
+        this.ended = event;
+        if (wasActive) this.closeSockets((a) => a.actor.role === 'referee');
+        await this.afterChange(cmd);
+        return reply({ eventId: event.id }, { eventId: event.id });
       }
       case 'setPassword': {
         if (cmd.role !== 'admin' && cmd.role !== 'control') return fail('invalid', 'Role must be admin or control.');
@@ -325,7 +366,7 @@ export class Hub extends DurableObject<Env> {
   }
 
   private initialMessage(actor: Actor): string {
-    const e = this.active;
+    const e = actor.role === 'public' ? this.display : this.active;
     const d = e ? this.safeDerive(e) : null;
     if (!e || !d) return JSON.stringify({ type: actor.role === 'public' ? 'snapshot' : 'view', view: null });
     switch (actor.role) {
@@ -366,7 +407,16 @@ export class Hub extends DurableObject<Env> {
     }
     const e = this.active;
     const d = e ? this.safeDerive(e) : null;
-    if (!e || !d) return;
+    if (!e || !d) {
+      if (!e) {
+        this.send('control', JSON.stringify({ type: 'view', view: null }));
+        this.send('companion', JSON.stringify({ type: 'view', view: null }));
+        const shown = this.display;
+        const sd = shown ? this.safeDerive(shown) : null;
+        if (shown && sd) this.send('public', JSON.stringify({ type: 'snapshot', view: publicView(shown, sd) }));
+      }
+      return;
+    }
     this.send('control', JSON.stringify({ type: 'view', view: controlView(e, d, this.controlExtras()) }));
     this.send('companion', JSON.stringify({ type: 'view', view: companionView(e, d) }));
     const stations = new Set<number>();
@@ -400,11 +450,11 @@ export class Hub extends DurableObject<Env> {
     return actor ? { role: actor.role, label: actor.label, ...(actor.station !== undefined ? { station: actor.station } : {}) } : null;
   }
 
-  async listEvents(): Promise<{ id: string; name: string; date: string; active: boolean }[]> {
+  async listEvents(): Promise<{ id: string; name: string; date: string; active: boolean; ended: boolean }[]> {
     return this.sql.exec<{ doc: string; active: number }>('SELECT doc, active FROM events ORDER BY created_at DESC').toArray()
       .map((r) => {
         const e = JSON.parse(r.doc) as LiveEvent;
-        return { id: e.id, name: e.name, date: e.date, active: r.active === 1 };
+        return { id: e.id, name: e.name, date: e.date, active: r.active === 1, ended: Boolean(e.endedAt) };
       });
   }
 

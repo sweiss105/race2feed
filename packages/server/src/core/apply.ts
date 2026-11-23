@@ -5,11 +5,11 @@ import { handleTaps } from './taps';
 
 const SETUP = ['importTeams', 'addTeam', 'renameTeam', 'removeTeam', 'setTableCount', 'suggestSetup', 'setGroups',
   'setBrackets', 'setGrandChampionship', 'lockSetup', 'unlockSetup', 'setSettings', 'setBagTotal', 'setPenaltyReasons'] as const;
-const LIFECYCLE = ['openNextRound', 'stationReady', 'overrideStation', 'startRace', 'finishRace', 'decideTie', 'pinProjector'] as const;
+const LIFECYCLE = ['openNextRound', 'stationReady', 'overrideStation', 'startRace', 'finishRace', 'decideTie', 'pinProjector', 'showChampion', 'hideChampion'] as const;
 const TAPS = ['tapFinish', 'tapPenalty', 'undoTap', 'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled', 'notePenalty', 'decidePenalty'] as const;
 
 const CONTROL = ['openNextRound', 'overrideStation', 'startRace', 'finishRace', 'decideTie', 'pinProjector',
-  'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled', 'decidePenalty'];
+  'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled', 'decidePenalty', 'showChampion', 'hideChampion'];
 
 /** Roles allowed to send each command. Admin may do everything race control can, plus setup. */
 export const PERMISSIONS: Record<Command['type'], Role[]> = Object.fromEntries([
@@ -24,6 +24,7 @@ PERMISSIONS.renameTeam = ['admin', 'control'];
 const isOneOf = <T extends string>(list: readonly T[], type: string): type is T => (list as readonly string[]).includes(type);
 
 export function applyCommand(e: LiveEvent, cmd: Command, ctx: Ctx): CommandResult {
+  if (e.endedAt) return fail('event_ended', 'This event has ended; reopen it from Events to make changes.');
   const allowed = Object.hasOwn(PERMISSIONS, cmd.type) ? PERMISSIONS[cmd.type] : undefined;
   if (!allowed) return fail('unknown_command', `Unknown command "${(cmd as { type: string }).type}".`);
   if (!allowed.includes(ctx.actor.role)) return fail('forbidden', 'You are not allowed to do that.');

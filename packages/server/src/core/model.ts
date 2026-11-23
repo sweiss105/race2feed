@@ -63,6 +63,10 @@ export interface LiveEvent {
   projectorPin: ProjectorScreen | null;
   /** Missing on events stored before the list existed; see reasonsOf(). */
   penaltyReasons?: PenaltyReason[];
+  /** Race control is showing the champion screen on every device. */
+  championShown?: boolean;
+  /** Set when admin ends the event; it is then read-only and no longer active. */
+  endedAt?: number | null;
 }
 
 export type SetupCommand =
@@ -88,7 +92,9 @@ export type LifecycleCommand =
   | { type: 'startRace' }
   | { type: 'finishRace' }
   | { type: 'decideTie'; raceId: string; order: string[]; confirmUnlock?: boolean }
-  | { type: 'pinProjector'; screen: ProjectorScreen | null };
+  | { type: 'pinProjector'; screen: ProjectorScreen | null }
+  | { type: 'showChampion'; bagTotal: string }
+  | { type: 'hideChampion' };
 
 export type TapCommand =
   | { type: 'tapFinish'; teamId: string; atServerMs: number; clientTapId: string }

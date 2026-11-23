@@ -79,5 +79,15 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
     }
     case 'pinProjector':
       return ok({ ...e, projectorPin: cmd.screen });
+    case 'showChampion': {
+      const rounds = derive(e).rounds.length;
+      if (e.round.phase !== 'finished' || e.round.current !== rounds || rounds === 0) {
+        return fail('not_finished', 'Show the champion once the last round is finished.');
+      }
+      const bags = typeof cmd.bagTotal === 'string' ? cmd.bagTotal.trim().slice(0, 40) : '';
+      return ok({ ...e, championShown: true, bagTotal: bags || e.bagTotal });
+    }
+    case 'hideChampion':
+      return ok({ ...e, championShown: false });
   }
 }

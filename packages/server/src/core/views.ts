@@ -25,6 +25,7 @@ function penaltyIndex(e: LiveEvent): Map<string, PenaltyInfo> {
 
 export function projectorScreen(e: LiveEvent, d: DerivedEvent): ProjectorScreen {
   if (e.projectorPin) return e.projectorPin;
+  if (e.championShown || e.endedAt) return 'champion';
   switch (e.round.phase) {
     case 'idle': return 'welcome';
     case 'open': return 'tables';
@@ -94,6 +95,8 @@ export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopene
     standings: d.standings,
     grandChampion: d.grandChampion,
     bagTotal: e.bagTotal,
+    championShown: Boolean(e.championShown || e.endedAt),
+    ended: Boolean(e.endedAt),
     projector: projectorScreen(e, d),
   };
 }

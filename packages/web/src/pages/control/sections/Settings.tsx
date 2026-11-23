@@ -74,8 +74,11 @@ function EventSettings({ view }: { view: ControlView }) {
       <NumberSetting label="Referee undo window (seconds)" button="Save undo window" initial={view.settings.undoWindowMs / 1000} keyName="setSettings-undo"
         onSave={(s) => void runner.run({ type: 'setSettings', undoWindowMs: Math.round(s * 1000) }, 'setSettings-undo')} />
       <div class="race-actions">
-        <input class="input" style={{ flex: 1 }} aria-label="Bags of food packed" placeholder="e.g. 9,816" value={bags}
-          onInput={(e) => setBags((e.target as HTMLInputElement).value)} />
+        <label class="field" style={{ flex: 1, gridAutoFlow: 'column', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <span class="callout">Bags of food packed</span>
+          <input class="input" aria-label="Bags of food packed" placeholder="e.g. 9,816" value={bags}
+            onInput={(e) => setBags((e.target as HTMLInputElement).value)} />
+        </label>
         <Button kind="secondary" busy={runner.busy('setBagTotal')} onClick={() => void runner.run({ type: 'setBagTotal', text: bags })}>Save bag total</Button>
       </div>
     </section>

@@ -127,6 +127,8 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
 
   await create('Race to Feed 2026', '2026-11-14', '8');
   const event = admin.getByRole('row', { name: /Race to Feed 2026/ });
+  // An ended event is still on display, so the new one waits for Make active.
+  await event.getByRole('button', { name: 'Make active' }).click();
   await expect(event.getByText('Active')).toBeVisible();
   await admin.getByLabel('Event name').fill('Race to Feed 2027');
   await admin.getByLabel('Date').fill('2027-11-13');

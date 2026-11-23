@@ -176,7 +176,7 @@ Under **Settings**, for the active event:
 
 - **Penalty (seconds):** the size of the referee's penalty button (default 5 seconds). Press **Save penalty**.
 - **Referee undo window (seconds):** how long a referee can undo their own tap (default 10 seconds). Press **Save undo window**.
-- **Bags of food packed:** the number shown on the champion screen. It's the box under the undo window (it shows *e.g. 9,816* when empty). Type just the number (for example `9,816`) and press **Save bag total**. The screen adds "bags of food packed!". Race control can also enter it when showing the champion.
+- **Bags of food packed:** the number shown on the champion screen. Type just the number (for example `9,816`) and press **Save bag total**. The screen adds "bags of food packed!". Race control can also enter it when showing the champion.
 - **The penalty list:** the reasons race control chooses from when reviewing penalties. Each reason has a name and either a time (for example +10s) or **DQ** (disqualified from that race). New events start with:
 
   | Reason | Penalty |

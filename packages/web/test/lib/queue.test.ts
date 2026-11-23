@@ -45,4 +45,23 @@ describe('TapQueue', () => {
     await Promise.all([q.flush(send), q.flush(send)]);
     expect(calls).toBe(1);
   });
+
+  it('keeps taps in memory when storage cannot be written', () => {
+    const storage = new MemoryStorage();
+    storage.setItem = () => { throw new Error('QuotaExceededError'); };
+    const q = new TapQueue(storage);
+    q.add(entry('a'));
+    expect(q.all().map((e) => e.clientTapId)).toEqual(['a']);
+    q.settle('a', { ok: true });
+    expect(q.all()).toEqual([]);
+  });
+
+  it('reports every answer from a flush', async () => {
+    const q = new TapQueue(new MemoryStorage());
+    ['a', 'b'].forEach((id) => q.add(entry(id)));
+    const seen: [string, boolean][] = [];
+    await q.flush(async (cmd: any) => (cmd.clientTapId === 'a' ? { ok: true } : { ok: false, code: 'already_finished', message: 'no' }),
+      (e, ack) => seen.push([e.clientTapId, ack.ok]));
+    expect(seen).toEqual([['a', true], ['b', false]]);
+  });
 });

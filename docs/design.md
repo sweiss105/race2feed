@@ -127,9 +127,7 @@ One rule covers every bracket size from 4 to 7 teams. Each team races exactly tw
 
 Sizes 4 and 6 reproduce the sheet's formats exactly.
 
-> **To confirm before build:**
-> - In the agreed example the 5-team heats were shown as `9v12, 10v11v13`. The rule above gives `9v13, 10v12v11` instead. Pick one and lock it in tests.
-> - The 7-team "others race" has 4 teams, which spans two stations. That works under the timing rules (§5).
+For a 5-team bracket of seeds 9–13, the heats are **9 v 13** and **10 v 12 v 11** (decided). The 7-team "others race" has 4 teams and spans two stations, which the timing rules handle (§5).
 
 ### 3.5 Ranking rules
 
@@ -250,6 +248,8 @@ All times in this section are **official times**: the raw time plus any penaltie
 
 ## 7. Pages
 
+All page and UX design follows the `anthropic-skills:apple-design` skill (the user's request).
+
 ### 7.1 Admin (password)
 - Manage events, import and edit teams, set the venue table count.
 - Edit seeding groups and table assignments.
@@ -340,10 +340,10 @@ The server is reachable from the internet, so:
 
 ---
 
-## 10. Architecture (proposed)
+## 10. Architecture
 
 - **One service** serves the web pages, a JSON API and a WebSocket hub. The WebSocket hub pushes state changes to every page and to Companion.
-- **Proposed stack (open to change):**
+- **Stack (decided):**
   - TypeScript on Node.js for the server, so the Companion module (also Node and TypeScript) can share types.
   - SQLite for storage.
   - A lightweight front end served by the same container.

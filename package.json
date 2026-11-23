@@ -7,9 +7,11 @@
   ],
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc -p packages/engine --noEmit && tsc -p packages/server --noEmit",
+    "typecheck": "tsc -p packages/engine --noEmit && tsc -p packages/server --noEmit && tsc -p packages/web --noEmit",
     "dev": "wrangler dev -c packages/server/wrangler.jsonc",
-    "deploy": "wrangler deploy -c packages/server/wrangler.jsonc"
+    "deploy": "wrangler deploy -c packages/server/wrangler.jsonc",
+    "build": "npm run build -w @race2feed/web",
+    "pretest": "npm run build"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

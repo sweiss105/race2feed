@@ -1,0 +1,23 @@
+{
+  "name": "@race2feed/web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.11.4",
+    "@race2feed/engine": "*",
+    "motion": "^14.14.0",
+    "preact": "^11.2.0",
+    "uqr": "^0.1.3"
+  },
+  "devDependencies": {
+    "@preact/preset-vite": "^2.10.6",
+    "@testing-library/preact": "^3.2.6",
+    "happy-dom": "^21.0.4",
+    "vite": "^8.3.8"
+  }
+}

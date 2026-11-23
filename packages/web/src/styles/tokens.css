@@ -1,0 +1,90 @@
+/* Design tokens. Light/dark follow the system; the projector forces the dark set. */
+:root {
+  --accent: #D71920;
+  --accent-pressed: #B3141A;
+  --on-accent: #FFFFFF;
+
+  --bg: #F5F5F7;
+  --surface: #FFFFFF;
+  --surface-2: #F0F0F3;
+  --label: #1D1D1F;
+  --secondary-label: #5E5E66;
+  --tertiary-label: #8A8A93;
+  --separator: rgba(60, 60, 67, 0.18);
+  --material: rgba(255, 255, 255, 0.72);
+  --scrim: rgba(0, 0, 0, 0.35);
+  --success: #1E8E3E;
+  --warning: #B26B00;
+  --danger: #C4161C;
+  --highlight: rgba(215, 25, 32, 0.12);
+
+  --tier-gold: #C9A227;
+  --tier-silver: #A7AEB8;
+  --tier-bronze: #B0723A;
+  --tier-copper: #C46A4A;
+  --tier-tin: #8D98A3;
+
+  --radius-s: 0.5rem;
+  --radius-m: 0.75rem;
+  --radius-l: 1.25rem;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.5rem;
+  --space-6: 2rem;
+  --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.06), 0 1px 1px rgba(0, 0, 0, 0.04);
+  --shadow-m: 0 8px 24px rgba(0, 0, 0, 0.10), 0 2px 6px rgba(0, 0, 0, 0.06);
+  --blur: saturate(180%) blur(20px);
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not(.theme-light) {
+    --bg: #000000;
+    --surface: #1C1C1E;
+    --surface-2: #2C2C2E;
+    --label: #F5F5F7;
+    --secondary-label: #AEAEB2;
+    --tertiary-label: #7C7C82;
+    --separator: rgba(84, 84, 88, 0.6);
+    --material: rgba(28, 28, 30, 0.72);
+    --scrim: rgba(0, 0, 0, 0.55);
+    --success: #30D158;
+    --warning: #FFB340;
+    --danger: #FF6961;
+    --accent: #FF3B41;
+    --accent-pressed: #E0262C;
+    --highlight: rgba(255, 59, 65, 0.22);
+    --shadow-s: none;
+    --shadow-m: 0 8px 24px rgba(0, 0, 0, 0.5);
+  }
+}
+
+:root.theme-dark {
+  --bg: #000000;
+  --surface: #1C1C1E;
+  --surface-2: #2C2C2E;
+  --label: #F5F5F7;
+  --secondary-label: #AEAEB2;
+  --tertiary-label: #7C7C82;
+  --separator: rgba(84, 84, 88, 0.6);
+  --material: rgba(28, 28, 30, 0.72);
+  --success: #30D158;
+  --warning: #FFB340;
+  --danger: #FF6961;
+  --accent: #FF3B41;
+  --highlight: rgba(255, 59, 65, 0.22);
+  --shadow-s: none;
+  --shadow-m: 0 8px 24px rgba(0, 0, 0, 0.5);
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  :root { --material: var(--surface); --blur: none; }
+}
+
+@media (prefers-contrast: more) {
+  :root { --separator: currentColor; --secondary-label: var(--label); }
+}

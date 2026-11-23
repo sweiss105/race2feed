@@ -9,11 +9,15 @@ describe('worker', () => {
   });
 });
 
-describe('placeholder page', () => {
-  it('is served by the worker at the site root', async () => {
+describe('pages', () => {
+  it('serves the built participant page at the site root', async () => {
     const res = await exports.default.fetch('https://r2f.test/');
     expect(res.status).toBe(200);
-    expect(res.headers.get('content-type')).toContain('text/html');
-    expect(await res.text()).toContain('Race to Feed');
+    expect(await res.text()).toContain('<div id="app">');
+  });
+  it('serves the projector page', async () => {
+    const res = await exports.default.fetch('https://r2f.test/projector/');
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('Projector');
   });
 });

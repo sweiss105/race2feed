@@ -11,9 +11,11 @@
     "dev": "wrangler dev -c packages/server/wrangler.jsonc",
     "deploy": "wrangler deploy -c packages/server/wrangler.jsonc",
     "build": "npm run build -w @race2feed/web",
-    "pretest": "npm run build"
+    "pretest": "npm run build",
+    "e2e": "playwright test -c e2e/playwright.config.ts --trace off"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "typescript": "^7.0.2",
     "vitest": "^5.1.1"
   }

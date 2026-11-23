@@ -7,6 +7,8 @@
 .proj-body { flex: 1; min-height: 0; }
 .proj-qr { display: flex; align-items: center; gap: 2vw; }
 .proj-qr .url { font-size: clamp(1rem, 2.6vh, 2rem); font-weight: 600; }
+.proj-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 3vw; }
+.proj-head .proj-qr { gap: 1.2vw; }
 .proj-corner { position: fixed; right: 3vw; bottom: 4vh; display: flex; align-items: center; gap: 1.5vw; background: rgba(28, 28, 30, 0.8); padding: 1vh 1vw; border-radius: var(--radius-l); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur); }
 
 .proj-welcome { flex: 1; display: grid; place-content: center; justify-items: center; text-align: center; gap: 4vh; }
@@ -21,7 +23,7 @@
 .proj-ticker { display: flex; gap: 1.5vw; flex-wrap: wrap; font-size: clamp(1rem, 2.4vh, 1.75rem); }
 .proj-ticker .chip { padding: 0.4em 0.8em; border-radius: 999px; background: var(--surface); }
 
-.proj-columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3vw; font-size: clamp(0.85rem, 2vh, 1.6rem); }
+.proj-columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3vw; font-size: clamp(1rem, 2.3vh, 1.9rem); }
 .proj-columns h3 { font-size: 1.2em; margin: 0 0 0.6em; letter-spacing: 0.04em; text-transform: uppercase; color: var(--secondary-label); }
 .proj-columns .row { display: grid; grid-template-columns: 2em 1fr auto; gap: 0.7em; padding: 0.25em 0.5em; border-left: 0.35em solid var(--tier, transparent); }
 .proj-columns .row .n { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--secondary-label); }

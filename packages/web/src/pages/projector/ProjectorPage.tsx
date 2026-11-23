@@ -49,9 +49,12 @@ function Tables({ state, siteUrl }: { state: PublicView; siteUrl: string }) {
   const rows = scheduleRows(state);
   return (
     <>
-      <header>
-        <div class="proj-kicker">Go to your table</div>
-        <h2 class="proj-title">Round {state.round.current}</h2>
+      <header class="proj-head">
+        <div>
+          <div class="proj-kicker">Go to your table</div>
+          <h2 class="proj-title">Round {state.round.current}</h2>
+        </div>
+        <div class="proj-qr"><span class="url">{host(siteUrl)}</span><QR value={siteUrl} size="13vh" /></div>
       </header>
       <div class="proj-body proj-tables">
         {rows.map((r) => (
@@ -62,7 +65,6 @@ function Tables({ state, siteUrl }: { state: PublicView; siteUrl: string }) {
           </div>
         ))}
       </div>
-      <div class="proj-corner"><QR value={siteUrl} size="12vh" /><span class="url">{host(siteUrl)}</span></div>
     </>
   );
 }

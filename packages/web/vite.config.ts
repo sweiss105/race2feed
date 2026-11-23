@@ -2,6 +2,8 @@ import { defineConfig } from 'vite';
 import preact from '@preact/preset-vite';
 import { resolve } from 'node:path';
 
+const here = import.meta.dirname;
+
 export default defineConfig({
   plugins: [preact()],
   build: {
@@ -9,11 +11,11 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        main: resolve(__dirname, 'index.html'),
-        projector: resolve(__dirname, 'projector/index.html'),
-        ref: resolve(__dirname, 'ref/index.html'),
-        control: resolve(__dirname, 'control/index.html'),
-        notFound: resolve(__dirname, '404.html'),
+        main: resolve(here, 'index.html'),
+        projector: resolve(here, 'projector/index.html'),
+        ref: resolve(here, 'ref/index.html'),
+        control: resolve(here, 'control/index.html'),
+        notFound: resolve(here, '404.html'),
       },
     },
   },

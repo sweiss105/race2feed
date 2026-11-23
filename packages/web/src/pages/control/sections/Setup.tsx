@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { ControlView } from '../../../lib/types';
 import { Button } from '../../../ui/Button';
 import { useRunner } from '../runner';
+import { Switch } from '../../../ui/Switch';
 import { Problems } from './Problems';
 import { tierOf } from '../../../lib/selectors';
 
@@ -27,11 +28,8 @@ export function Setup({ view }: { view: ControlView }) {
         {!locked && <Button kind="secondary" busy={runner.busy('suggestSetup')} onClick={() => void runner.run({ type: 'suggestSetup' })}>Suggest groups and brackets</Button>}
         {!locked && <Button busy={runner.busy('lockSetup')} onClick={lock}>Lock setup</Button>}
         {locked && view.round.current === 0 && <Button kind="secondary" busy={runner.busy('unlockSetup')} onClick={() => void runner.run({ type: 'unlockSetup' })}>Unlock setup</Button>}
-        <label class="switch">
-          <input type="checkbox" role="switch" checked={view.setup.grandChampionship} disabled={locked}
-            onChange={(e) => void runner.run({ type: 'setGrandChampionship', enabled: (e.target as HTMLInputElement).checked })} />
-          <span class="callout">Grand Championship</span>
-        </label>
+        <Switch checked={view.setup.grandChampionship} label="Grand Championship" disabled={locked}
+          onToggle={(enabled) => runner.run({ type: 'setGrandChampionship', enabled })} />
       </div>
       {runner.error('suggestSetup') && <p class="err">{runner.error('suggestSetup')}</p>}
       <div class="panel"><Problems items={problems} /></div>

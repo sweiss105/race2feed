@@ -149,7 +149,7 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate }
   }
 
   return (
-    <div class="ref-main">
+    <div class={`ref-main${recent ? ' has-undo' : ''}`}>
       {meta}
       {error && <p class="ref-notice callout" role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
       {body}

@@ -2,3 +2,5 @@ node_modules/
 .superpowers/
 .dev.vars
 packages/web/dist/
+.wrangler/
+test-results/

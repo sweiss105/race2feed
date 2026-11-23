@@ -77,6 +77,18 @@ describe('race section', () => {
     await waitFor(() => expect(sent.at(-1)).toMatchObject({ type: 'setResult', round: 1, confirmUnlock: true, set: { kind: 'status', status: 'dnf' } }));
   });
 
+  it('flips the penalties switch at once while the server confirms', async () => {
+    let resolve!: (a: Ack) => void;
+    const send = vi.fn(() => new Promise<Ack>((r) => { resolve = r; }));
+    render(<ConsolePage me={me('control')} view={ctlViewOf(openNext(lockedFour()))} send={send} serverNow={() => 0} status="open" />);
+    const sw = screen.getByRole('switch') as HTMLInputElement;
+    expect(sw.checked).toBe(false);
+    fireEvent.click(sw);
+    expect(sw.checked).toBe(true);
+    expect(send).toHaveBeenCalledWith({ type: 'setPenaltiesEnabled', enabled: true });
+    resolve({ ok: true });
+  });
+
   it('marks an outstanding team DNF', async () => {
     const send = vi.fn(async () => ({ ok: true }));
     const e = start(openNext(lockedFour()));

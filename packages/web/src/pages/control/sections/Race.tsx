@@ -6,6 +6,7 @@ import { timeText } from '../../../ui/Time';
 import { teamName } from '../../../lib/selectors';
 import { useNow } from '../../../lib/useNow';
 import { useRunner } from '../runner';
+import { Switch } from '../../../ui/Switch';
 
 const SCREENS = ['welcome', 'tables', 'clock', 'seeding-results', 'brackets', 'standings', 'champion'] as const;
 
@@ -40,11 +41,8 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
       {round.phase === 'open' && notReady > 0 && <p class="callout secondary">{notReady} station{notReady === 1 ? '' : 's'} not ready yet.</p>}
 
       <div class="race-actions" style={{ marginBottom: 'var(--space-4)' }}>
-        <label class="switch">
-          <input type="checkbox" role="switch" checked={view.settings.penaltiesEnabled} disabled={runner.busy('setPenaltiesEnabled')}
-            onChange={(e) => void runner.run({ type: 'setPenaltiesEnabled', enabled: (e.target as HTMLInputElement).checked })} />
-          <span class="callout">Time penalties (+{view.settings.penaltyMs / 1000}s)</span>
-        </label>
+        <Switch checked={view.settings.penaltiesEnabled} label={`Time penalties (+${view.settings.penaltyMs / 1000}s)`}
+          onToggle={(enabled) => runner.run({ type: 'setPenaltiesEnabled', enabled })} />
         <label class="field" style={{ marginLeft: 'auto' }}>
           <span class="visually-hidden">Projector screen</span>
           <select class="input" value={view.projectorPin ?? ''} onChange={(e) => {

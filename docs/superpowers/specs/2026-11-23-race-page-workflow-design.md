@@ -106,7 +106,8 @@ Calls made here, not by the owner:
 - A Cloudflare Access application covers `r2f.weiss-audio.com/control`, `/control/*` and `/api/control/*`. Its one policy allows a list of email addresses, with one-time PIN as the sign-in method. The list is managed in Cloudflare's Zero Trust dashboard, not in the app.
 - The console page and every console request (commands, lists, export, and the console's live connection) move under `/api/control/`. The Worker accepts a console request only if it carries Access's signed token, checked against the team's public keys and the application's audience tag. Both values are Worker variables (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`). If either is missing the console is refused, never opened.
 - The person's email from the token is the actor name in the log.
-- Session length is set in Cloudflare (proposed: 7 days; the maximum is one month), so people sign in before event day.
+- Session length is 14 days (owner's decision), set on the Access application, so people sign in before event day.
+- The Zero Trust team domain is `silent-butterfly-7498.cloudflareaccess.com`. The allow list starts with the owner's address only; more are added in Cloudflare's dashboard.
 - Sign out sends the browser to Access's sign-out address.
 - Removed: the app's sign-in page, the password section in Settings, the `setPassword` command, the stored password and session tables' use for console sign-in, and the `ADMIN_PASSWORD` secret.
 

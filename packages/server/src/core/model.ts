@@ -1,4 +1,5 @@
 import type { BracketSpec, EventInput, SeedingGroup } from '@race2feed/engine';
+import { STARTER_REASONS } from './starter';
 
 export type Role = 'admin' | 'control' | 'referee' | 'companion' | 'public';
 export interface Actor { role: Role; label: string; deviceId?: string; station?: number }
@@ -19,6 +20,22 @@ export interface Tap {
   deviceId?: string;
   createdAt: number;
   removedAt: number | null;
+  /** Penalty taps only. Missing on taps stored before reviews existed (treated as approved). */
+  review?: PenaltyReview;
+}
+
+export interface PenaltyReason { id: string; name: string; kind: 'time' | 'dq'; amountMs?: number }
+
+export interface PenaltyReview {
+  status: 'pending' | 'approved' | 'rejected';
+  /** The official reason race control chose. */
+  reasonId?: string;
+  reasonName?: string;
+  /** The referee's suggestion, sent after the race. */
+  refereeReasonId?: string;
+  refereeNote?: string;
+  dq?: boolean;
+  decidedAt?: number;
 }
 
 export type OverrideSet =
@@ -44,6 +61,8 @@ export interface LiveEvent {
   overrides: Override[];
   tieDecisions: Record<string, string[]>;
   projectorPin: ProjectorScreen | null;
+  /** Missing on events stored before the list existed; see reasonsOf(). */
+  penaltyReasons?: PenaltyReason[];
 }
 
 export type SetupCommand =
@@ -59,7 +78,8 @@ export type SetupCommand =
   | { type: 'lockSetup' }
   | { type: 'unlockSetup' }
   | { type: 'setSettings'; penaltyMs?: number; undoWindowMs?: number }
-  | { type: 'setBagTotal'; text: string };
+  | { type: 'setBagTotal'; text: string }
+  | { type: 'setPenaltyReasons'; reasons: PenaltyReason[] };
 
 export type LifecycleCommand =
   | { type: 'openNextRound' }
@@ -105,6 +125,7 @@ export function newEvent(id: string, name: string, date: string, tableCount: num
     overrides: [],
     tieDecisions: {},
     projectorPin: null,
+    penaltyReasons: STARTER_REASONS.map((r) => ({ ...r })),
   };
 }
 

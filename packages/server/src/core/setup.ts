@@ -3,12 +3,13 @@ import {
   type Category, type EventInput, type Team,
 } from '@race2feed/engine';
 import { parseTeamsCsv } from './csv';
+import { validateReasons } from './reasons';
 import { done, fail, type CommandResult, type Ctx, type LiveEvent, type SetupCommand } from './model';
 
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
 /** Allowed even when setup is locked: none of these change who races where. */
-const ALWAYS_ALLOWED: SetupCommand['type'][] = ['unlockSetup', 'setBagTotal', 'renameTeam', 'setSettings'];
+const ALWAYS_ALLOWED: SetupCommand['type'][] = ['unlockSetup', 'setBagTotal', 'renameTeam', 'setSettings', 'setPenaltyReasons'];
 
 const isInt = (v: unknown, min: number) => Number.isInteger(v) && (v as number) >= min;
 const isStr = (v: unknown) => typeof v === 'string' && v.length > 0;
@@ -126,5 +127,15 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
     }
     case 'setBagTotal':
       return ok({ ...e, bagTotal: cmd.text.trim() || null });
+    case 'setPenaltyReasons': {
+      const problems = validateReasons(cmd.reasons);
+      if (problems.length) return fail('invalid', 'The penalty list has problems.', problems);
+      return ok({
+        ...e,
+        penaltyReasons: cmd.reasons.map((r) => ({
+          id: r.id, name: r.name.trim(), kind: r.kind, ...(r.kind === 'time' ? { amountMs: r.amountMs } : {}),
+        })),
+      });
+    }
   }
 }

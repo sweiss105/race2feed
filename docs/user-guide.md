@@ -346,6 +346,7 @@ Every tap gets its own bar at the bottom, newest on top, for example "**Alpha fi
 - **If Undo can't be sent,** you'll see "Could not undo — not connected. Try again." and the bar stays until its time runs out.
 - **After that, or once the round is finished,** only race control can change it. If you press Undo too late, a red message says "Too late to undo; ask race control." (or "The race is over; ask race control." once the round has finished).
 - **If the server refuses a tap that was waiting to send** (for example the team already has a result), a red message says "The saved tap for Alpha was refused", with the reason. Tell race control if the time looks wrong.
+- **If a red message says "The server could not process that. Try again."**, the tap is not lost: it stays saved on the tablet and is sent again automatically within a few seconds. Tell race control if the message keeps coming back.
 
 ### Penalty button
 

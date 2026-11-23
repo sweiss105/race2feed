@@ -2,6 +2,8 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: '.',
+  // guide.spec.ts writes the user guide's screenshots; it runs only via guide.config.ts (npm run guide:shots).
+  testIgnore: 'guide.spec.ts',
   fullyParallel: false,
   workers: 1,
   timeout: 90_000,

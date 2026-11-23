@@ -4,3 +4,4 @@ node_modules/
 packages/web/dist/
 .wrangler/
 test-results/
+.claude/worktrees/

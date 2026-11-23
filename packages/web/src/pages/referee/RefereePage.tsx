@@ -3,7 +3,7 @@ import './referee.css';
 import { formatMs } from '@race2feed/engine';
 import type { Ack, RefereeView } from '../../lib/types';
 import type { LiveStatus } from '../../lib/live';
-import type { TapQueue } from '../../lib/queue';
+import { NON_RETRYABLE, type TapQueue } from '../../lib/queue';
 import { Button } from '../../ui/Button';
 import { timeText } from '../../ui/Time';
 import { useNow } from '../../lib/useNow';
@@ -23,16 +23,18 @@ export interface RefereeProps {
   retryMs?: number;
 }
 
-interface Recent { clientTapId: string; teamId: string; kind: 'finish' | 'penalty'; until: number }
-
 export function RefereePage({ view, status, clock, queue, send, newId, vibrate, retryMs = 5000 }: RefereeProps) {
   // Taps wait for the first flush only if something was left queued from before.
   const [flushed, setFlushed] = useState(() => queue.all().length === 0);
   const [queued, setQueued] = useState(() => queue.all());
   const refreshQueue = () => setQueued(queue.all());
   const [sending, setSending] = useState<Set<string>>(new Set());
-  const [recent, setRecent] = useState<Recent | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Every tap this page made (or found queued on load); undo rows are derived from the server view for these.
+  const mine = useRef<Set<string> | null>(null);
+  if (!mine.current) mine.current = new Set(queue.all().map((q) => q.clientTapId));
+  const teamsRef = useRef<Team[]>([]);
+  teamsRef.current = view?.teams ?? [];
 
   // Send taps left over from before a reload or a dropout. New taps wait for the first flush
   // after page load; after that a dropout does not block tapping (taps queue and send later).
@@ -43,7 +45,12 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
     const flush = () => {
       // Taps from a finished round can't apply any more (and a penalty would land in the wrong round).
       queue.drop((e) => e.round !== undefined && e.round !== currentRound);
-      void queue.flush(send).then(() => { if (live) { setFlushed(true); refreshQueue(); } });
+      void queue.flush(send, (entry, ack) => {
+        if (!live || ack.ok || !ack.code || !NON_RETRYABLE.has(ack.code)) return;
+        const id = (entry.cmd as { teamId?: string }).teamId;
+        const name = teamsRef.current.find((t) => t.teamId === id)?.name ?? 'a team';
+        setError(`The saved tap for ${name} was refused: ${ack.message ?? ack.code}`);
+      }).then(() => { if (live) { setFlushed(true); refreshQueue(); } });
     };
     flush();
     // Retry anything still unsent (e.g. a command that timed out on a live connection).
@@ -51,11 +58,7 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
     return () => { live = false; clearInterval(timer); };
   }, [status, queue, send, currentRound, retryMs]);
 
-  useEffect(() => {
-    if (!recent) return;
-    const t = setTimeout(() => setRecent(null), Math.max(0, recent.until - Date.now()));
-    return () => clearTimeout(t);
-  }, [recent]);
+  useEffect(() => { setError(null); }, [currentRound]);
 
   const running = view?.round.phase === 'running' && view.round.startedAt !== null;
   const now = useNow(() => clock.serverNow(), Boolean(running));
@@ -70,6 +73,7 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
     const cmd = kind === 'finish'
       ? { type: 'tapFinish', teamId: team.teamId, atServerMs: clock.serverNow(), clientTapId }
       : { type: 'tapPenalty', teamId: team.teamId, clientTapId };
+    mine.current!.add(clientTapId);
     queue.add({ clientTapId, cmd, round: round.current });
     refreshQueue();
     vibrate?.(15);
@@ -79,24 +83,29 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
       const ack = await send(cmd);
       queue.settle(clientTapId, ack);
       refreshQueue();
-      if (ack.ok) setRecent({ clientTapId, teamId: team.teamId, kind, until: Date.now() + settings.undoWindowMs });
-      else setError(ack.message ?? 'The tap was refused.');
+      if (!ack.ok) setError(ack.message ?? 'The tap was refused.');
     } catch {
-      setError('No connection — the tap is saved and will be sent automatically.');
+      // Saved in the queue; the "waiting to send" notice covers it.
     } finally {
       setSending((s) => { const n = new Set(s); n.delete(`${kind}:${team.teamId}`); return n; });
     }
   };
 
-  const undo = async () => {
-    if (!recent) return;
-    const team = view.teams.find((t) => t.teamId === recent.teamId);
-    const tapId = team?.taps.find((t) => t.clientTapId === recent.clientTapId && t.removedAt === null)?.id;
-    if (!tapId) return;
-    setRecent(null);
-    const ack = await send({ type: 'undoTap', tapId }).catch(() => null);
-    if (ack && !ack.ok) setError(ack.message ?? 'Could not undo.');
+  const undo = async (tapId: string) => {
+    try {
+      const ack = await send({ type: 'undoTap', tapId });
+      if (!ack.ok) setError(ack.message ?? 'Could not undo.');
+    } catch {
+      setError('Could not undo — not connected. Try again.');
+    }
   };
+
+  const serverNow = clock.serverNow();
+  const undoRows = !running ? [] : view.teams.flatMap((team) => team.taps
+    .filter((x) => x.clientTapId && mine.current!.has(x.clientTapId) && x.removedAt === null
+      && x.createdAt + settings.undoWindowMs > serverNow && (x.kind === 'finish' || x.review.status === 'pending'))
+    .map((x) => ({ tap: x, team })))
+    .sort((a, b) => b.tap.createdAt - a.tap.createdAt);
 
   const meta = (
     <div class="ref-meta">
@@ -177,11 +186,18 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   }
 
   return (
-    <div class={`ref-main${recent ? ' has-undo' : ''}`}>
+    <div class={`ref-main${undoRows.length ? ' has-undo' : ''}`} style={{ '--undo-rows': undoRows.length }}>
       {meta}
       {error && <p class="ref-notice callout" role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
       {body}
-      {recent && <UndoBar recent={recent} windowMs={settings.undoWindowMs} teams={view.teams} onUndo={undo} />}
+      {undoRows.length > 0 && (
+        <div class="undo-stack">
+          {undoRows.map(({ tap: x, team }) => (
+            <UndoRow key={x.id} kind={x.kind === 'penalty' ? 'penalty' : 'finish'} name={team.name}
+              leftMs={x.createdAt + settings.undoWindowMs - serverNow} windowMs={settings.undoWindowMs} onUndo={() => void undo(x.id)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -204,19 +220,20 @@ function ReadyButton({ send }: { send(cmd: object): Promise<Ack> }) {
   );
 }
 
-function UndoBar({ recent, windowMs, teams, onUndo }: { recent: Recent; windowMs: number; teams: Team[]; onUndo(): void }) {
+function UndoRow({ kind, name, leftMs, windowMs, onUndo }: { kind: 'finish' | 'penalty'; name: string; leftMs: number; windowMs: number; onUndo(): void }) {
   const bar = useRef<HTMLDivElement>(null);
+  const left = useRef(leftMs);
+  left.current = leftMs;
   useEffect(() => {
     const el = bar.current;
     if (!el || typeof el.animate !== 'function') return;
-    const left = Math.max(0, recent.until - Date.now());
-    el.animate([{ transform: `scaleX(${left / windowMs})` }, { transform: 'scaleX(0)' }], { duration: left, easing: 'linear', fill: 'forwards' });
-  }, [recent, windowMs]);
-  const name = teams.find((t) => t.teamId === recent.teamId)?.name ?? '';
+    const ms = Math.max(0, left.current);
+    el.animate([{ transform: `scaleX(${ms / windowMs})` }, { transform: 'scaleX(0)' }], { duration: ms, easing: 'linear', fill: 'forwards' });
+  }, [windowMs]);
   return (
     <div class="undo-bar" role="status">
-      <span class="callout">{recent.kind === 'finish' ? `${name} finished` : `Penalty for ${name}`}</span>
-      <Button kind="plain" onClick={onUndo}>Undo</Button>
+      <span class="callout">{kind === 'finish' ? `${name} finished` : `Penalty for ${name}`}</span>
+      <Button kind="plain" aria-label={kind === 'finish' ? `Undo ${name} finished` : `Undo penalty for ${name}`} onClick={onUndo}>Undo</Button>
       <div class="progress" ref={bar} style={{ width: '100%' }} />
     </div>
   );

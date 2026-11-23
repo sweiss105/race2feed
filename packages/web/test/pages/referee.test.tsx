@@ -56,7 +56,7 @@ describe('referee page', () => {
     // The server's next view carries the tap; Undo targets it.
     const withTap = { ...e, taps: [{ id: 'srv-1', clientTapId: 'tap-1', kind: 'finish' as const, round: 1, teamId: teamId(e, 'T1'), elapsedMs: 200_000, source: 'referee' as const, deviceId: 'dev1', createdAt: NOW, removedAt: null }] };
     utils.rerender(<RefereePage view={refViewOf(withTap)} status="open" clock={{ synced: () => true, serverNow: () => NOW }} queue={queue} send={async (c: any) => { sent.push(c); return { ok: true }; }} newId={() => 'x'} />);
-    fireEvent.click(await screen.findByRole('button', { name: /Undo/ }));
+    fireEvent.click(await screen.findByRole('button', { name: /Undo T1 finished/ }));
     await waitFor(() => expect(sent).toContainEqual({ type: 'undoTap', tapId: 'srv-1' }));
   });
 
@@ -139,15 +139,95 @@ describe('referee page', () => {
     const pen = await screen.findByRole('button', { name: /penalty for T1/ });
     await waitFor(() => expect((pen as HTMLButtonElement).disabled).toBe(false));
     fireEvent.click(pen);
-    await screen.findByRole('button', { name: /Undo/ });
+    await waitFor(() => expect(sent).toContainEqual(expect.objectContaining({ type: 'tapPenalty', clientTapId: 'mine' })));
     const t1 = teamId(e, 'T1');
     const withTaps = { ...e, taps: [
-      { id: 'srv-ref', clientTapId: 'mine', kind: 'penalty' as const, round: 1, teamId: t1, amountMs: 5000, source: 'referee' as const, deviceId: 'dev1', createdAt: NOW, removedAt: null },
+      { id: 'srv-ref', clientTapId: 'mine', kind: 'penalty' as const, round: 1, teamId: t1, amountMs: 5000, source: 'referee' as const, deviceId: 'dev1', createdAt: NOW, removedAt: null, review: { status: 'pending' as const } },
       { id: 'srv-ctl', kind: 'penalty' as const, round: 1, teamId: t1, amountMs: 5000, source: 'control' as const, createdAt: NOW + 1, removedAt: null },
     ] };
     rerender(<RefereePage view={refViewOf(withTaps)} status="open" clock={clock} queue={queue} send={send} newId={() => 'x'} />);
     fireEvent.click(await screen.findByRole('button', { name: /Undo/ }));
     await waitFor(() => expect(sent).toContainEqual({ type: 'undoTap', tapId: 'srv-ref' }));
+  });
+
+  const serverTap = (e: LiveEvent, name: string, id: string, clientTapId: string, createdAt = NOW) => ({
+    id, clientTapId, kind: 'finish' as const, round: 1, teamId: teamId(e, name), elapsedMs: 200_000,
+    source: 'referee' as const, deviceId: 'dev1', createdAt, removedAt: null,
+  });
+
+  it('offers a separate undo for each recent tap', async () => {
+    const e = start(openNext(lockedFour()));
+    const { sent, queue, clock, utils } = setup(e);
+    fireEvent.click(await enabledButton(/^T1/));
+    await waitFor(() => expect(queue.all()).toEqual([]));
+    fireEvent.click(await enabledButton(/^T2/));
+    await waitFor(() => expect(sent.filter((c) => c.type === 'tapFinish').length).toBe(2));
+    const withTaps = { ...e, taps: [serverTap(e, 'T1', 'srv-1', 'tap-1'), serverTap(e, 'T2', 'srv-2', 'tap-2')] };
+    utils.rerender(<RefereePage view={refViewOf(withTaps)} status="open" clock={clock} queue={queue}
+      send={async (c: any) => { sent.push(c); return { ok: true }; }} newId={() => 'x'} />);
+    expect(await screen.findByRole('button', { name: 'Undo T2 finished' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Undo T1 finished' }));
+    await waitFor(() => expect(sent).toContainEqual({ type: 'undoTap', tapId: 'srv-1' }));
+  });
+
+  it('offers undo for a tap that the queue delivered after a dropout', async () => {
+    const e = start(openNext(lockedFour()));
+    const storage = new MemoryStorage();
+    new TapQueue(storage).add({ clientTapId: 'old-1', round: 1, cmd: { type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: 1, clientTapId: 'old-1' } });
+    const withTap = { ...e, taps: [serverTap(e, 'T1', 'srv-9', 'old-1')] };
+    setup(withTap, { queue: new TapQueue(storage) });
+    expect(await screen.findByRole('button', { name: 'Undo T1 finished' })).toBeTruthy();
+  });
+
+  it('keeps the undo and says so when the undo cannot be sent', async () => {
+    const e = start(openNext(lockedFour()));
+    const queue = new TapQueue(new MemoryStorage());
+    const send = vi.fn(async (cmd: any) => { if (cmd.type === 'undoTap') throw 'offline'; return { ok: true }; });
+    const clock = { synced: () => true, serverNow: () => NOW };
+    const withTap = { ...e, taps: [serverTap(e, 'T1', 'srv-1', 'tap-1')] };
+    const { rerender } = render(<RefereePage view={refViewOf(e)} status="open" clock={clock} queue={queue} send={send} newId={() => 'tap-1'} />);
+    fireEvent.click(await enabledButton(/^T1/));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    rerender(<RefereePage view={refViewOf(withTap)} status="open" clock={clock} queue={queue} send={send} newId={() => 'x'} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo T1 finished' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('Could not undo — not connected. Try again.');
+    expect(screen.getByRole('button', { name: 'Undo T1 finished' })).toBeTruthy();
+  });
+
+  it('hides undo once the window has passed', async () => {
+    const e = start(openNext(lockedFour()));
+    const storage = new MemoryStorage();
+    new TapQueue(storage).add({ clientTapId: 'old-1', round: 1, cmd: { type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: 1, clientTapId: 'old-1' } });
+    const late = { ...e, settings: { ...e.settings, undoWindowMs: 10_000 }, taps: [serverTap(e, 'T1', 'srv-9', 'old-1', NOW - 10_001)] };
+    const queue = new TapQueue(storage);
+    const { send } = setup(late, { queue });
+    await waitFor(() => expect(send).toHaveBeenCalled());
+    await waitFor(() => expect(queue.all()).toEqual([]));
+    expect(screen.queryByRole('button', { name: /Undo/ })).toBeNull();
+  });
+
+  it('reports a saved tap the server refused for good', async () => {
+    const e = start(openNext(lockedFour()));
+    const storage = new MemoryStorage();
+    new TapQueue(storage).add({ clientTapId: 'old-1', round: 1, cmd: { type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: 1, clientTapId: 'old-1' } });
+    const queue = new TapQueue(storage);
+    const clock = { synced: () => true, serverNow: () => NOW };
+    render(<RefereePage view={refViewOf(e)} status="open" clock={clock} queue={queue}
+      send={async () => ({ ok: false, code: 'already_finished', message: 'That team already has a result.' })} newId={() => 'x'} />);
+    expect((await screen.findByRole('alert')).textContent).toBe('The saved tap for T1 was refused: That team already has a result.');
+    expect(queue.all()).toEqual([]);
+  });
+
+  it('does not leave a no-connection error on screen after the tap is delivered', async () => {
+    const e = start(openNext(lockedFour()));
+    const queue = new TapQueue(new MemoryStorage());
+    render(<RefereePage view={refViewOf(e)} status="open" clock={{ synced: () => true, serverNow: () => NOW }} queue={queue}
+      send={async () => { throw 'offline'; }} newId={() => 'tap-9'} />);
+    fireEvent.click(await enabledButton(/^T1/));
+    await waitFor(() => expect(queue.all().length).toBe(1));
+    expect(await screen.findByRole('status')).toBeTruthy();
+    expect(screen.getByText(/1 tap waiting to send/)).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('blocks taps until the clock is synced', async () => {

@@ -301,6 +301,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 ## 6. Corrections and audit
 
 - **Referee undo:** a referee can undo their own tap (a finish or a penalty) for about **10 seconds**. The window length is configurable.
+- **One undo per tap:** each of the referee's recent taps has its own undo row, including taps that reached the server after a dropout. A failed undo is reported and the row stays until the window ends.
 - **After the undo window:** only **race control** can edit a time, clear it, set DNF or DNS, or add or remove a penalty.
 - **Audit log:** every state change goes in an append-only log, viewable in race control:
   - taps, penalties, undos, edits, overrides, tie decisions, penalty-switch changes, round transitions and logins

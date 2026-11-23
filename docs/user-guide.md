@@ -336,9 +336,12 @@ If the buttons are greyed out with **"Syncing clock…"**, wait a moment: the ta
 
 ### Undo
 
-After every tap, a bar at the bottom shows, for example, "**Alpha finished**" with an **Undo** button and a shrinking countdown (about 10 seconds by default).
-- **Press Undo before the bar runs out** to take the tap back.
-- **After that, or once the round is finished,** only race control can change it. You'll see "Too late to undo; ask race control."
+Every tap gets its own bar at the bottom, newest on top, for example "**Alpha finished**" or "**Penalty for Alpha**", each with an **Undo** button and a shrinking countdown (about 10 seconds by default). Tapping two teams in a row gives two bars.
+- **Press Undo before its bar runs out** to take that tap back.
+- **Taps sent after a dropout** get their bar too, once they reach the server. The countdown runs from the moment the tap was recorded.
+- **If Undo can't be sent,** you'll see "Could not undo — not connected. Try again." and the bar stays until its time runs out.
+- **After that, or once the round is finished,** only race control can change it.
+- **If the server refuses a tap that was waiting to send** (for example the team already has a result), a red message says "The saved tap for Alpha was refused", with the reason. Tell race control if the time looks wrong.
 
 ### Penalty button
 

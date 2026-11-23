@@ -28,8 +28,13 @@ export function applyCommand(e: LiveEvent, cmd: Command, ctx: Ctx): CommandResul
   const allowed = Object.hasOwn(PERMISSIONS, cmd.type) ? PERMISSIONS[cmd.type] : undefined;
   if (!allowed) return fail('unknown_command', `Unknown command "${(cmd as { type: string }).type}".`);
   if (!allowed.includes(ctx.actor.role)) return fail('forbidden', 'You are not allowed to do that.');
-  if (isOneOf(SETUP, cmd.type)) return handleSetup(e, cmd as Extract<Command, { type: (typeof SETUP)[number] }>, ctx);
-  if (isOneOf(LIFECYCLE, cmd.type)) return handleLifecycle(e, cmd as Extract<Command, { type: (typeof LIFECYCLE)[number] }>, ctx);
-  if (isOneOf(TAPS, cmd.type)) return handleTaps(e, cmd as Extract<Command, { type: (typeof TAPS)[number] }>, ctx);
+  try {
+    if (isOneOf(SETUP, cmd.type)) return handleSetup(e, cmd as Extract<Command, { type: (typeof SETUP)[number] }>, ctx);
+    if (isOneOf(LIFECYCLE, cmd.type)) return handleLifecycle(e, cmd as Extract<Command, { type: (typeof LIFECYCLE)[number] }>, ctx);
+    if (isOneOf(TAPS, cmd.type)) return handleTaps(e, cmd as Extract<Command, { type: (typeof TAPS)[number] }>, ctx);
+  } catch {
+    // Handlers are pure, so a throw (a wrong-typed field) leaves nothing half-applied.
+    return fail('invalid', 'That command is malformed.');
+  }
   return fail('unknown_command', `Unknown command "${cmd.type}".`);
 }

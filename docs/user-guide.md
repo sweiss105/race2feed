@@ -85,6 +85,7 @@ Things to know about importing:
 - **Importing replaces the whole team list.** It also clears seeding groups, tables and brackets, so import first and then do the rest of setup.
 - Categories appear in the order they first show up in the file.
 - The order of teams in the file matters: it's the last tie-breaker in seeding.
+- Category names are matched ignoring capital letters and spaces at the ends, so "High School" and "high school" are one category, while "A" and "A+" stay separate. Names in any script work.
 - If something's wrong (a missing name, a duplicate team, a wrong header), the app lists each problem with its line number and imports nothing.
 
 **Add, rename or remove a team:** use **Add team** (name and category) at the top, or **Rename** and **Remove** on a team's row. Adding and removing are possible only until setup is locked. Renaming works at any time.
@@ -98,7 +99,7 @@ Go to **Setup** and press **Suggest groups and brackets**. The app:
 You can then adjust:
 - **Seeding groups and tables:** change any team's **Group** or **Table** in the list. Two teams can't share a table in the same group.
 - **Brackets:** for each category, rename a tier, change its number of teams, **Add tier** or **Remove last tier**, then press **Save [category] brackets**. The line "*X of Y teams placed*" must match before you can lock. Brackets hold 4 to 7 teams (a category with fewer than 4 teams gets one small bracket).
-- **Grand Championship:** the switch turns the final race between the top-bracket winners on or off.
+- **Grand Championship:** the switch turns the final race between the top-bracket winners on or off. It needs a table for every category winner, so with more categories than tables you can't lock until you add tables or turn it off.
 
 ### Tables per referee
 
@@ -112,7 +113,7 @@ You can change this until setup is locked. Station counts, pairing, the Ready ch
 
 When teams, groups and brackets look right, press **Lock setup** in **Setup**.
 
-- **Locking checks everything first.** If something is wrong, you'll see a list of problems (for example, a team without a table, or brackets that don't add up). Fix them and try again.
+- **Locking checks everything first.** If something is wrong, you'll see a list of problems (for example, a team without a table, or brackets that don't add up, or **Grand Championship: 5 category winners but only 4 tables** when the Grand Championship is on and there are more categories than tables). Fix them and try again.
 - **Racing needs a locked setup:** race control can't open a round until it's locked.
 - **Unlock setup** is available only before the first round is opened.
 - **Some changes still work while locked:** renaming teams, settings, the penalty list and the bag total.

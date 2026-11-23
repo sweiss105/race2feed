@@ -49,6 +49,12 @@ export function validateBracketPlan(input: EventInput): string[] {
       if (b.size > input.tableCount) errors.push(`${category.name} ${b.tierName}: larger than the ${input.tableCount} tables`);
     }
   }
+  if (input.grandChampionship) {
+    const winners = new Set(input.brackets.map((b) => b.categoryId)).size;
+    if (winners >= 2 && winners > input.tableCount) {
+      errors.push(`Grand Championship: ${winners} category winners but only ${input.tableCount} tables`);
+    }
+  }
   return errors;
 }
 

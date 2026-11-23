@@ -31,9 +31,13 @@ function withSetup(e: LiveEvent, setup: Partial<EventInput>): LiveEvent {
 }
 
 function categoryFor(categories: Category[], name: string): { categories: Category[]; id: string } {
-  const id = slug(name);
-  if (categories.some((c) => c.id === id)) return { categories, id };
-  return { categories: [...categories, { id, name: name.trim() }], id };
+  const trimmed = name.trim();
+  const existing = categories.find((c) => c.name.trim().toLowerCase() === trimmed.toLowerCase());
+  if (existing) return { categories, id: existing.id };
+  const base = slug(trimmed) || 'category';
+  let id = base;
+  for (let n = 2; categories.some((c) => c.id === id); n++) id = `${base}-${n}`;
+  return { categories: [...categories, { id, name: trimmed }], id };
 }
 
 export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandResult {

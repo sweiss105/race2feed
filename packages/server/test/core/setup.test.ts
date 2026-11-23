@@ -17,6 +17,14 @@ describe('setup commands', () => {
     ]);
   });
 
+  it('keeps categories apart when their names differ only in symbols or script', () => {
+    const e = ok(handleSetup(blank(), { type: 'importTeams', csv: 'team,category\nOne,A\nTwo,A+\nThree,中学\nFour,高校\nFive,a' }, ctx(admin)));
+    expect(e.setup.categories.map((c) => c.name)).toEqual(['A', 'A+', '中学', '高校']);
+    expect(new Set(e.setup.categories.map((c) => c.id)).size).toBe(4);
+    expect(e.setup.categories.every((c) => c.id.length > 0)).toBe(true);
+    expect(e.setup.teams[4]!.categoryId).toBe(e.setup.categories[0]!.id); // 'a' joins 'A'
+  });
+
   it('importTeams rejects a CSV with errors', () => {
     const r = handleSetup(blank(), { type: 'importTeams', csv: 'nope' }, ctx(admin));
     expect(r.ok).toBe(false);

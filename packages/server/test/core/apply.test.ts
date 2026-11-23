@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { applyCommand } from '../../src/core/apply';
-import { admin, companion, control, ctx, lockedFour, referee } from './helpers';
+import { admin, blank, companion, control, ctx, lockedFour, referee } from './helpers';
 
 const code = (r: ReturnType<typeof applyCommand>) => (r.ok ? 'ok' : r.code);
 
@@ -33,5 +33,14 @@ describe('applyCommand permissions', () => {
     expect(code(applyCommand(lockedFour(), { type: 'nope' } as never, ctx(admin)))).toBe('unknown_command');
     expect(code(applyCommand(lockedFour(), { type: 'constructor' } as never, ctx(admin)))).toBe('unknown_command');
     expect(code(applyCommand(lockedFour(), { type: 'toString' } as never, ctx(admin)))).toBe('unknown_command');
+  });
+});
+
+describe('applyCommand malformed commands', () => {
+  it('refuses a malformed command instead of throwing', () => {
+    for (const cmd of [{ type: 'renameTeam', teamId: 'x', name: 5 }, { type: 'importTeams', csv: null }, { type: 'setBagTotal' }, { type: 'addTeam', name: {}, category: [] }]) {
+      const r = applyCommand(blank(), cmd as never, ctx(admin));
+      expect(r.ok ? 'ok' : r.code).toBe('invalid');
+    }
   });
 });

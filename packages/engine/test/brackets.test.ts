@@ -87,4 +87,22 @@ describe('validateBracketPlan', () => {
   it('rejects a bracket larger than the table count', () => {
     expect(validateBracketPlan(input([spec(0, 1, 4), spec(1, 5, 4)], 8, 3))).not.toEqual([]);
   });
+  describe('Grand Championship table count', () => {
+    const grand = (tableCount: number, grandChampionship: boolean): EventInput => {
+      const ids = ['a', 'b', 'c', 'd', 'e'];
+      const categories = ids.map((id) => ({ id, name: id.toUpperCase() }));
+      const teams = ids.flatMap((id) => teamsOf(4, id));
+      return { tableCount, categories, teams, groups: [], tableOf: {}, brackets: suggestBracketPlan(categories, teams), grandChampionship };
+    };
+    const msg = 'Grand Championship: 5 category winners but only 4 tables';
+    it('rejects more category winners than tables', () => {
+      expect(validateBracketPlan(grand(4, true))).toContain(msg);
+    });
+    it('does not complain when the Grand Championship is off', () => {
+      expect(validateBracketPlan(grand(4, false))).not.toContain(msg);
+    });
+    it('does not complain when there are enough tables', () => {
+      expect(validateBracketPlan(grand(5, true))).not.toContain(msg);
+    });
+  });
 });

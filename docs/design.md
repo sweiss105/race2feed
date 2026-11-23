@@ -92,7 +92,7 @@ Weaknesses this design fixes:
    - Leftover teams (1–3) are folded into the **last** bracket, which becomes 5, 6 or 7 teams. For example, HS 14 teams gives 4 + 4 + 6.
    - Admin can change bracket sizes (4–7) and rename tiers.
    - A category with fewer than 4 teams gets one bracket of that size. A size of 2–3 skips the heats and races once, ranked by time.
-5. **Grand Championship:** by default the winner of each category's top bracket. Admin can turn this on or off.
+5. **Grand Championship:** by default the winner of each category's top bracket. Admin can turn this on or off. Locking setup is refused when there are more category winners than tables.
 6. **Credentials:** set the admin and race-control passwords, pair referee tablets (§9) and create a Companion API key.
 
 ### 3.3 Round structure

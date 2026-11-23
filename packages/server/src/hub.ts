@@ -7,7 +7,7 @@ import { backfillLineups } from './core/lineups';
 import { eventCsv } from './core/export';
 import { companionView, controlView, publicRoundUpdate, publicView, refereeView } from './core/views';
 import { needsSnapshot } from './core/broadcast';
-import { nextAlarm } from './core/autofinish';
+import { autoFinishDelay, nextAlarm } from './core/autofinish';
 import { credentials, hasCredentials, type Credentials } from './http';
 import { hashPassword, randomToken, sha256Hex, verifyPassword, type StoredPassword } from './auth/crypto';
 import { LOCKOUT_WINDOW_MS, loginAllowed, shouldTouch } from './auth/ratelimit';
@@ -250,7 +250,10 @@ export class Hub extends DurableObject<Env> {
           if (doc.endedAt) {
             // Keep the champion up only if the event really was over when it ended.
             const over = doc.round.phase === 'finished' && doc.round.current > 0 && doc.round.current === (this.safeDerive(doc)?.rounds.length ?? -1);
-            this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify({ ...doc, endedAt: null, championShown: over && doc.championShown }), cmd.eventId);
+            // A countdown that was running when the event ended starts again, so referees get the full window.
+            const round = doc.round.phase === 'running' && typeof doc.round.autoFinishAt === 'number'
+              ? { ...doc.round, autoFinishAt: now + autoFinishDelay(doc) } : doc.round;
+            this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify({ ...doc, round, endedAt: null, championShown: over && doc.championShown }), cmd.eventId);
           }
         });
         this.active = this.loadActive();

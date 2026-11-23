@@ -17,13 +17,14 @@ function allTeamsIn(e: LiveEvent): boolean {
 
 /**
  * Sets `round.autoFinishAt` on the result of a command: cleared unless the round is running with every team in,
- * restarted when taps or results changed (or no time is set yet), otherwise left as it was.
+ * restarted when taps, results or settings changed (or no time is set yet), otherwise left as it was.
  */
 export function withAutoFinish(before: LiveEvent, after: LiveEvent, now: number): LiveEvent {
   const delay = autoFinishDelay(after);
   let at: number | null;
   if (after.round.phase !== 'running' || delay === 0 || !allTeamsIn(after)) at = null;
-  else if (after.taps !== before.taps || after.overrides !== before.overrides || after.round.autoFinishAt == null) at = now + delay;
+  else if (after.taps !== before.taps || after.overrides !== before.overrides || after.settings !== before.settings
+    || after.round.autoFinishAt == null) at = now + delay;
   else return after;
   // Events stored before auto-finish existed keep their round untouched until a countdown starts.
   if (at === (after.round.autoFinishAt ?? null)) return after;

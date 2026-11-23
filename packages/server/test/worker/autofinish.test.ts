@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
-import { command, connect, lockedEvent } from './client';
+import { call, command, connect, lockedEvent } from './client';
 import type { LiveEvent } from '../../src/core/model';
 
 const hub = () => env.HUB.getByName('hub');
@@ -69,6 +69,24 @@ describe('auto-finish', () => {
     const view = await consoleView(admin);
     expect(view.round.phase).toBe('running');
     expect(view.round.autoFinishAt ?? null).toBeNull();
+  });
+
+  it('gives referees the full window again when an event is reopened mid-countdown', async () => {
+    const { admin, teams } = await runningRound();
+    for (const teamId of teams) await setTime(admin, teamId);
+    const eventId = ((await call('/api/events', undefined, { cookie: admin })).body as { id: string; active: boolean }[]).find((e) => e.active)!.id;
+    expect((await command({ type: 'endEvent', eventId }, { cookie: admin })).status).toBe(200);
+    await wait(1100);
+    const reopenedAt = Date.now();
+    expect((await command({ type: 'activateEvent', eventId }, { cookie: admin })).status).toBe(200);
+
+    const stored = await runInDurableObject(hub(), (_i, state) => JSON.parse(
+      state.storage.sql.exec<{ doc: string }>('SELECT doc FROM events WHERE id = ?', eventId).toArray()[0]!.doc) as LiveEvent);
+    expect(Math.abs(stored.round.autoFinishAt! - (reopenedAt + 1000))).toBeLessThan(2000);
+    expect(stored.round.autoFinishAt!).toBeGreaterThan(reopenedAt);
+
+    await runDurableObjectAlarm(hub());
+    expect((await consoleView(admin)).round.phase).toBe('running');
   });
 
   it('drops a due time that finishRace refuses instead of firing again', async () => {

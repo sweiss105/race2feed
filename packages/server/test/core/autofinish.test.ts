@@ -61,6 +61,13 @@ describe('auto-finish', () => {
     expect(e.round.autoFinishAt).toBeNull();
   });
 
+  it('restarts when the undo window or the delay changes mid-countdown', () => {
+    const { e } = allIn(running());
+    expect(e.round.autoFinishAt).toBe(2_090_000);
+    expect(run(e, { type: 'setSettings', undoWindowMs: 60_000 }, 2_070_000, admin).round.autoFinishAt).toBe(2_130_000);
+    expect(run(e, { type: 'setSettings', autoFinishMs: 45_000 }, 2_070_000, admin).round.autoFinishAt).toBe(2_115_000);
+  });
+
   it('never undercuts the referee undo window', () => {
     const { e } = allIn(running({ autoFinishMs: 5_000, undoWindowMs: 10_000 }));
     expect(e.round.autoFinishAt).toBe(2_060_000 + 10_000);

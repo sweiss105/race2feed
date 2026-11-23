@@ -39,7 +39,7 @@ export function projectorScreen(e: LiveEvent, d: DerivedEvent): ProjectorScreen 
   }
 }
 
-const roundState = (e: LiveEvent) => ({ ...e.round });
+const roundState = (e: LiveEvent) => ({ ...e.round, autoFinishAt: e.round.autoFinishAt ?? null });
 
 function racesOf(d: DerivedEvent, round: number, results: Record<string, EntryResult>, pens: Map<string, PenaltyInfo>) {
   return (d.rounds[round - 1]?.races ?? []).map((race) => ({

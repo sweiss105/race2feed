@@ -189,7 +189,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 - **Finish gate:**
   - Companion **RACE FINISHED** is refused until every team in the round has a time, DNF or DNS.
   - **Auto-finish:** once every team in the running round has a result, the server sets `round.autoFinishAt` to now plus the event's **Auto-finish delay (seconds)** (default 30; never shorter than the referee undo window; 0 turns it off).
-    - Any later tap, undo, penalty or correction restarts the delay. If a team loses its result, the time is cleared.
+    - Any later tap, undo, penalty or correction, or a change to the event settings (the undo window or the delay), restarts the delay. If a team loses its result, the time is cleared.
     - When the time arrives the server runs the same finish as the button, logged with the actor "auto-finish". If that finish is refused, the time is cleared rather than retried.
     - The time is stored with the event and driven by the hub's single alarm, which also paces phone updates; the alarm is always set to the earlier of the two, so a countdown survives the server going idle.
   - Race control sees the list of teams still outstanding and can mark them DNF or DNS.
@@ -232,7 +232,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 - All referee tablets are signed out and their pairings revoked.
 - **Phones and the projector keep showing the ended event's champion and final results** (read-only) until admin activates another event. Exports keep working.
 - Creating a new event while an ended event is on display does not activate it automatically, so the champion stays up until admin chooses **Make active**.
-- **Make active** on an ended event reopens it, after a confirmation. Tablets must be paired again. If it was ended before its last round finished, the champion screen is taken down.
+- **Make active** on an ended event reopens it, after a confirmation. Tablets must be paired again. A round that was counting down to auto-finish (§4) restarts its full delay from the moment of reopening. If it was ended before its last round finished, the champion screen is taken down.
 
 ---
 

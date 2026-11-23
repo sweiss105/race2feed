@@ -48,6 +48,11 @@ describe('projectorScreen', () => {
 });
 
 describe('publicView', () => {
+  it('gives a fresh event no auto-finish time', () => {
+    const e = lockedFour();
+    expect(publicView(e, derive(e)).round.autoFinishAt).toBeNull();
+  });
+
   it('never exposes taps, devices or overrides', () => {
     let e = start(open(lockedFour()));
     e = { ...e, taps: [{ id: 'x', kind: 'finish', round: 1, teamId: teamId(e, 'T1'), elapsedMs: 1, source: 'referee', deviceId: 'd', createdAt: 1, removedAt: null }] };

@@ -5,9 +5,15 @@ export { Hub };
 
 export interface Env {
   HUB: DurableObjectNamespace<Hub>;
-  ASSETS: Fetcher;
   ADMIN_PASSWORD: string;
 }
+
+/** Shown until the pages are built (plan 3). */
+const PLACEHOLDER = `<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Race to Feed</title></head>
+<body><h1>Race to Feed</h1><p>Pages coming soon.</p></body>
+</html>`;
 
 export const json = (body: unknown, status = 200, headers: HeadersInit = {}): Response =>
   new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json', ...headers } });
@@ -28,7 +34,9 @@ export default {
   async fetch(request, env): Promise<Response> {
     const url = new URL(request.url);
     const path = url.pathname;
-    if (!path.startsWith('/api/')) return env.ASSETS.fetch(request);
+    if (!path.startsWith('/api/')) {
+      return new Response(PLACEHOLDER, { headers: { 'content-type': 'text/html; charset=utf-8' } });
+    }
     const hub = env.HUB.getByName('hub');
     const post = request.method === 'POST';
 

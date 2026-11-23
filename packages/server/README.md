@@ -30,8 +30,13 @@ Run these from the repository root. You need a Cloudflare account that manages t
    ```
 
 4. Check it is up: <https://r2f.weiss-audio.com/api/health> should show `{"ok":true}`.
-   The admin, race control, referee, participant and projector pages arrive in the next
-   build stage; until then the API can be driven from the command line.
+   Until the pages are built (next stage) the site root shows a placeholder page served by
+   the Worker itself, and the API can be driven from the command line.
+
+Instead of `wrangler login`, a Cloudflare API token can be used (`CLOUDFLARE_API_TOKEN`), made
+from the **Edit Cloudflare Workers** template plus **Zone → DNS → Edit** on `weiss-audio.com`.
+You can also set `ADMIN_PASSWORD` in the dashboard: **Workers & Pages → race2feed → Settings →
+Variables and Secrets → Add**, type **Secret**.
 
 ## Plan and limits
 

@@ -1,11 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import fixture from './fixtures/previous-event.json';
-import { suggestBracketPlan } from '../src/brackets';
 import { buildRoundPlan } from '../src/schedule';
 import { deriveEvent } from '../src/event';
-import { parseClockTime } from '../src/time';
-import type { EntryResult, EventInput, EventProgress, SavedRace, Team } from '../src/types';
-import { makeEvent, fin } from './helpers/events';
+import type { EventInput, EventProgress, SavedRace } from '../src/types';
+import { makeEvent, fin, previousEvent } from './helpers/events';
 
 const entrants = (ev: ReturnType<typeof deriveEvent>, round: number) =>
   ev.rounds[round - 1]!.races.map((r) => r.entrants.map((e) => [e.teamId, e.table]));
@@ -84,37 +81,7 @@ describe('deriveEvent with saved bracket membership', () => {
 });
 
 describe('deriveEvent without saved line-ups', () => {
-  // The previous event, loaded as in acceptance.test.ts.
-  const finished = (rawMs: number): EntryResult => ({ status: 'finished', rawMs, penaltiesMs: 0 });
-  const teams: Team[] = fixture.teams.map((t, i) => ({ id: `t${i}`, name: t.name, categoryId: t.category, order: i }));
-  const idOf = new Map(teams.map((t) => [t.name, t.id]));
-  const categories = fixture.categories.map((name) => ({ id: name, name }));
-  const input: EventInput = {
-    tableCount: fixture.tableCount,
-    categories,
-    teams,
-    groups: ['A', 'B'].map((g) => ({
-      id: g,
-      teamIds: fixture.teams
-        .map((t, i) => ({ t, id: `t${i}` }))
-        .filter(({ t }) => t.group === g)
-        .sort((a, b) => a.t.table - b.t.table)
-        .map(({ id }) => id),
-    })),
-    tableOf: Object.fromEntries(fixture.teams.map((t, i) => [`t${i}`, t.table])),
-    brackets: suggestBracketPlan(categories, teams),
-    grandChampionship: true,
-  };
-  const results: EventProgress['results'] = {};
-  const seedingRound = { A: [1, 3], B: [2, 4] } as const;
-  fixture.teams.forEach((t, i) => {
-    const [r1, r2] = seedingRound[t.group as 'A' | 'B'];
-    (results[r1] ??= {})[`t${i}`] = finished(parseClockTime(t.run1));
-    (results[r2] ??= {})[`t${i}`] = finished(parseClockTime(t.run2));
-  });
-  for (const { round, rows } of fixture.bracketRounds) {
-    results[round] = Object.fromEntries(rows.map((row) => [idOf.get(row.team)!, finished(200_000 + row.place * 5_000)]));
-  }
+  const { input, results } = previousEvent();
 
   it('derives exactly as before when nothing is saved', () => {
     const progress: EventProgress = { finishedRounds: 9, results, tieDecisions: {} };

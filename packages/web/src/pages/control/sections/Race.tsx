@@ -17,6 +17,7 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
   const now = useNow(serverNow, running);
   const elapsed = running ? Math.max(0, now - round.startedAt!) : 0;
   const notReady = Object.values(view.stations).filter((s) => !s.excluded && !s.ready).length;
+  const noRoundsLeft = view.rounds.length > 0 && round.current >= view.rounds.length && round.phase !== 'open' && round.phase !== 'running';
 
   const act = (cmd: { type: string } & Record<string, unknown>, key?: string) => () => void runner.run(cmd, key);
 
@@ -29,8 +30,10 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
           {running && <span class="race-clock" aria-label="Race clock">{formatMs(elapsed, 'seconds')}</span>}
         </div>
         <div class="race-actions">
-          <Button kind={round.phase === 'idle' || round.phase === 'finished' ? 'primary' : 'secondary'} busy={runner.busy('openNextRound')}
-            disabled={round.phase === 'open' || round.phase === 'running'} onClick={act({ type: 'openNextRound' })}>Open next round</Button>
+          <Button kind={!noRoundsLeft && (round.phase === 'idle' || round.phase === 'finished') ? 'primary' : 'secondary'} busy={runner.busy('openNextRound')}
+            disabled={noRoundsLeft || round.phase === 'open' || round.phase === 'running'} onClick={act({ type: 'openNextRound' })}>
+            {noRoundsLeft ? 'No rounds left' : 'Open next round'}
+          </Button>
           <Button kind={round.phase === 'open' ? 'primary' : 'secondary'} busy={runner.busy('startRace')}
             disabled={round.phase !== 'open'} onClick={act({ type: 'startRace' })}>Start</Button>
           <Button kind={round.phase === 'running' ? 'primary' : 'secondary'} busy={runner.busy('finishRace')}

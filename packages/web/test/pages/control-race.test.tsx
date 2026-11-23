@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/preact';
 import { Login } from '../../src/pages/control/Login';
 import { ConsolePage } from '../../src/pages/control/ConsolePage';
-import { ctlViewOf, heatsOpen, lockedFour, openNext, start, teamId } from '../support/state';
+import { ctlViewOf, heatsOpen, lockedFour, openNext, runRound, seedTimes, start, teamId } from '../support/state';
 import type { Ack } from '../../src/lib/types';
 
 const me = (role: 'admin' | 'control') => ({ role, label: role });
@@ -45,6 +45,15 @@ describe('console sections by role', () => {
 
 describe('race section', () => {
   beforeEach(() => cleanup());
+
+  it('greys out Open next round once every round has been raced', () => {
+    let e = lockedFour();
+    for (let i = 0; i < 4; i++) e = runRound(e, seedTimes);
+    render(<ConsolePage me={me('control')} view={ctlViewOf(e)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    const btn = screen.getByRole('button', { name: 'No rounds left' }) as HTMLButtonElement;
+    expect(btn.disabled).toBe(true);
+    expect(screen.queryByRole('button', { name: 'Open next round' })).toBeNull();
+  });
 
   it('sends one START however many times it is clicked', async () => {
     let resolve!: (a: Ack) => void;

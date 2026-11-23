@@ -20,6 +20,13 @@ describe('TapQueue', () => {
     expect(q.all().map((e) => e.clientTapId)).toEqual(['c']);
   });
 
+  it('keeps an entry the server failed to process', () => {
+    const q = new TapQueue(new MemoryStorage());
+    q.add(entry('a'));
+    q.settle('a', { ok: false, code: 'server_error' });
+    expect(q.all().map((e) => e.clientTapId)).toEqual(['a']);
+  });
+
   it('flushes each entry once, in order, and stops at a network failure', async () => {
     const q = new TapQueue(new MemoryStorage());
     ['a', 'b', 'c'].forEach((id) => q.add(entry(id)));

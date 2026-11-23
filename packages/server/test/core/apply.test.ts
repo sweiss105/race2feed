@@ -1,6 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { applyCommand } from '../../src/core/apply';
-import { admin, blank, companion, control, ctx, lockedFour, referee } from './helpers';
+import { handleLifecycle } from '../../src/core/lifecycle';
+import { admin, blank, companion, control, ctx, lockedFour, ok, referee } from './helpers';
 
 const code = (r: ReturnType<typeof applyCommand>) => (r.ok ? 'ok' : r.code);
 
@@ -37,10 +38,24 @@ describe('applyCommand permissions', () => {
 });
 
 describe('applyCommand malformed commands', () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it('refuses a malformed command instead of throwing', () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     for (const cmd of [{ type: 'renameTeam', teamId: 'x', name: 5 }, { type: 'importTeams', csv: null }, { type: 'setBagTotal' }, { type: 'addTeam', name: {}, category: [] }]) {
       const r = applyCommand(blank(), cmd as never, ctx(admin));
       expect(r.ok ? 'ok' : r.code).toBe('invalid');
     }
+  });
+
+  it('reports a fault inside a tap handler as a retryable server error', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    let e = ok(applyCommand(lockedFour(), { type: 'openNextRound' }, ctx(control)));
+    for (const station of [1, 2]) e = ok(handleLifecycle(e, { type: 'overrideStation', station, state: 'ready' }, ctx(control)));
+    e = ok(applyCommand(e, { type: 'startRace' }, ctx(control)));
+    const broken = { ...e, lineups: { 1: {} as never } };
+    const tap = { type: 'tapFinish' as const, teamId: e.setup.teams[0]!.id, atServerMs: 1_000_500, clientTapId: 'c1' };
+    expect(code(applyCommand(broken, tap, ctx(referee(1), 1_000_600)))).toBe('server_error');
+    expect(error).toHaveBeenCalledTimes(1);
   });
 });

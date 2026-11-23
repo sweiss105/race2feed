@@ -37,3 +37,5 @@
 
 .fade-in { animation: proj-fade 450ms ease-out; }
 @keyframes proj-fade { from { opacity: 0; } to { opacity: 1; } }
+.proj-winners { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4vw; }
+.proj-winners .name { font-size: clamp(2rem, 7vh, 5.5rem); }

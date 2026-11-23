@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import './participant.css';
 import type { PublicView } from '../../lib/types';
-import { nextRaceFor, scheduleRows, seedingRow, teamName, teamResults, teamSearch } from '../../lib/selectors';
+import { champions, nextRaceFor, scheduleRows, seedingRow, teamName, teamResults, teamSearch } from '../../lib/selectors';
 import { formatMs } from '@race2feed/engine';
 import { Time } from '../../ui/Time';
 import { Button } from '../../ui/Button';
@@ -34,6 +34,7 @@ export function ParticipantPage({ state, storage }: { state: PublicView; storage
 
   return (
     <div class="page">
+      {(state.championShown || state.ended) && <Finale state={state} teamId={known ? teamId : null} />}
       {!known ? (
         <Search state={state} onPick={pick} />
       ) : (
@@ -177,6 +178,44 @@ function Results({ state, teamId }: { state: PublicView; teamId: string | null }
           ))}
         </ul>
       ))}
+    </>
+  );
+}
+
+function Finale({ state, teamId }: { state: PublicView; teamId: string | null }) {
+  const winners = champions(state);
+  return (
+    <>
+      {state.ended && (
+        <p class="p-ended callout" role="status"><span class="headline">Event complete</span> — thank you for racing!</p>
+      )}
+      <section class="card p-champion" aria-label="Champion">
+        <span class="footnote secondary">Congratulations</span>
+        {winners.map((w) => (
+          <div key={w.key} class="p-winner">
+            <span class="callout secondary">{w.title}</span>
+            <span class="title-1">{w.name ?? 'To be decided'}</span>
+            {w.subtitle && <span class="footnote secondary">{w.subtitle}</span>}
+          </div>
+        ))}
+        {state.bagTotal && <p class="p-bags headline">{state.bagTotal} bags of food packed!</p>}
+      </section>
+      <section aria-labelledby="final-standings">
+        <h3 id="final-standings" class="headline section-title">Final standings</h3>
+        {state.categories.map((c) => (
+          <div key={c.id} style={{ marginBottom: 'var(--space-3)' }}>
+            <h4 class="footnote secondary p-cat">{c.name}</h4>
+            <ol class="list">
+              {(state.standings[c.id] ?? []).map((id, i) => (
+                <li key={i} class={id && id === teamId ? 'me' : ''} aria-current={id && id === teamId ? 'true' : undefined}>
+                  <span class="num">{i + 1}</span>
+                  <span class="grow headline">{id ? teamName(state, id) : '—'}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+        ))}
+      </section>
     </>
   );
 }

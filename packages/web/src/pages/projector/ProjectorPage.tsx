@@ -3,7 +3,7 @@ import './projector.css';
 import '../participant/brackets.css';
 import { formatMs } from '@race2feed/engine';
 import type { PublicView } from '../../lib/types';
-import { scheduleRows, teamName, tierOf } from '../../lib/selectors';
+import { champions, scheduleRows, teamName, tierOf } from '../../lib/selectors';
 import { buildBracketCards } from '../../lib/bracketModel';
 import { QR } from '../../ui/QR';
 import { timeText } from '../../ui/Time';
@@ -84,7 +84,7 @@ function Clock({ state, serverNow }: { state: PublicView; serverNow: () => numbe
         <div class="big" data-testid="master-clock">{formatMs(elapsed, 'seconds')}</div>
         <div class="proj-ticker" aria-label="Finished">
           {finished.map((x) => (
-            <span class="chip" key={x.teamId}>{teamName(state, x.teamId)} · <span class="tabular">{timeText(x).replace(' (incl. ', ' (').replace('s)', 's)')}</span></span>
+            <span class="chip" key={x.teamId}>{teamName(state, x.teamId)} · <span class="tabular">{timeText(x, { short: true })}</span></span>
           ))}
         </div>
       </div>
@@ -177,15 +177,27 @@ function Standings({ state }: { state: PublicView }) {
 }
 
 function Champion({ state }: { state: PublicView }) {
-  const id = state.grandChampion;
-  const team = state.teams.find((t) => t.id === id);
-  const category = state.categories.find((c) => c.id === team?.categoryId);
+  const winners = champions(state);
+  const single = winners.length === 1;
   return (
     <div class="proj-champion">
       <span class="proj-kicker">Congratulations</span>
-      <h2 class="proj-sub" style={{ margin: 0 }}>Grand Champion</h2>
-      <div class="name">{team?.name ?? 'To be decided'}</div>
-      {category && <div class="proj-sub">{category.name} Gold Bracket winner</div>}
+      {single ? (
+        <>
+          <h2 class="proj-sub" style={{ margin: 0 }}>{winners[0]!.title}</h2>
+          <div class="name">{winners[0]!.name ?? 'To be decided'}</div>
+          {winners[0]!.subtitle && <div class="proj-sub">{winners[0]!.subtitle}</div>}
+        </>
+      ) : (
+        <div class="proj-winners">
+          {winners.map((w) => (
+            <section key={w.key}>
+              <h2 class="proj-sub" style={{ margin: 0 }}>{w.title}</h2>
+              <div class="name">{w.name ?? 'To be decided'}</div>
+            </section>
+          ))}
+        </div>
+      )}
       {state.bagTotal && <div class="bags">{state.bagTotal} bags of food packed!</div>}
     </div>
   );

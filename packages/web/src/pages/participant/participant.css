@@ -25,3 +25,10 @@
 .list .grow { flex: 1; min-width: 0; }
 .list li.me { background: var(--highlight); }
 .section-title { margin: var(--space-5) var(--space-1) var(--space-2); }
+
+.p-ended { margin: var(--space-4) 0 0; padding: var(--space-3) var(--space-4); border-radius: var(--radius-m); background: var(--surface-2); }
+.p-champion { margin-top: var(--space-4); display: grid; gap: var(--space-3); text-align: center; }
+.p-winner { display: grid; gap: var(--space-1); }
+.p-winner .title-1 { color: var(--accent); }
+.p-bags { margin: 0; }
+.p-cat { margin: var(--space-3) var(--space-1) var(--space-1); text-transform: uppercase; letter-spacing: 0.04em; }

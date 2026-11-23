@@ -65,3 +65,19 @@ export function teamResults(state: PublicView, teamId: string) {
 export const tierOf = (index: number) => (index >= 0 && index <= 4 ? `tier-${index}` : 'tier-x');
 
 export type { PublicEntrant };
+
+export interface Winner { key: string; title: string; teamId: string | null; name: string | null; subtitle: string | null }
+
+/** The Grand Champion when the event has a grand round, otherwise each category's winner. */
+export function champions(state: PublicView): Winner[] {
+  const named = (id: string | null | undefined) => (id ? state.teams.find((t) => t.id === id) ?? null : null);
+  if (state.rounds.some((r) => r.kind === 'grand')) {
+    const team = named(state.grandChampion);
+    const category = state.categories.find((c) => c.id === team?.categoryId);
+    return [{ key: 'grand', title: 'Grand Champion', teamId: team?.id ?? null, name: team?.name ?? null, subtitle: category ? `${category.name} Gold Bracket winner` : null }];
+  }
+  return state.categories.map((c) => {
+    const team = named(state.standings[c.id]?.[0]);
+    return { key: c.id, title: `${c.name} champion`, teamId: team?.id ?? null, name: team?.name ?? null, subtitle: null };
+  });
+}

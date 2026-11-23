@@ -53,6 +53,7 @@ export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopene
   return {
     event: { id: e.id, name: e.name, date: e.date },
     categories: e.setup.categories,
+    brackets: e.setup.brackets,
     teams: e.setup.teams.map(({ id, name, categoryId }) => ({ id, name, categoryId })),
     round: roundState(e),
     rounds: d.rounds.map((r) => ({

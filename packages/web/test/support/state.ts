@@ -38,8 +38,8 @@ export function previousEventDone(): LiveEvent {
       const [m, s] = (spec.run === 1 ? t.run1 : t.run2).split(':').map(Number);
       return (m! * 60 + s!) * 1000;
     }
-    const row = fixture.bracketRounds.find((r) => r.round === round)!.rows.find((x) => x.team === name)!;
-    return 200_000 + row.place * 5_000;
+    const row = fixture.bracketRounds.find((r) => r.round === round)!.rows.find((x) => x.team === name);
+    return row ? 200_000 + row.place * 5_000 : 0; // teams not in this round are ignored by runRound
   };
   for (let round = 1; round <= 9; round++) {
     const names = Object.fromEntries(e.setup.teams.map((t) => [t.name, time(round, t.name)]));

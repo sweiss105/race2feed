@@ -54,6 +54,13 @@ describe('publicView', () => {
     const keys = keysDeep(publicView(e, derive(e)));
     for (const k of ['taps', 'deviceId', 'overrides']) expect(keys.has(k)).toBe(false);
   });
+  it('includes the bracket plan for display', () => {
+    const e = lockedFour();
+    expect(publicView(e, derive(e)).brackets).toEqual([
+      { id: 't:0', categoryId: 't', tierIndex: 0, tierName: 'Gold', firstSeed: 1, size: 4 },
+    ]);
+  });
+
   it('shows results, places and seeding totals', () => {
     const e = runRound(lockedFour(), times);
     const v = publicView(e, derive(e));

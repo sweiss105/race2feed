@@ -28,11 +28,11 @@
 
 Failure modes the spec implies that are most likely to bite on event day. Each is pinned by a test in the task named.
 
-1. Race control fixes a seeding time after bracket rounds have been raced: raced rounds keep their line-ups and winners (Task 1).
-2. A seeding fix lands after the lower brackets' heats opened and before the upper brackets' heats: no team may end up in two brackets or in none (Task 1).
-3. A tablet's browser storage is full or blocked and Wi-Fi drops: a tap made offline must still be sent (Task 2).
-4. Both teams at a station finish within the undo window: each tap must be undoable on its own (Task 3).
-5. An organiser signed in to race control opens a pairing QR on the same browser: the referee page must work as a referee (Task 4).
+1. Race control fixes a seeding time after bracket rounds have been raced: raced rounds keep their line-ups and winners (Task 2).
+2. A seeding fix lands after the lower brackets' heats opened and before the upper brackets' heats: no team may end up in two brackets or in none (Tasks 1 and 2).
+3. A tablet's browser storage is full or blocked and Wi-Fi drops: a tap made offline must still be sent (Task 3).
+4. Both teams at a station finish within the undo window: each tap must be undoable on its own (Task 4).
+5. An organiser signed in to race control opens a pairing QR on the same browser: the referee page must work as a referee (Task 5).
 
 ---
 
@@ -98,7 +98,7 @@ it('derives exactly as before when nothing is saved', () => {
 
 ---
 
-### Task 1b (run directly after Task 1): Saved line-ups, part 2 — the server records them and corrections re-tabulate
+### Task 2: Saved line-ups, part 2 — the server records them and corrections re-tabulate
 
 **Files:**
 - Modify: `packages/server/src/core/model.ts` (`LiveEvent`), `packages/server/src/core/results.ts` (`buildProgress`), `packages/server/src/core/lifecycle.ts` (`openNextRound`), `packages/server/src/core/corrections.ts`
@@ -178,14 +178,14 @@ it('backfills line-ups for an event stored before they existed', () => {
 
 ---
 
-### Task 2: Tap queue survives a storage failure and reports each answer
+### Task 3: Tap queue survives a storage failure and reports each answer
 
 **Files:**
 - Modify: `packages/web/src/lib/queue.ts`
 - Test: `packages/web/test/lib/queue.test.ts`
 
 **Interfaces:**
-- Produces: `TapQueue.flush(send, onAnswer?: (entry: QueuedTap, ack: Ack) => void): Promise<number>`; `all()`, `add()`, `drop()`, `settle()` unchanged in signature. Task 3 uses `onAnswer`.
+- Produces: `TapQueue.flush(send, onAnswer?: (entry: QueuedTap, ack: Ack) => void): Promise<number>`; `all()`, `add()`, `drop()`, `settle()` unchanged in signature. Task 4 uses `onAnswer`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -217,7 +217,7 @@ it('reports every answer from a flush', async () => {
 
 ---
 
-### Task 3: Referee undo per tap, and messages that tell the truth
+### Task 4: Referee undo per tap, and messages that tell the truth
 
 **Files:**
 - Modify: `packages/web/src/pages/referee/RefereePage.tsx` (state at lines 25-35, flush effect, `tap`, `undo`, `UndoBar`, the render at the end)
@@ -226,7 +226,7 @@ it('reports every answer from a flush', async () => {
 - Test: `packages/web/test/pages/referee.test.tsx`
 
 **Interfaces:**
-- Consumes: `TapQueue.flush(send, onAnswer)` from Task 2; view fields already present: `team.taps[].{ id, clientTapId, kind, createdAt, removedAt, review.status }`, `settings.undoWindowMs`, `clock.serverNow()`.
+- Consumes: `TapQueue.flush(send, onAnswer)` from Task 3; view fields already present: `team.taps[].{ id, clientTapId, kind, createdAt, removedAt, review.status }`, `settings.undoWindowMs`, `clock.serverNow()`.
 - Produces: no exported changes. `RefereeProps` unchanged.
 
 **Design (replaces the single `recent` slot):**
@@ -280,7 +280,7 @@ Update the existing test "stamps a tap with the server clock, queues it, and off
 
 ---
 
-### Task 4: The referee page authenticates as a referee only
+### Task 5: The referee page authenticates as a referee only
 
 **Files:**
 - Modify: `packages/server/src/hub.ts` (`fetch`, the `role` query handling at the top)
@@ -314,7 +314,7 @@ it('a browser with both a session and a pairing is a referee on the referee sock
 
 ---
 
-### Task 5: Setup validation and malformed commands
+### Task 6: Setup validation and malformed commands
 
 **Files:**
 - Modify: `packages/engine/src/brackets.ts` (`validateBracketPlan`)
@@ -357,7 +357,7 @@ it('refuses a malformed command instead of throwing', () => {
 
 ---
 
-### Task 6: Live views stay current
+### Task 7: Live views stay current
 
 **Files:**
 - Modify: `packages/server/src/hub.ts` (`pair`, `afterChange` parameter type)
@@ -397,7 +397,7 @@ expect(applyRoundUpdate(state, { ...update, seedTotalsMs: { t1: 60_000 } }).seed
 
 ---
 
-### Task 7: Suggested seeding groups keep categories together
+### Task 8: Suggested seeding groups keep categories together
 
 **Files:**
 - Modify: `packages/engine/src/groups.ts` (`suggestSeedingGroups`, lines 5-38)
@@ -439,7 +439,7 @@ it('keeps a small category whole when it fits', () => {
 
 ---
 
-### Task 8: Export safety and documentation corrections
+### Task 9: Export safety and documentation corrections
 
 **Files:**
 - Modify: `packages/server/src/core/export.ts` (`cell`)

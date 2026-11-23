@@ -47,3 +47,7 @@ export function previousEventDone(): LiveEvent {
   }
   return e;
 }
+
+import { refereeView } from '../../../server/src/core/views';
+import type { RefereeView } from '../../src/lib/types';
+export const refViewOf = (e: LiveEvent, station = 1): RefereeView => refereeView(e, derive(e), station);

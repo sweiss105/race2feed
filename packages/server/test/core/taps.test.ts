@@ -148,7 +148,7 @@ describe('race control results', () => {
     const cmd = { type: 'setResult' as const, round: 1, teamId: teamId(e, 'T1'), set: { kind: 'time' as const, rawMs: 99_000 } };
     const r = handleTaps(e, cmd, ctx(control));
     expect(code(r)).toBe('unlock_required');
-    if (!r.ok) expect(r.detail).toEqual({ laterRounds: [2, 3], keptRounds: [] });
+    if (!r.ok) expect(r.detail).toEqual({ laterRounds: [2, 3], keptRounds: [], bracketsKept: false });
     expect(code(handleTaps(e, { ...cmd, confirmUnlock: true }, ctx(control)))).toBe('ok');
   });
 
@@ -156,7 +156,7 @@ describe('race control results', () => {
     const e = heatsOpen();
     const r = handleTaps(e, { type: 'setResult', round: 2, teamId: teamId(e, 'T4'), set: { kind: 'time', rawMs: 1_000 } }, ctx(control, 3_000_000));
     expect(code(r)).toBe('unlock_required');
-    if (!r.ok) expect(r.detail).toEqual({ laterRounds: [3], keptRounds: [3] });
+    if (!r.ok) expect(r.detail).toEqual({ laterRounds: [3], keptRounds: [3], bracketsKept: true });
   });
 
   it('never reshuffles the round that is open or running, even when confirmed', () => {

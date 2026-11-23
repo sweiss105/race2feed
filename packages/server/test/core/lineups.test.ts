@@ -23,7 +23,7 @@ describe('saved line-ups', () => {
     const cmd = { type: 'setResult' as const, round: 1, teamId: teamId(e, 'T4'), set: { kind: 'time' as const, rawMs: 1_000 } };
     const asked = handleTaps(e, cmd, ctx(control, 9_000_000));
     expect(asked.ok ? 'ok' : asked.code).toBe('unlock_required');
-    if (!asked.ok) expect(asked.detail).toEqual({ laterRounds: [2, 3], keptRounds: [3] });
+    if (!asked.ok) expect(asked.detail).toEqual({ laterRounds: [2, 3], keptRounds: [3], bracketsKept: true });
     const after = ok(handleTaps(e, { ...cmd, confirmUnlock: true }, ctx(control, 9_000_000)));
     expect(names(after, 3)).toEqual(['T1 v T4', 'T2 v T3']);
     expect(derive(after).seedRank![teamId(e, 'T4')]).toBe(1);
@@ -52,6 +52,22 @@ describe('saved line-ups', () => {
     const ids = [3, 4].flatMap((round) => derive(e).rounds[round - 1]!.races.flatMap((r) => r.entrants.map((x) => x.teamId)));
     expect(ids).toHaveLength(12);
     expect(new Set(ids).size).toBe(12);
+  });
+
+  it('reports that brackets are kept when a correction changes which bracket a team would seed into', () => {
+    let e = ok(handleSetup(blank(12), { type: 'importTeams', csv: csvFor({ T: 12 }) }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'setGrandChampionship', enabled: false }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
+    const seedTimes = Object.fromEntries(Array.from({ length: 12 }, (_, i) => [`T ${i + 1}`, 60_000 + (i + 1) * 1_000]));
+    e = runRound(runRound(e, seedTimes), seedTimes);
+    e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(control)));
+    expect(derive(e).rounds[2]!.races.every((r) => r.label.includes('Bronze'))).toBe(true);
+    // T 5 (seed 5, Silver) becomes seed 1: 50 s + 65 s against T 1's 61 s + 61 s.
+    const cmd = { type: 'setResult' as const, round: 1, teamId: teamId(e, 'T 5'), set: { kind: 'time' as const, rawMs: 50_000 } };
+    const asked = handleTaps(e, cmd, ctx(control, 9_000_000));
+    expect(asked.ok ? 'ok' : asked.code).toBe('unlock_required');
+    if (!asked.ok) expect(asked.detail).toEqual({ laterRounds: [2, 3], keptRounds: [], bracketsKept: true });
   });
 
   it('a correction that ties an earlier heat keeps the running round\'s teams', () => {

@@ -187,6 +187,8 @@ At the top of **Race** you'll see:
 2. The round's tables go out to phones, the projector and the referee tablets.
 3. Stations with no teams this round are marked **No teams** automatically.
 
+**Before you open the first bracket round, check the seeding results.** Brackets become final the moment that round opens: later bracket rounds are built from those brackets, and a correction to seeding won't move a team to another bracket.
+
 If it's refused, the message tells you why:
 
 | Message | What to do |
@@ -232,9 +234,10 @@ The newest change always wins, so you can correct a referee's tap by entering th
 
 **Correcting an earlier round:** once a later round has been opened, the app asks **"Change an earlier round?"**
 - **A round keeps its line-up once it's opened.** The app saves who races where when you open each round, and which teams are in each bracket when you open the first bracket round. A correction never changes those.
-- **The dialog names any opened round that keeps a line-up the corrected results no longer match**, for example "Round 3 was opened with its original line-up and keeps it. The corrected results will not match who raced there." Otherwise it says "No line-ups are affected."
+- **The dialog names any opened round that keeps a line-up the corrected results no longer match**, for example "Round 3 was opened with its original line-up and keeps it. The corrected results will not match who raced there." If no round is named and the brackets aren't affected, it says "No line-ups are affected."
 - Press **Change anyway** to go ahead. Seeding ranks, places and standings are worked out again from the corrected results, and rounds you haven't opened yet are built from them.
-- **A team stays in the bracket it raced in**, even if its corrected seed would now put it in a different bracket.
+- **Bracket membership is final once the first bracket round is opened.** Every bracket round after that, including ones not opened yet, is built from those brackets, not re-seeded. A team stays in its bracket even if its corrected seed would now put it in a different one.
+- **If a correction changes the seeding the brackets were set from**, the dialog also says, in bold, "Brackets were set when the first bracket round opened. Teams stay in those brackets, even if this changes their seeding."
 - You can correct an earlier round even while the current round is open or running: the current round's line-up doesn't change.
 - If a correction creates a tie in an earlier round, the round that's open or running carries on as it is. Decide the tie before you open the next round.
 

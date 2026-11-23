@@ -70,11 +70,11 @@ describe('race section', () => {
     resolve({ ok: true });
   });
 
-  const askToUnlock = async (keptRounds: number[]) => {
+  const askToUnlock = async (keptRounds: number[], bracketsKept = false) => {
     const sent: any[] = [];
     const send = vi.fn(async (cmd: any) => {
       sent.push(cmd);
-      return cmd.confirmUnlock ? { ok: true } : { ok: false, code: 'unlock_required', message: 'confirm', detail: { laterRounds: [2, 3], keptRounds } };
+      return cmd.confirmUnlock ? { ok: true } : { ok: false, code: 'unlock_required', message: 'confirm', detail: { laterRounds: [2, 3], keptRounds, bracketsKept } };
     });
     const e = heatsOpen();
     render(<ConsolePage me={me('control')} view={ctlViewOf(e)} send={send} serverNow={() => 0} status="open" />);
@@ -95,6 +95,14 @@ describe('race section', () => {
     const { dialog } = await askToUnlock([3]);
     expect(dialog.textContent).toContain('Round 3 was opened with its original line-up and keeps it.');
     expect(dialog.textContent).toContain('The corrected results will not match who raced there.');
+  });
+
+  it('warns that brackets stay as they were set when a correction changes seeding', async () => {
+    const { dialog } = await askToUnlock([], true);
+    const warning = 'Brackets were set when the first bracket round opened. Teams stay in those brackets, even if this changes their seeding.';
+    expect(dialog.textContent).toContain(warning);
+    expect([...dialog.querySelectorAll('strong')].some((s) => s.textContent === warning)).toBe(true);
+    expect(dialog.textContent).not.toContain('No line-ups are affected.');
   });
 
   it('flips the penalties switch at once while the server confirms', async () => {

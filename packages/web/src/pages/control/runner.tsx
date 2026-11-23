@@ -15,7 +15,7 @@ export interface Runner {
 const RunnerContext = createContext<Runner | null>(null);
 export const useRunner = () => useContext(RunnerContext)!;
 
-interface Pending { cmd: Cmd; key: string; laterRounds: number[]; keptRounds: number[] }
+interface Pending { cmd: Cmd; key: string; laterRounds: number[]; keptRounds: number[]; bracketsKept: boolean }
 
 export function RunnerProvider({ send, children }: { send(cmd: object): Promise<Ack>; children: preact.ComponentChildren }) {
   const inFlight = useRef(new Set<string>());
@@ -36,8 +36,8 @@ export function RunnerProvider({ send, children }: { send(cmd: object): Promise<
       const ack = await send(cmd);
       if (!ack.ok) {
         if (ack.code === 'unlock_required') {
-          const d = (ack.detail ?? {}) as { laterRounds?: number[]; keptRounds?: number[] };
-          setPending({ cmd, key, laterRounds: d.laterRounds ?? [], keptRounds: d.keptRounds ?? [] });
+          const d = (ack.detail ?? {}) as { laterRounds?: number[]; keptRounds?: number[]; bracketsKept?: boolean };
+          setPending({ cmd, key, laterRounds: d.laterRounds ?? [], keptRounds: d.keptRounds ?? [], bracketsKept: d.bracketsKept ?? false });
         } else {
           setErrors((e) => ({ ...e, [key]: ack.message ?? 'Refused.' }));
         }
@@ -62,13 +62,18 @@ export function RunnerProvider({ send, children }: { send(cmd: object): Promise<
           <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="unlock-title" onClick={(e) => e.stopPropagation()}>
             <h2 id="unlock-title" class="title-2">Change an earlier round?</h2>
             <p class="callout">Later rounds have already been opened ({list(pending.laterRounds)}).</p>
-            <p class="callout">
-              {pending.keptRounds.length === 0
-                ? 'No line-ups are affected.'
-                : pending.keptRounds.length === 1
-                  ? <strong>{list(pending.keptRounds)} was opened with its original line-up and keeps it. The corrected results will not match who raced there.</strong>
-                  : <strong>{list(pending.keptRounds)} were opened with their original line-ups and keep them. The corrected results will not match who raced there.</strong>}
-            </p>
+            {(pending.keptRounds.length > 0 || !pending.bracketsKept) && (
+              <p class="callout">
+                {pending.keptRounds.length === 0
+                  ? 'No line-ups are affected.'
+                  : pending.keptRounds.length === 1
+                    ? <strong>{list(pending.keptRounds)} was opened with its original line-up and keeps it. The corrected results will not match who raced there.</strong>
+                    : <strong>{list(pending.keptRounds)} were opened with their original line-ups and keep them. The corrected results will not match who raced there.</strong>}
+              </p>
+            )}
+            {pending.bracketsKept && (
+              <p class="callout"><strong>Brackets were set when the first bracket round opened. Teams stay in those brackets, even if this changes their seeding.</strong></p>
+            )}
             <div class="sheet-actions">
               <Button kind="secondary" onClick={() => setPending(null)}>Cancel</Button>
               <Button kind="primary" onClick={() => { const p = pending; setPending(null); void run({ ...p.cmd, confirmUnlock: true }, p.key); }}>Change anyway</Button>

@@ -1,4 +1,4 @@
-import type { BracketSpec, EventInput, SeedingGroup } from '@race2feed/engine';
+import type { BracketSpec, EventInput, SavedRace, SeedingGroup } from '@race2feed/engine';
 import { STARTER_REASONS } from './starter';
 
 export type Role = 'admin' | 'control' | 'referee' | 'companion' | 'public';
@@ -67,6 +67,10 @@ export interface LiveEvent {
   championShown?: boolean;
   /** Set when admin ends the event; it is then read-only and no longer active. */
   endedAt?: number | null;
+  /** round → the races it was opened with; see lineups.ts. Missing on events stored before line-ups were saved. */
+  lineups?: Record<number, SavedRace[]>;
+  /** bracketId → team ids in seed order, saved when the first bracket round opened. */
+  bracketMembers?: Record<string, string[]>;
 }
 
 export type SetupCommand =

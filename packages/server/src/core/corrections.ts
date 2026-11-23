@@ -1,26 +1,20 @@
 import { fail, type CommandResult, type LiveEvent } from './model';
-import { derive } from './results';
+import { lineupOf } from './lineups';
 
-const matchups = (e: LiveEvent) =>
-  derive(e).rounds.map((r) => JSON.stringify(r.races.map((race) => race.entrants.map((x) => [x.teamId, x.table]))));
+/** Who races where in each race, for comparing line-ups. */
+const shape = (races: ReturnType<typeof lineupOf>) => JSON.stringify(races?.map((r) => [r.id, r.teams, r.tables]) ?? null);
 
 /**
  * Guards a change to an already-raced round. Once a later round has been opened the change
- * needs `confirm`, and the reply lists which later rounds' matchups it would change. It is
- * refused outright if it would reshuffle (or block) the round that is open or running.
+ * needs `confirm`. Opened rounds keep their saved line-up; the reply lists those
+ * (`keptRounds`) that no longer match what the corrected results would build.
  */
 export function checkCorrection(before: LiveEvent, after: LiveEvent, round: number, confirm: boolean | undefined): CommandResult | null {
   const current = before.round.current;
   if (round >= current) return null;
+  if (confirm) return null;
   const laterRounds = Array.from({ length: current - round }, (_, i) => round + 1 + i);
-  const [was, now] = [matchups(before), matchups(after)];
-  const changedRounds = laterRounds.filter((r) => was[r - 1] !== now[r - 1]);
-  if (!confirm) {
-    return fail('unlock_required', 'Later rounds have already been opened; confirm to change this round.', { laterRounds, changedRounds });
-  }
-  const live = before.round.phase === 'open' || before.round.phase === 'running';
-  if (live && changedRounds.includes(current)) {
-    return fail('changes_current_round', 'This would change who is racing in the current round. Finish the round first.', { changedRounds });
-  }
-  return null;
+  const rebuilt: LiveEvent = { ...after, lineups: undefined, bracketMembers: undefined };
+  const keptRounds = laterRounds.filter((r) => shape(after.lineups?.[r] ?? lineupOf(after, r)) !== shape(lineupOf(rebuilt, r)));
+  return fail('unlock_required', 'Later rounds have already been opened; confirm to change this round.', { laterRounds, keptRounds });
 }

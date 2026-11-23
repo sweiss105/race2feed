@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { handleTaps } from '../../src/core/taps';
 import { handleLifecycle } from '../../src/core/lifecycle';
-import { buildProgress } from '../../src/core/results';
+import { buildProgress, derive } from '../../src/core/results';
 import type { CommandResult, LiveEvent } from '../../src/core/model';
 import { control, ctx, lockedFour, ok, referee, runRound, teamId } from './helpers';
 
@@ -16,6 +16,8 @@ function running(): LiveEvent {
 }
 const tapFinish = (e: LiveEvent, name: string, atServerMs: number, clientTapId = `c-${name}-${atServerMs}`, now = START + 300_000) =>
   handleTaps(e, { type: 'tapFinish', teamId: teamId(e, name), atServerMs, clientTapId }, ctx(referee(1), now));
+const names = (e: LiveEvent, round: number) =>
+  derive(e).rounds[round - 1]!.races.map((r) => r.entrants.map((x) => e.setup.teams.find((t) => t.id === x.teamId)!.name).join(' v '));
 const result = (e: LiveEvent, name: string, round = 1) => buildProgress(e).results[round]?.[teamId(e, name)];
 
 describe('tapFinish', () => {
@@ -146,7 +148,7 @@ describe('race control results', () => {
     const cmd = { type: 'setResult' as const, round: 1, teamId: teamId(e, 'T1'), set: { kind: 'time' as const, rawMs: 99_000 } };
     const r = handleTaps(e, cmd, ctx(control));
     expect(code(r)).toBe('unlock_required');
-    if (!r.ok) expect(r.detail).toEqual({ laterRounds: [2, 3], changedRounds: [] });
+    if (!r.ok) expect(r.detail).toEqual({ laterRounds: [2, 3], keptRounds: [] });
     expect(code(handleTaps(e, { ...cmd, confirmUnlock: true }, ctx(control)))).toBe('ok');
   });
 
@@ -154,12 +156,12 @@ describe('race control results', () => {
     const e = heatsOpen();
     const r = handleTaps(e, { type: 'setResult', round: 2, teamId: teamId(e, 'T4'), set: { kind: 'time', rawMs: 1_000 } }, ctx(control, 3_000_000));
     expect(code(r)).toBe('unlock_required');
-    if (!r.ok) expect(r.detail).toEqual({ laterRounds: [3], changedRounds: [3] });
+    if (!r.ok) expect(r.detail).toEqual({ laterRounds: [3], keptRounds: [3] });
   });
 
   it('never reshuffles the round that is open or running, even when confirmed', () => {
     const e = heatsOpen();
     const r = handleTaps(e, { type: 'setResult', round: 2, teamId: teamId(e, 'T4'), set: { kind: 'time', rawMs: 1_000 }, confirmUnlock: true }, ctx(control, 3_000_000));
-    expect(code(r)).toBe('changes_current_round');
+    expect(names(ok(r), 3)).toEqual(names(e, 3));
   });
 });

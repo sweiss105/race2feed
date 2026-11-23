@@ -4,6 +4,7 @@ import type { Env } from './worker';
 import { applyCommand } from './core/apply';
 import { fail, newEvent, type Actor, type Command, type CommandResult, type LiveEvent } from './core/model';
 import { derive } from './core/results';
+import { backfillLineups } from './core/lineups';
 import { eventCsv } from './core/export';
 import { companionView, controlView, publicRoundUpdate, publicView, refereeView } from './core/views';
 import { needsSnapshot } from './core/broadcast';
@@ -88,7 +89,12 @@ export class Hub extends DurableObject<Env> {
 
   private loadActive(): LiveEvent | null {
     const row = this.sql.exec<{ doc: string }>('SELECT doc FROM events WHERE active = 1 LIMIT 1').toArray()[0];
-    return row ? (JSON.parse(row.doc) as LiveEvent) : null;
+    if (!row) return null;
+    const doc = JSON.parse(row.doc) as LiveEvent;
+    // Events stored before line-ups were saved get them now, so a later correction cannot rebuild a raced round.
+    const event = this.safeBackfill(doc);
+    if (event !== doc) this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify(event), event.id);
+    return event;
   }
 
   private loadEnded(): LiveEvent | null {
@@ -358,6 +364,16 @@ export class Hub extends DurableObject<Env> {
 
   async alarm(): Promise<void> {
     this.sendPublicRound();
+  }
+
+  /** backfillLineups() guarded so a bad stored setup cannot stop the hub loading. */
+  private safeBackfill(e: LiveEvent): LiveEvent {
+    try {
+      return backfillLineups(e);
+    } catch (err) {
+      console.error('backfilling line-ups failed', err);
+      return e;
+    }
   }
 
   /** derive() guarded so a bad stored setup can never take every socket down. */

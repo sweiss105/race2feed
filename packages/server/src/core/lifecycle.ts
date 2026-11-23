@@ -2,6 +2,7 @@ import { stationCount, stationOfTable } from '@race2feed/engine';
 import { done, fail, perStation, type CommandResult, type Ctx, type LifecycleCommand, type LiveEvent } from './model';
 import { buildProgress, derive, teamsInRound } from './results';
 import { checkCorrection } from './corrections';
+import { saveLineup } from './lineups';
 
 /** Referee penalties still waiting for race control, in rounds raced so far. */
 export function pendingPenalties(e: LiveEvent) {
@@ -31,11 +32,8 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       const busy = new Set(next.races.flatMap((r) => r.entrants.map((x) => stationOfTable(x.table, perStation(e)))));
       const stations: LiveEvent['stations'] = {};
       for (let s = 1; s <= stationCount(e.setup.tableCount, perStation(e)); s++) stations[s] = { ready: false, excluded: !busy.has(s) };
-      return ok({
-        ...e,
-        round: { current: e.round.current + 1, phase: 'open', startedAt: null, finishedAt: null },
-        stations,
-      });
+      const round = e.round.current + 1;
+      return ok(saveLineup({ ...e, round: { current: round, phase: 'open', startedAt: null, finishedAt: null }, stations }, round));
     }
     case 'stationReady': {
       if (e.round.phase !== 'open') return fail('round_not_open', 'There is no round waiting to start.');

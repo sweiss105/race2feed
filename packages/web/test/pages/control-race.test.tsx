@@ -70,20 +70,31 @@ describe('race section', () => {
     resolve({ ok: true });
   });
 
-  it('asks before a correction that changes later rounds, then confirms', async () => {
+  const askToUnlock = async (keptRounds: number[]) => {
     const sent: any[] = [];
     const send = vi.fn(async (cmd: any) => {
       sent.push(cmd);
-      return cmd.confirmUnlock ? { ok: true } : { ok: false, code: 'unlock_required', message: 'confirm', detail: { laterRounds: [2, 3], changedRounds: [3] } };
+      return cmd.confirmUnlock ? { ok: true } : { ok: false, code: 'unlock_required', message: 'confirm', detail: { laterRounds: [2, 3], keptRounds } };
     });
     const e = heatsOpen();
     render(<ConsolePage me={me('control')} view={ctlViewOf(e)} send={send} serverNow={() => 0} status="open" />);
     fireEvent.change(screen.getByLabelText('Round'), { target: { value: '1' } });
     const row = await screen.findByTestId(`team-${teamId(e, 'T1')}`);
     fireEvent.click(row.querySelector('button[data-action="dnf"]')!);
-    expect(await screen.findByText(/changes who races in Round 3/)).toBeTruthy();
+    return { sent, dialog: await screen.findByRole('dialog') };
+  };
+
+  it('asks before a correction to an earlier round, then confirms', async () => {
+    const { sent, dialog } = await askToUnlock([]);
+    expect(dialog.textContent).toContain('No line-ups are affected.');
     fireEvent.click(screen.getByRole('button', { name: 'Change anyway' }));
     await waitFor(() => expect(sent.at(-1)).toMatchObject({ type: 'setResult', round: 1, confirmUnlock: true, set: { kind: 'status', status: 'dnf' } }));
+  });
+
+  it('names the opened rounds that keep a line-up the correction no longer matches', async () => {
+    const { dialog } = await askToUnlock([3]);
+    expect(dialog.textContent).toContain('Round 3 was opened with its original line-up and keeps it.');
+    expect(dialog.textContent).toContain('The corrected results will not match who raced there.');
   });
 
   it('flips the penalties switch at once while the server confirms', async () => {

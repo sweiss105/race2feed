@@ -194,7 +194,9 @@ All times in this section are **official times**: the raw time plus any penaltie
   - Matchups for the next round are generated from the locked results and published at that moment, not before.
 - **Late corrections:**
   - Race control can edit a finished round's results until a later round that depends on them is opened.
-  - After that, an edit needs an explicit **unlock**. It warns which later matchups would change and regenerates any that haven't run yet.
+  - Each round's line-up is saved when the round is opened, and bracket membership when the first bracket round is opened.
+  - After a later round has opened, an edit needs an explicit **unlock**, which names any opened rounds that keep a line-up the corrected results no longer match.
+  - Opened rounds are never rebuilt; rounds not yet opened are built from the corrected results.
 
 ### 3.6 Tables per referee
 
@@ -429,6 +431,7 @@ The server is reachable from the internet, so:
   - Penalty (race entry, amount in ms, source: referee or race control, device, created and removed timestamps)
   - Event settings, including the penalty switch, penalty amount and undo window
   - TieDecision, Device, ApiKey, AuditLog
+  - RoundLineup, BracketMembers (the races each round was opened with, and each bracket's teams as they stood when the first bracket round opened)
 - **The rules engine is a pure module with no I/O:** group and table assignment, seeding rank, bracket plan, heat and placement generation, and final standings. This makes it straightforward to unit-test.
 
 ---

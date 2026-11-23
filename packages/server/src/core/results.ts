@@ -46,7 +46,13 @@ export function buildProgress(e: LiveEvent): EventProgress {
     const round = Number(roundText);
     (results[round] ??= {})[teamId] = { ...last.result, penaltiesMs: penalties.get(k) ?? 0 };
   }
-  return { finishedRounds: e.finishedRounds, results, tieDecisions: e.tieDecisions };
+  return {
+    finishedRounds: e.finishedRounds,
+    results,
+    tieDecisions: e.tieDecisions,
+    ...(e.lineups ? { lineups: e.lineups } : {}),
+    ...(e.bracketMembers ? { bracketMembers: e.bracketMembers } : {}),
+  };
 }
 
 export function derive(e: LiveEvent): DerivedEvent {

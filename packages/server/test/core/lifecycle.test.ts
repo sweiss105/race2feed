@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { handleLifecycle } from '../../src/core/lifecycle';
 import { handleSetup } from '../../src/core/setup';
+import { derive } from '../../src/core/results';
 import { admin, blank, control, csvFor, ctx, lockedFour, ok, referee, runRound, teamId } from './helpers';
 
 const seedTimes = { T1: 100_000, T2: 110_000, T3: 120_000, T4: 130_000 };
@@ -86,12 +87,12 @@ describe('round lifecycle', () => {
     // A decision can be changed while the same teams are involved.
     const changed = ok(handleLifecycle(e, { type: 'decideTie', raceId, order: [teamId(e, 'T1'), teamId(e, 'T4')] }, ctx(control)));
     expect(changed.tieDecisions[raceId]).toEqual([teamId(e, 'T1'), teamId(e, 'T4')]);
-    // Once the next round is open, changing the decision would reshuffle it.
+    // Once the next round is open, changing the decision needs confirming and keeps its line-up.
     const next = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(control)));
     const redo = handleLifecycle(next, { type: 'decideTie', raceId, order: [teamId(e, 'T1'), teamId(e, 'T4')] }, ctx(control));
     expect(code(redo)).toBe('unlock_required');
-    expect(code(handleLifecycle(next, { type: 'decideTie', raceId, order: [teamId(e, 'T1'), teamId(e, 'T4')], confirmUnlock: true }, ctx(control))))
-      .toBe('changes_current_round');
+    const confirmed = ok(handleLifecycle(next, { type: 'decideTie', raceId, order: [teamId(e, 'T1'), teamId(e, 'T4')], confirmUnlock: true }, ctx(control)));
+    expect(derive(confirmed).rounds[3]!.races.map((r) => r.entrants)).toEqual(derive(next).rounds[3]!.races.map((r) => r.entrants));
     expect(code(handleLifecycle(next, { type: 'decideTie', raceId, order: 'x' } as never, ctx(control)))).toBe('invalid');
   });
 

@@ -229,9 +229,12 @@ The **Results** panel lists every team in the round, with its table, race and ti
 
 The newest change always wins, so you can correct a referee's tap by entering the right time.
 
-**Correcting an earlier round:** once a later round has been opened, the app asks **"Change an earlier round?"** It tells you whether the change would alter who races in later rounds.
-- Press **Change anyway** to go ahead. Rounds that haven't been raced yet are rebuilt.
-- If the change would alter who's racing in the round that's open or running right now, it's refused: "This would change who is racing in the current round. Finish the round first."
+**Correcting an earlier round:** once a later round has been opened, the app asks **"Change an earlier round?"**
+- **A round keeps its line-up once it's opened.** The app saves who races where when you open each round, and which teams are in each bracket when you open the first bracket round. A correction never changes those.
+- **The dialog names any opened round that keeps a line-up the corrected results no longer match**, for example "Round 3 was opened with its original line-up and keeps it. The corrected results will not match who raced there." Otherwise it says "No line-ups are affected."
+- Press **Change anyway** to go ahead. Seeding ranks, places and standings are worked out again from the corrected results, and rounds you haven't opened yet are built from them.
+- **A team stays in the bracket it raced in**, even if its corrected seed would now put it in a different bracket.
+- You can correct an earlier round even while the current round is open or running: the current round's line-up doesn't change.
 
 ### Time penalties
 

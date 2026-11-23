@@ -7,7 +7,23 @@ import { done, fail, type CommandResult, type Ctx, type LiveEvent, type SetupCom
 
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
-const ALWAYS_ALLOWED: SetupCommand['type'][] = ['unlockSetup', 'setBagTotal'];
+/** Allowed even when setup is locked: none of these change who races where. */
+const ALWAYS_ALLOWED: SetupCommand['type'][] = ['unlockSetup', 'setBagTotal', 'renameTeam', 'setSettings'];
+
+const isInt = (v: unknown, min: number) => Number.isInteger(v) && (v as number) >= min;
+const isStr = (v: unknown) => typeof v === 'string' && v.length > 0;
+
+function validGroups(groups: unknown, tableOf: unknown): boolean {
+  return Array.isArray(groups)
+    && groups.every((g) => g && isStr(g.id) && Array.isArray(g.teamIds) && g.teamIds.every(isStr))
+    && !!tableOf && typeof tableOf === 'object' && !Array.isArray(tableOf)
+    && Object.values(tableOf).every((t) => isInt(t, 1));
+}
+
+function validBrackets(brackets: unknown): boolean {
+  return Array.isArray(brackets) && brackets.every((b) => b && isStr(b.id) && isStr(b.categoryId)
+    && isInt(b.tierIndex, 0) && typeof b.tierName === 'string' && isInt(b.firstSeed, 1) && isInt(b.size, 1));
+}
 
 function withSetup(e: LiveEvent, setup: Partial<EventInput>): LiveEvent {
   return { ...e, setup: { ...e.setup, ...setup } };
@@ -79,8 +95,10 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
       return ok(withSetup(e, { groups, tableOf, brackets: suggestBracketPlan(e.setup.categories, e.setup.teams) }));
     }
     case 'setGroups':
+      if (!validGroups(cmd.groups, cmd.tableOf)) return fail('invalid', 'Groups or tables are malformed.');
       return ok(withSetup(e, { groups: cmd.groups, tableOf: cmd.tableOf }));
     case 'setBrackets':
+      if (!validBrackets(cmd.brackets)) return fail('invalid', 'Brackets are malformed.');
       return ok(withSetup(e, { brackets: cmd.brackets }));
     case 'setGrandChampionship':
       return ok(withSetup(e, { grandChampionship: cmd.enabled }));

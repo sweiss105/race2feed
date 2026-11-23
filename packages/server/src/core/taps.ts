@@ -1,6 +1,7 @@
 import { stationOfTable } from '@race2feed/engine';
 import { done, fail, type CommandResult, type Ctx, type LiveEvent, type Tap, type TapCommand } from './model';
 import { buildProgress, derive, teamsInRound } from './results';
+import { checkCorrection } from './corrections';
 
 /** Clock skew allowed between a synced tablet and the server. */
 const FUTURE_TOLERANCE_MS = 2000;
@@ -9,9 +10,11 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
   const ok = (event: LiveEvent) => done(event, cmd, ctx);
   const current = e.round.current;
 
-  /** A resend of a tap this device already delivered (from its offline queue). */
-  const isResend = (clientTapId: string) =>
-    e.taps.some((t) => t.clientTapId === clientTapId && t.deviceId === ctx.actor.deviceId);
+  /** A resend of a tap this device already delivered for this team, round and kind (from its offline queue). */
+  const isResend = (clientTapId: string, teamId: string, kind: Tap['kind']) =>
+    e.taps.some((t) => t.clientTapId === clientTapId && t.deviceId === ctx.actor.deviceId
+      && t.round === current && t.teamId === teamId && t.kind === kind);
+  const validId = (id: unknown) => typeof id === 'string' && id.length > 0 && id.length <= 100;
 
   const refereeCheck = (teamId: string): CommandResult | null => {
     if (e.round.phase !== 'running') return fail('round_not_running', 'No race is running.');
@@ -30,24 +33,19 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
     removedAt: null,
   });
 
-  /** Corrections to an earlier round need confirmation once later rounds have results. */
-  const correctionCheck = (round: number, confirm: boolean | undefined): CommandResult | null => {
-    if (round < 1 || round > current) return fail('invalid', `Round ${round} has not been raced.`);
-    if (round === current || confirm) return null;
-    const later = new Set<number>();
-    for (const f of [...e.taps, ...e.overrides]) if (f.round > round) later.add(f.round);
-    if (!later.size) return null;
-    return fail('unlock_required', 'Later rounds already have results; confirm to change this round.', {
-      laterRounds: [...later].sort((a, b) => a - b),
-    });
-  };
+  const validRound = (round: unknown) => Number.isInteger(round) && (round as number) >= 1 && (round as number) <= current;
+
+  /** Applies a correction to an earlier round only if checkCorrection allows it. */
+  const correct = (round: number, confirm: boolean | undefined, after: LiveEvent): CommandResult =>
+    checkCorrection(e, after, round, confirm) ?? ok(after);
 
   const inRound = (round: number, teamId: string) =>
     teamsInRound(derive(e), round).some((t) => t.teamId === teamId);
 
   switch (cmd.type) {
     case 'tapFinish': {
-      if (isResend(cmd.clientTapId)) return ok(e);
+      if (!validId(cmd.clientTapId) || !Number.isFinite(cmd.atServerMs)) return fail('invalid', 'A tap needs an id and a time.');
+      if (isResend(cmd.clientTapId, cmd.teamId, 'finish')) return ok(e);
       const denied = refereeCheck(cmd.teamId);
       if (denied) return denied;
       const startedAt = e.round.startedAt!;
@@ -62,7 +60,8 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       return ok({ ...e, taps: [...e.taps, tap] });
     }
     case 'tapPenalty': {
-      if (isResend(cmd.clientTapId)) return ok(e);
+      if (!validId(cmd.clientTapId)) return fail('invalid', 'A tap needs an id.');
+      if (isResend(cmd.clientTapId, cmd.teamId, 'penalty')) return ok(e);
       const denied = refereeCheck(cmd.teamId);
       if (denied) return denied;
       if (!e.settings.penaltiesEnabled) return fail('penalties_disabled', 'Time penalties are switched off.');
@@ -81,27 +80,27 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       return ok({ ...e, taps: e.taps.map((t) => (t.id === tap.id ? { ...t, removedAt: ctx.now } : t)) });
     }
     case 'setResult': {
-      const denied = correctionCheck(cmd.round, cmd.confirmUnlock);
-      if (denied) return denied;
+      if (!validRound(cmd.round)) return fail('invalid', `Round ${cmd.round} has not been raced.`);
+      const s = cmd.set as { kind?: unknown; status?: unknown; rawMs?: unknown } | undefined;
+      const validSet = s?.kind === 'clear'
+        || (s?.kind === 'status' && (s.status === 'dnf' || s.status === 'dns'))
+        || (s?.kind === 'time' && Number.isInteger(s.rawMs) && (s.rawMs as number) >= 0);
+      if (!validSet) return fail('invalid', 'Result must be a time, DNF, DNS or clear.');
       if (!inRound(cmd.round, cmd.teamId)) return fail('not_in_round', 'That team is not in this round.');
-      if (cmd.set.kind === 'time' && (!Number.isInteger(cmd.set.rawMs) || cmd.set.rawMs < 0)) {
-        return fail('invalid', 'Time must be a whole, positive number of ms.');
-      }
-      return ok({ ...e, overrides: [...e.overrides, { round: cmd.round, teamId: cmd.teamId, at: ctx.now, set: cmd.set }] });
+      return correct(cmd.round, cmd.confirmUnlock,
+        { ...e, overrides: [...e.overrides, { round: cmd.round, teamId: cmd.teamId, at: ctx.now, set: cmd.set }] });
     }
     case 'addPenalty': {
-      const denied = correctionCheck(cmd.round, cmd.confirmUnlock);
-      if (denied) return denied;
+      if (!validRound(cmd.round)) return fail('invalid', `Round ${cmd.round} has not been raced.`);
       if (!inRound(cmd.round, cmd.teamId)) return fail('not_in_round', 'That team is not in this round.');
       const tap = newTap({ kind: 'penalty', round: cmd.round, teamId: cmd.teamId, amountMs: e.settings.penaltyMs, source: 'control' });
-      return ok({ ...e, taps: [...e.taps, tap] });
+      return correct(cmd.round, cmd.confirmUnlock, { ...e, taps: [...e.taps, tap] });
     }
     case 'removePenalty': {
       const tap = e.taps.find((t) => t.id === cmd.tapId && t.kind === 'penalty');
       if (!tap || tap.removedAt !== null) return fail('not_found', 'That penalty no longer exists.');
-      const denied = correctionCheck(tap.round, cmd.confirmUnlock);
-      if (denied) return denied;
-      return ok({ ...e, taps: e.taps.map((t) => (t.id === tap.id ? { ...t, removedAt: ctx.now } : t)) });
+      return correct(tap.round, cmd.confirmUnlock,
+        { ...e, taps: e.taps.map((t) => (t.id === tap.id ? { ...t, removedAt: ctx.now } : t)) });
     }
     case 'setPenaltiesEnabled':
       return ok({ ...e, settings: { ...e.settings, penaltiesEnabled: cmd.enabled } });

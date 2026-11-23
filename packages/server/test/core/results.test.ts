@@ -32,6 +32,10 @@ describe('buildProgress', () => {
   it('a removed finish tap leaves the team pending', () => {
     expect(result(withFacts([finish(200_000, 1, 4)]))).toBeUndefined();
   });
+  it('never reports finished without a usable time', () => {
+    expect(result(withFacts([], [override(1, { kind: 'time', rawMs: Number.NaN })]))).toBeUndefined();
+    expect(result(withFacts([{ ...finish(200_000), elapsedMs: Number.NaN }]))).toBeUndefined();
+  });
   it('copies finished rounds and tie decisions', () => {
     const e = { ...blank(), finishedRounds: 3, tieDecisions: { r: ['a', 'b'] } };
     expect(buildProgress(e)).toMatchObject({ finishedRounds: 3, tieDecisions: { r: ['a', 'b'] } });

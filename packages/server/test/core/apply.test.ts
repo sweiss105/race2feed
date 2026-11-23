@@ -15,6 +15,13 @@ describe('applyCommand permissions', () => {
     expect(code(applyCommand(lockedFour(), { type: 'setBagTotal', text: '1' }, ctx(control)))).toBe('forbidden');
     expect(code(applyCommand(lockedFour(), { type: 'setBagTotal', text: '1' }, ctx(admin)))).toBe('ok');
   });
+  it('race control can rename a team during the event, but not change other setup', () => {
+    const e = lockedFour();
+    const r = applyCommand(e, { type: 'renameTeam', teamId: e.setup.teams[0]!.id, name: 'Renamed' }, ctx(control));
+    expect(r.ok && r.event.setup.teams[0]!.name).toBe('Renamed');
+    expect(code(applyCommand(e, { type: 'addTeam', name: 'Z', category: 'T' }, ctx(control)))).toBe('forbidden');
+  });
+
   it('admin can do anything race control can', () => {
     expect(code(applyCommand(lockedFour(), { type: 'openNextRound' }, ctx(admin)))).toBe('ok');
   });
@@ -24,5 +31,7 @@ describe('applyCommand permissions', () => {
   });
   it('rejects unknown commands', () => {
     expect(code(applyCommand(lockedFour(), { type: 'nope' } as never, ctx(admin)))).toBe('unknown_command');
+    expect(code(applyCommand(lockedFour(), { type: 'constructor' } as never, ctx(admin)))).toBe('unknown_command');
+    expect(code(applyCommand(lockedFour(), { type: 'toString' } as never, ctx(admin)))).toBe('unknown_command');
   });
 });

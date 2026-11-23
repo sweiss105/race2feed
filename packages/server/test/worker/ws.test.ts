@@ -75,6 +75,30 @@ describe('live connections', () => {
     expect(finished.length).toBe(5);
   });
 
+  it('sends phones a fresh snapshot for corrections made while reviewing a finished round', async () => {
+    const admin = await lockedEvent();
+    const { control } = await controlAndReferee(admin);
+    const ctl = await connect({ cookie: control });
+    const pub = await connect({ role: 'public' });
+    await wsCommand(ctl, { type: 'openNextRound' });
+    for (const station of [1, 2]) await wsCommand(ctl, { type: 'overrideStation', station, state: 'ready' });
+    await wsCommand(ctl, { type: 'startRace' });
+    const teams = (await ctl.next('view', 0)).view.teams.map((t: { id: string }) => t.id);
+    for (const teamId of teams) await wsCommand(ctl, { type: 'setResult', round: 1, teamId, set: { kind: 'time', rawMs: 200_000 } });
+    await wsCommand(ctl, { type: 'finishRace' });
+    await settle();
+    const since = pub.messages.length;
+    await wsCommand(ctl, { type: 'setResult', round: 1, teamId: teams[0], set: { kind: 'time', rawMs: 150_000 } });
+    const snap = await pub.next('snapshot', since);
+    expect(snap.view.seedTotalsMs[teams[0]]).toBe(150_000);
+  });
+
+  it('rejects commands named after built-in properties', async () => {
+    const admin = await lockedEvent();
+    const r = await command({ type: 'constructor' }, { cookie: admin });
+    expect(r.status).toBe(400);
+  });
+
   it('keeps the race and socket roles across eviction', async () => {
     const admin = await lockedEvent();
     const { control, device } = await controlAndReferee(admin);

@@ -86,6 +86,13 @@ describe('round lifecycle', () => {
     // A decision can be changed while the same teams are involved.
     const changed = ok(handleLifecycle(e, { type: 'decideTie', raceId, order: [teamId(e, 'T1'), teamId(e, 'T4')] }, ctx(control)));
     expect(changed.tieDecisions[raceId]).toEqual([teamId(e, 'T1'), teamId(e, 'T4')]);
+    // Once the next round is open, changing the decision would reshuffle it.
+    const next = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(control)));
+    const redo = handleLifecycle(next, { type: 'decideTie', raceId, order: [teamId(e, 'T1'), teamId(e, 'T4')] }, ctx(control));
+    expect(code(redo)).toBe('unlock_required');
+    expect(code(handleLifecycle(next, { type: 'decideTie', raceId, order: [teamId(e, 'T1'), teamId(e, 'T4')], confirmUnlock: true }, ctx(control))))
+      .toBe('changes_current_round');
+    expect(code(handleLifecycle(next, { type: 'decideTie', raceId, order: 'x' } as never, ctx(control)))).toBe('invalid');
   });
 
   it('reports when the event is complete', () => {

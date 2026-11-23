@@ -264,6 +264,7 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 - **Time penalties on/off switch** (event-wide, takes effect immediately, §5.1).
 - **Penalties per team:** each team shows `raw + penalties = official`, with buttons to add or remove a penalty.
 - **Tie resolution**, time edits and clears, and the audit log.
+- **Rename a team** at any time during the event (e.g. a misspelling spotted on the projector). Other setup changes stay with admin.
 - **Open next round,** with a results review first.
 - **Referee pairing:** a QR code per station, a paired-device list, and revoke.
 - **Projector override:** pin any screen (e.g. the champion reveal) or return to automatic.

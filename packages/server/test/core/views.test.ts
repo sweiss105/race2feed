@@ -63,7 +63,23 @@ describe('publicView', () => {
   });
 });
 
+describe('publicView before a round opens', () => {
+  it('does not publish matchups until the round is opened', () => {
+    const e = lockedFour();
+    expect(publicView(e, derive(e)).rounds[0]!.races).toEqual([]);
+    const opened = open(e);
+    expect(publicView(opened, derive(opened)).rounds[0]!.races.length).toBe(4);
+    const done = runRound(lockedFour(), times);
+    expect(publicView(done, derive(done)).rounds[1]!.races).toEqual([]);
+  });
+});
+
 describe('publicRoundUpdate', () => {
+  it('carries the projector screen', () => {
+    const e = start(open(lockedFour()));
+    expect(publicRoundUpdate(e, derive(e)).projector).toBe('clock');
+  });
+
   it('stays under 8 KB for 26 teams in a running bracket round', () => {
     let e = previousEvent();
     const byName = Object.fromEntries(fixture.teams.map((t) => [t.name, 200_000]));
@@ -85,6 +101,15 @@ describe('refereeView', () => {
 });
 
 describe('companionView and controlView', () => {
+  it('control sees taps and overrides from every round', () => {
+    let e = runRound(lockedFour(), times);
+    e = { ...e, taps: [{ id: 'pen', kind: 'penalty', round: 1, teamId: teamId(e, 'T1'), amountMs: 5000, source: 'control', createdAt: 1, removedAt: null }] };
+    e = open(e);
+    const c = controlView(e, derive(e), { devices: [], audit: [] });
+    expect(c.taps.map((t) => t.id)).toContain('pen');
+    expect(c.overrides.length).toBe(4);
+  });
+
   it('counts ready stations and outstanding teams', () => {
     let e = open(lockedFour());
     e = ok(handleLifecycle(e, { type: 'stationReady' }, ctx(referee(1))));

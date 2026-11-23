@@ -67,7 +67,7 @@ export type LifecycleCommand =
   | { type: 'overrideStation'; station: number; state: 'ready' | 'notReady' | 'excluded' }
   | { type: 'startRace' }
   | { type: 'finishRace' }
-  | { type: 'decideTie'; raceId: string; order: string[] }
+  | { type: 'decideTie'; raceId: string; order: string[]; confirmUnlock?: boolean }
   | { type: 'pinProjector'; screen: ProjectorScreen | null };
 
 export type TapCommand =

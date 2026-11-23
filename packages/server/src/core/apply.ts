@@ -18,11 +18,13 @@ export const PERMISSIONS: Record<Command['type'], Role[]> = Object.fromEntries([
   ...['stationReady', 'tapFinish', 'tapPenalty', 'undoTap'].map((t) => [t, ['referee']]),
 ]) as Record<Command['type'], Role[]>;
 for (const t of ['startRace', 'finishRace', 'pinProjector'] as const) PERMISSIONS[t] = [...PERMISSIONS[t], 'companion'];
+// Race control can fix a misspelled team name on the day (setup otherwise stays admin-only).
+PERMISSIONS.renameTeam = ['admin', 'control'];
 
 const isOneOf = <T extends string>(list: readonly T[], type: string): type is T => (list as readonly string[]).includes(type);
 
 export function applyCommand(e: LiveEvent, cmd: Command, ctx: Ctx): CommandResult {
-  const allowed = PERMISSIONS[cmd.type];
+  const allowed = Object.hasOwn(PERMISSIONS, cmd.type) ? PERMISSIONS[cmd.type] : undefined;
   if (!allowed) return fail('unknown_command', `Unknown command "${(cmd as { type: string }).type}".`);
   if (!allowed.includes(ctx.actor.role)) return fail('forbidden', 'You are not allowed to do that.');
   if (isOneOf(SETUP, cmd.type)) return handleSetup(e, cmd as Extract<Command, { type: (typeof SETUP)[number] }>, ctx);

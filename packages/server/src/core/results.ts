@@ -17,13 +17,13 @@ export function buildProgress(e: LiveEvent): EventProgress {
     if (tap.removedAt !== null) continue;
     const k = key(tap.round, tap.teamId);
     if (tap.kind === 'penalty') penalties.set(k, (penalties.get(k) ?? 0) + (tap.amountMs ?? 0));
-    else if (tap.elapsedMs !== undefined) push(k, { at: tap.createdAt, result: { status: 'finished', rawMs: tap.elapsedMs } });
+    else if (Number.isFinite(tap.elapsedMs)) push(k, { at: tap.createdAt, result: { status: 'finished', rawMs: tap.elapsedMs as number } });
   }
   for (const o of e.overrides) {
     const k = key(o.round, o.teamId);
     if (o.set.kind === 'clear') push(k, { at: o.at, result: null });
     else if (o.set.kind === 'status') push(k, { at: o.at, result: { status: o.set.status, rawMs: null } });
-    else push(k, { at: o.at, result: { status: 'finished', rawMs: o.set.rawMs } });
+    else if (Number.isFinite(o.set.rawMs)) push(k, { at: o.at, result: { status: 'finished', rawMs: o.set.rawMs } });
   }
 
   const results: EventProgress['results'] = {};

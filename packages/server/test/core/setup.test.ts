@@ -48,15 +48,32 @@ describe('setup commands', () => {
     expect(r.ok).toBe(false);
   });
 
-  it('setup commands are refused once locked, except bag total and unlock', () => {
+  it('setup commands that change who races are refused once locked', () => {
     let e = importTeams(csvFor({ 'High School': 4 }), 4);
     e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
     e = ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
     expect(e.setupLocked).toBe(true);
-    const r = handleSetup(e, { type: 'renameTeam', teamId: e.setup.teams[0]!.id, name: 'X' }, ctx(admin));
+    const r = handleSetup(e, { type: 'addTeam', name: 'Late', category: 'High School' }, ctx(admin));
     expect(r.ok ? null : r.code).toBe('setup_locked');
     expect(handleSetup(e, { type: 'setBagTotal', text: '9,816' }, ctx(admin)).ok).toBe(true);
     expect(handleSetup(e, { type: 'unlockSetup' }, ctx(admin)).ok).toBe(true);
+  });
+
+  it('team names and settings can still change once locked', () => {
+    let e = importTeams(csvFor({ 'High School': 4 }), 4);
+    e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'renameTeam', teamId: e.setup.teams[0]!.id, name: 'Fixed Name' }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'setSettings', undoWindowMs: 15_000 }, ctx(admin)));
+    expect(e.setup.teams[0]!.name).toBe('Fixed Name');
+    expect(e.settings.undoWindowMs).toBe(15_000);
+  });
+
+  it('rejects malformed groups and brackets', () => {
+    const e = importTeams(csvFor({ 'High School': 4 }), 4);
+    expect(handleSetup(e, { type: 'setGroups', groups: 'x', tableOf: {} } as never, ctx(admin)).ok).toBe(false);
+    expect(handleSetup(e, { type: 'setGroups', groups: [{ id: 'A', teamIds: [1] }], tableOf: {} } as never, ctx(admin)).ok).toBe(false);
+    expect(handleSetup(e, { type: 'setBrackets', brackets: [{ id: 'b' }] } as never, ctx(admin)).ok).toBe(false);
   });
 
   it('unlockSetup is refused after rounds start', () => {

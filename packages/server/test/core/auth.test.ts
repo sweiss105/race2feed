@@ -37,3 +37,12 @@ describe('loginAllowed', () => {
     expect(loginAllowed([1, 2, 3, 4, 5].map((i) => now - 300_000 - i), now)).toBe(true);
   });
 });
+
+import { shouldTouch } from '../../src/auth/ratelimit';
+describe('shouldTouch', () => {
+  it('records last-seen at most once a minute', () => {
+    expect(shouldTouch(null, 1_000)).toBe(true);
+    expect(shouldTouch(1_000, 60_999)).toBe(false);
+    expect(shouldTouch(1_000, 61_000)).toBe(true);
+  });
+});

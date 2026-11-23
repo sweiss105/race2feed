@@ -39,7 +39,8 @@ function racesOf(d: DerivedEvent, round: number, results: Record<string, EntryRe
   }));
 }
 
-export function publicView(e: LiveEvent, d: DerivedEvent) {
+/** Matchups are published when a round is opened, not before (spec §4); race control sees them early. */
+export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopened?: boolean } = {}) {
   const progress = buildProgress(e);
   const seedTotalsMs: Record<string, number> = {};
   for (const r of d.rounds) {
@@ -58,7 +59,9 @@ export function publicView(e: LiveEvent, d: DerivedEvent) {
       round: r.spec.round,
       kind: r.spec.kind,
       status: r.status,
-      races: racesOf(d, r.spec.round, progress.results[r.spec.round] ?? {}),
+      races: opts.includeUnopened || r.spec.round <= e.round.current
+        ? racesOf(d, r.spec.round, progress.results[r.spec.round] ?? {})
+        : [],
     })),
     seedRank: d.seedRank,
     seedTotalsMs,
@@ -72,7 +75,7 @@ export function publicView(e: LiveEvent, d: DerivedEvent) {
 /** The small live update sent to participant phones while a round is open or running. */
 export function publicRoundUpdate(e: LiveEvent, d: DerivedEvent) {
   const results = buildProgress(e).results[e.round.current] ?? {};
-  return { round: roundState(e), races: racesOf(d, e.round.current, results) };
+  return { round: roundState(e), projector: projectorScreen(e, d), races: racesOf(d, e.round.current, results) };
 }
 
 function outstanding(e: LiveEvent, d: DerivedEvent) {
@@ -108,12 +111,13 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
 
 export function controlView(e: LiveEvent, d: DerivedEvent, extras: { devices: unknown[]; audit: unknown[] }) {
   return {
-    ...publicView(e, d),
+    ...publicView(e, d, { includeUnopened: true }),
     stations: e.stations,
     settings: e.settings,
     setupLocked: e.setupLocked,
     setup: e.setup,
-    taps: e.taps.filter((t) => t.round === e.round.current),
+    taps: e.taps,
+    overrides: e.overrides,
     outstanding: outstanding(e, d),
     ties: d.rounds.flatMap((r) => r.races.filter((x) => x.ranking.ties.length).map((x) => ({ raceId: x.id, teams: x.ranking.ties }))),
     blockers: d.blockers,

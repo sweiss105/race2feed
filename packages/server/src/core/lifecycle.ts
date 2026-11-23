@@ -1,6 +1,7 @@
 import { stationCount, stationOfTable } from '@race2feed/engine';
 import { done, fail, type CommandResult, type Ctx, type LifecycleCommand, type LiveEvent } from './model';
 import { buildProgress, derive, teamsInRound } from './results';
+import { checkCorrection } from './corrections';
 
 export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): CommandResult {
   const ok = (event: LiveEvent) => done(event, cmd, ctx);
@@ -60,13 +61,17 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       });
     }
     case 'decideTie': {
+      if (!Array.isArray(cmd.order) || !cmd.order.every((id) => typeof id === 'string')) {
+        return fail('invalid', 'A tie decision is a list of team ids.');
+      }
       const race = derive(e).rounds.flatMap((r) => r.races).find((r) => r.id === cmd.raceId);
       const sameTeams = (g: string[]) =>
         g.length === cmd.order.length && new Set(cmd.order).size === g.length && g.every((id) => cmd.order.includes(id));
       const previous = e.tieDecisions[cmd.raceId];
       const group = race?.ranking.ties.find(sameTeams) ?? (previous && sameTeams(previous) ? previous : undefined);
       if (!race || !group) return fail('not_a_tie', 'That order does not match a tie in this race.');
-      return ok({ ...e, tieDecisions: { ...e.tieDecisions, [cmd.raceId]: cmd.order } });
+      const after = { ...e, tieDecisions: { ...e.tieDecisions, [cmd.raceId]: cmd.order } };
+      return checkCorrection(e, after, race.round, cmd.confirmUnlock) ?? ok(after);
     }
     case 'pinProjector':
       return ok({ ...e, projectorPin: cmd.screen });

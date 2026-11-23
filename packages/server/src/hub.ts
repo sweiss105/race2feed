@@ -5,9 +5,10 @@ import { applyCommand } from './core/apply';
 import { fail, newEvent, type Actor, type Command, type CommandResult, type LiveEvent } from './core/model';
 import { buildProgress, derive } from './core/results';
 import { companionView, controlView, publicRoundUpdate, publicView, refereeView } from './core/views';
+import { needsSnapshot } from './core/broadcast';
 import { credentials, hasCredentials, type Credentials } from './http';
 import { hashPassword, randomToken, sha256Hex, verifyPassword, type StoredPassword } from './auth/crypto';
-import { LOCKOUT_WINDOW_MS, loginAllowed } from './auth/ratelimit';
+import { LOCKOUT_WINDOW_MS, loginAllowed, shouldTouch } from './auth/ratelimit';
 
 export type HubCommand =
   | { type: 'createEvent'; name: string; date: string; tableCount: number }
@@ -24,22 +25,6 @@ interface Attachment { actor: Actor; cred: Credentials }
 
 const PUBLIC: Actor = { role: 'public', label: 'public' };
 const PUBLIC_INTERVAL_MS = 1000;
-
-/** Commands after which participant phones get a full snapshot instead of a round update. */
-function needsSnapshot(cmd: Command | HubCommand, current: number): boolean {
-  switch (cmd.type) {
-    case 'openNextRound': case 'finishRace': case 'decideTie': case 'pinProjector':
-    case 'removePenalty': case 'activateEvent':
-    case 'importTeams': case 'addTeam': case 'renameTeam': case 'removeTeam': case 'setTableCount':
-    case 'suggestSetup': case 'setGroups': case 'setBrackets': case 'setGrandChampionship':
-    case 'lockSetup': case 'unlockSetup': case 'setBagTotal':
-      return true;
-    case 'setResult': case 'addPenalty':
-      return cmd.round < current;
-    default:
-      return false;
-  }
-}
 
 const tagFor = (a: Actor) =>
   a.role === 'admin' || a.role === 'control' ? 'control' : a.role === 'referee' ? `referee:${a.station}` : a.role;
@@ -132,11 +117,11 @@ export class Hub extends DurableObject<Env> {
       if (row) return { role: row.role, label: row.role === 'admin' ? 'admin' : 'race control' };
     }
     if (cred.device && this.active) {
-      const row = this.sql.exec<{ id: string; station: number }>(
-        'SELECT id, station FROM devices WHERE token_hash = ? AND event_id = ? AND revoked_at IS NULL',
+      const row = this.sql.exec<{ id: string; station: number; last_seen: number | null }>(
+        'SELECT id, station, last_seen FROM devices WHERE token_hash = ? AND event_id = ? AND revoked_at IS NULL',
         await sha256Hex(cred.device), this.active.id).toArray()[0];
       if (row) {
-        this.sql.exec('UPDATE devices SET last_seen = ? WHERE id = ?', now, row.id);
+        if (shouldTouch(row.last_seen, now)) this.sql.exec('UPDATE devices SET last_seen = ? WHERE id = ?', now, row.id);
         return { role: 'referee', label: `referee station ${row.station}`, deviceId: row.id, station: row.station };
       }
     }
@@ -166,7 +151,7 @@ export class Hub extends DurableObject<Env> {
   // ---------- commands ----------
 
   async command(actor: Actor, cmd: Command | HubCommand): Promise<CommandResult | { ok: true; reply: unknown }> {
-    if (cmd.type in HUB_COMMANDS) {
+    if (Object.hasOwn(HUB_COMMANDS, cmd.type)) {
       const hubCmd = cmd as HubCommand;
       if (!HUB_COMMANDS[hubCmd.type].includes(actor.role)) return fail('forbidden', 'You are not allowed to do that.');
       return this.hubCommand(actor, hubCmd);
@@ -179,9 +164,9 @@ export class Hub extends DurableObject<Env> {
       this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify(event), event.id);
       this.audit(event.id, actor, result.audit.action, result.audit.detail);
     });
-    const previousRound = this.active.round.current;
+    const before = this.active;
     this.active = event;
-    await this.afterChange(cmd as Command, previousRound);
+    await this.afterChange(cmd as Command, before);
     return result;
   }
 
@@ -308,10 +293,20 @@ export class Hub extends DurableObject<Env> {
     this.sendPublicRound();
   }
 
+  /** derive() guarded so a bad stored setup can never take every socket down. */
+  private safeDerive(e: LiveEvent) {
+    try {
+      return derive(e);
+    } catch (err) {
+      console.error('derive failed', err);
+      return null;
+    }
+  }
+
   private initialMessage(actor: Actor): string {
     const e = this.active;
-    if (!e) return JSON.stringify({ type: actor.role === 'public' ? 'snapshot' : 'view', view: null });
-    const d = derive(e);
+    const d = e ? this.safeDerive(e) : null;
+    if (!e || !d) return JSON.stringify({ type: actor.role === 'public' ? 'snapshot' : 'view', view: null });
     switch (actor.role) {
       case 'public': return JSON.stringify({ type: 'snapshot', view: publicView(e, d) });
       case 'companion': return JSON.stringify({ type: 'view', view: companionView(e, d) });
@@ -335,21 +330,22 @@ export class Hub extends DurableObject<Env> {
   }
 
   private sendPublicRound() {
-    if (!this.active) return;
+    const d = this.active ? this.safeDerive(this.active) : null;
+    if (!this.active || !d) return;
     this.lastPublicSent = Date.now();
-    this.send('public', JSON.stringify({ type: 'round', update: publicRoundUpdate(this.active, derive(this.active)) }));
+    this.send('public', JSON.stringify({ type: 'round', update: publicRoundUpdate(this.active, d) }));
   }
 
   /** Pushes fresh views to every connected role after a change. */
-  private async afterChange(cmd: Command | HubCommand, previousRound = this.active?.round.current ?? 0): Promise<void> {
+  private async afterChange(cmd: Command | HubCommand, before: LiveEvent | null = this.active): Promise<void> {
     if (cmd.type === 'revokeDevice') {
       for (const ws of this.ctx.getWebSockets()) {
         if ((ws.deserializeAttachment() as Attachment).actor.deviceId === cmd.deviceId) ws.close(4401, 'device revoked');
       }
     }
     const e = this.active;
-    if (!e) return;
-    const d = derive(e);
+    const d = e ? this.safeDerive(e) : null;
+    if (!e || !d) return;
     this.send('control', JSON.stringify({ type: 'view', view: controlView(e, d, this.controlExtras()) }));
     this.send('companion', JSON.stringify({ type: 'view', view: companionView(e, d) }));
     const stations = new Set<number>();
@@ -359,7 +355,7 @@ export class Hub extends DurableObject<Env> {
     }
     for (const s of stations) this.send(`referee:${s}`, JSON.stringify({ type: 'view', view: refereeView(e, d, s) }));
 
-    if (needsSnapshot(cmd, previousRound)) {
+    if (needsSnapshot(cmd, before ?? e)) {
       await this.ctx.storage.deleteAlarm();
       this.lastPublicSent = Date.now();
       this.send('public', JSON.stringify({ type: 'snapshot', view: publicView(e, d) }));

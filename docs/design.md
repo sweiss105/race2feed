@@ -2,7 +2,7 @@
 
 Status: **Agreed design, pre-implementation** · 2026-11-23
 
-This app replaces the `Race_to_Feed_Final_Bracket` Google Sheet that we used to run the event. It handles seeding, brackets, live timing, referee input, race control, participant lookup and projector screens. It runs as a single self-hosted service on a home server.
+This app replaces the `Race_to_Feed_Final_Bracket` Google Sheet that we used to run the event. It handles seeding, brackets, live timing, referee input, race control, participant lookup and projector screens. It runs on Cloudflare (Workers + a Durable Object) at `r2f.weiss-audio.com`.
 
 ---
 
@@ -54,7 +54,7 @@ Weaknesses this design fixes:
 - Race start and finish driven from Bitfocus Companion (Stream Deck).
 - A read-only participant view on phones, with team search, highlighting and "your next table".
 - A projector view that follows the event automatically.
-- Deploy with Docker Compose on a home server.
+- Host on Cloudflare at `r2f.weiss-audio.com` (the domain's DNS is already on Cloudflare), so event day does not depend on a home server.
 
 **Non-goals (for now)**
 - Registration or payment.
@@ -334,7 +334,7 @@ The server is reachable from the internet, so:
 | Companion | API key created in admin. Can be rotated. |
 | Participant, projector | Public, read-only |
 
-- HTTPS terminates at the user's existing reverse proxy, which must pass WebSockets through.
+- HTTPS and certificates are handled by Cloudflare on the custom domain `r2f.weiss-audio.com`.
 - Login attempts are rate-limited, session cookies are `HttpOnly` and `Secure`, and every write endpoint requires an authenticated role.
 - Public endpoints expose only what the participant and projector pages show. They expose no device, audit or credential data.
 
@@ -342,11 +342,12 @@ The server is reachable from the internet, so:
 
 ## 10. Architecture
 
-- **One service** serves the web pages, a JSON API and a WebSocket hub. The WebSocket hub pushes state changes to every page and to Companion.
+- **One Cloudflare Worker** serves the web pages (static assets), a JSON API and WebSocket connections. The WebSockets terminate in a single **Durable Object** (the "hub"), which owns the live state and pushes changes to every page and to Companion.
 - **Stack (decided):**
-  - TypeScript on Node.js for the server, so the Companion module (also Node and TypeScript) can share types.
-  - SQLite for storage.
-  - A lightweight front end served by the same container.
+  - TypeScript throughout: Cloudflare Workers runtime for the server, Node.js for the Companion module, sharing types.
+  - SQLite storage built into the Durable Object (decided as "Node/SQLite"; on Cloudflare the SQLite is the Durable Object's own).
+  - WebSockets use the Durable Object **hibernation API**, so idle connections cost nothing.
+  - One hub Durable Object holds every event. Only one event is live at a time and the load is a few hundred connections, well within one object's limits. This keeps authentication and history in one consistent place.
 - **The server is the single source of truth.** Pages subscribe to the live state, and everything is recomputed from stored races and results, nothing from client-side state. This keeps the rules testable and the pages simple.
 - **Core data:**
   - Event, Category, Team, Table/Station, SeedingGroup, Bracket, Round, Race
@@ -360,10 +361,10 @@ The server is reachable from the internet, so:
 
 ## 11. Deployment
 
-- **Docker Compose:** one container, with a named volume for the SQLite database and backups.
-- **Configuration through environment variables:** public base URL, initial admin password, and the port to listen on.
-- **Behind the user's reverse proxy** for HTTPS and WebSockets.
-- **Backups:** automatic database snapshots at each round transition, plus an admin "export event" option (JSON and CSV).
+- **Cloudflare Workers:** deployed with `wrangler deploy` to the custom domain `r2f.weiss-audio.com`.
+- **Configuration:** the initial admin password is a Worker secret (`wrangler secret put ADMIN_PASSWORD`). Everything else is set in the admin page.
+- **Plan:** the Workers Free plan likely covers an event. Over a free daily limit, requests fail instead of slowing down, so the Workers Paid plan ($5/month) is recommended for the event month.
+- **Backups:** the Durable Object's SQLite keeps 30 days of point-in-time recovery, and admin has an "export event" option (JSON and CSV).
 
 ---
 
@@ -371,11 +372,11 @@ The server is reachable from the internet, so:
 
 | Risk | Mitigation |
 |---|---|
-| **Venue internet outage.** Timing, start and finish all depend on reaching the home server. | Queued taps cover short dropouts (§5). Bring a phone hotspot as a backup uplink for race control and the Companion machine. A local fallback (a venue box) can be designed later if needed. |
+| **Venue internet outage.** Timing, start and finish all depend on reaching Cloudflare. | Queued taps cover short dropouts (§5). Bring a phone hotspot as a backup uplink for race control and the Companion machine. A local fallback (a venue box) can be designed later if needed. |
 | A referee tablet is lost or misused | Pairing is per device and revocable, and taps are audit-logged. |
 | A referee taps penalty instead of finish, or the other way round | The two buttons look different and sit apart, each has its own undo, and race control can remove either. |
 | A wrong time decides a head-to-head | The referee can undo, race control can edit, results are reviewed before the next round opens, and every change is logged. |
-| The home server is exposed to the internet | Role authentication, rate limiting and a read-only public surface (§9). |
+| The app is reachable from the internet | Role authentication, rate limiting and a read-only public surface (§9). |
 
 ---
 

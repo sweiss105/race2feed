@@ -1,0 +1,27 @@
+.p-hero { padding: var(--space-6) 0 var(--space-4); }
+.p-hero p { margin: var(--space-2) 0 0; }
+.p-search { position: relative; }
+.p-results { list-style: none; margin: var(--space-2) 0 0; padding: 0; border-radius: var(--radius-m); overflow: hidden; background: var(--surface); box-shadow: var(--shadow-m); }
+.p-results li + li { border-top: 0.5px solid var(--separator); }
+.p-results button { width: 100%; min-height: 3rem; text-align: left; padding: var(--space-3) var(--space-4); background: none; border: 0; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: var(--space-3); }
+.p-results button:active { background: var(--surface-2); }
+
+.p-team { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); margin: var(--space-4) 0 var(--space-3); }
+.p-next { display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-5); align-items: center; }
+.p-next .table-label { grid-column: 1; }
+.p-next .table-number { grid-row: 2; font-size: 4.5rem; line-height: 1; font-weight: 800; letter-spacing: -0.04em; color: var(--accent); font-variant-numeric: tabular-nums; }
+.p-next .details { grid-row: 2; display: grid; gap: var(--space-1); }
+.p-status { display: inline-block; padding: 0.125rem 0.625rem; border-radius: 999px; font-size: 0.8125rem; font-weight: 600; background: var(--surface-2); }
+.p-status.racing { background: var(--accent); color: var(--on-accent); }
+
+.segmented { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; padding: 2px; margin: var(--space-4) 0; border-radius: var(--radius-m); background: var(--surface-2); }
+.segmented button { min-height: 2.25rem; border: 0; border-radius: calc(var(--radius-m) - 2px); background: transparent; font-weight: 500; font-size: 0.9375rem; cursor: pointer; }
+.segmented button[aria-selected="true"] { background: var(--surface); box-shadow: var(--shadow-s); font-weight: 600; }
+
+.list { list-style: none; margin: 0; padding: 0; background: var(--surface); border-radius: var(--radius-l); overflow: hidden; }
+.list > li { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: var(--space-3) var(--space-4); min-height: 3rem; }
+.list > li + li { border-top: 0.5px solid var(--separator); }
+.list .num { min-width: 2rem; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--secondary-label); }
+.list .grow { flex: 1; min-width: 0; }
+.list li.me { background: var(--highlight); }
+.section-title { margin: var(--space-5) var(--space-1) var(--space-2); }

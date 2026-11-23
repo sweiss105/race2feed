@@ -93,6 +93,17 @@ describe('live connections', () => {
     expect(snap.view.seedTotalsMs[teams[0]]).toBe(150_000);
   });
 
+  it('tells race control when a tablet pairs', async () => {
+    const admin = await lockedEvent();
+    const control = await connect({ cookie: admin });
+    await control.next('view');
+    const code = (await command({ type: 'createPairingCode', station: 2 }, { cookie: admin })).body.reply.code;
+    const since = control.messages.length;
+    await call('/api/pair', { code });
+    const v = (await control.next('view', since)).view;
+    expect(v.devices.filter((d: any) => d.station === 2 && d.revoked_at === null)).toHaveLength(1);
+  });
+
   it('rejects commands named after built-in properties', async () => {
     const admin = await lockedEvent();
     const r = await command({ type: 'constructor' }, { cookie: admin });

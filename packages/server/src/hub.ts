@@ -187,6 +187,7 @@ export class Hub extends DurableObject<Env> {
     this.sql.exec('INSERT INTO devices (id, event_id, station, token_hash, label, created_at) VALUES (?, ?, ?, ?, ?, ?)',
       id, row.event_id, row.station, await sha256Hex(token), `Station ${row.station}`, now);
     this.audit(row.event_id, { role: 'referee', label: `referee station ${row.station}` }, 'pairDevice', { deviceId: id });
+    await this.afterChange({ type: 'pairDevice' });
     return { ok: true, deviceToken: token, station: row.station };
   }
 
@@ -424,10 +425,10 @@ export class Hub extends DurableObject<Env> {
   }
 
   /** Pushes fresh views to every connected role after a change. */
-  private async afterChange(cmd: Command | HubCommand, before: LiveEvent | null = this.active): Promise<void> {
+  private async afterChange(cmd: Command | HubCommand | { type: string }, before: LiveEvent | null = this.active): Promise<void> {
     if (cmd.type === 'revokeDevice') {
       for (const ws of this.ctx.getWebSockets()) {
-        if ((ws.deserializeAttachment() as Attachment).actor.deviceId === cmd.deviceId) ws.close(4401, 'device revoked');
+        if ((ws.deserializeAttachment() as Attachment).actor.deviceId === (cmd as { deviceId: string }).deviceId) ws.close(4401, 'device revoked');
       }
     }
     const e = this.active;

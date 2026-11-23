@@ -64,18 +64,23 @@ function racesOf(d: DerivedEvent, round: number, results: Record<string, EntryRe
   }));
 }
 
+/** Each team's summed official time over the seeding rounds that have results so far. */
+function seedTotals(d: DerivedEvent, results: Record<number, Record<string, EntryResult>>): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const r of d.rounds) {
+    if (r.spec.kind !== 'seeding') continue;
+    for (const [teamId, result] of Object.entries(results[r.spec.round] ?? {})) {
+      const ms = officialMs(result);
+      if (ms !== null) totals[teamId] = (totals[teamId] ?? 0) + ms;
+    }
+  }
+  return totals;
+}
+
 /** Matchups are published when a round is opened, not before (spec §4); race control sees them early. */
 export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopened?: boolean } = {}) {
   const progress = buildProgress(e);
   const pens = penaltyIndex(e);
-  const seedTotalsMs: Record<string, number> = {};
-  for (const r of d.rounds) {
-    if (r.spec.kind !== 'seeding') continue;
-    for (const [teamId, result] of Object.entries(progress.results[r.spec.round] ?? {})) {
-      const ms = officialMs(result);
-      if (ms !== null) seedTotalsMs[teamId] = (seedTotalsMs[teamId] ?? 0) + ms;
-    }
-  }
   return {
     event: { id: e.id, name: e.name, date: e.date },
     categories: e.setup.categories,
@@ -91,7 +96,7 @@ export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopene
         : [],
     })),
     seedRank: d.seedRank,
-    seedTotalsMs,
+    seedTotalsMs: seedTotals(d, progress.results),
     standings: d.standings,
     grandChampion: d.grandChampion,
     bagTotal: e.bagTotal,
@@ -103,8 +108,13 @@ export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopene
 
 /** The small live update sent to participant phones while a round is open or running. */
 export function publicRoundUpdate(e: LiveEvent, d: DerivedEvent) {
-  const results = buildProgress(e).results[e.round.current] ?? {};
-  return { round: roundState(e), projector: projectorScreen(e, d), races: racesOf(d, e.round.current, results, penaltyIndex(e)) };
+  const all = buildProgress(e).results;
+  return {
+    round: roundState(e),
+    projector: projectorScreen(e, d),
+    races: racesOf(d, e.round.current, all[e.round.current] ?? {}, penaltyIndex(e)),
+    seedTotalsMs: seedTotals(d, all),
+  };
 }
 
 function outstanding(e: LiveEvent, d: DerivedEvent) {

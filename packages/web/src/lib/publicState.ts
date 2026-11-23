@@ -12,6 +12,7 @@ export function applyRoundUpdate(state: PublicState, update: RoundUpdate): Publi
     ...state,
     round: update.round,
     projector: update.projector,
+    seedTotalsMs: update.seedTotalsMs,
     rounds: state.rounds.map((r) => (r.round === update.round.current ? { ...r, races: update.races } : r)),
   };
 }

@@ -87,6 +87,13 @@ describe('publicRoundUpdate', () => {
     expect(publicRoundUpdate(e, derive(e)).projector).toBe('clock');
   });
 
+  it('carries seeding totals while the round is still running', () => {
+    let e = start(open(lockedFour()));
+    e = { ...e, overrides: [...e.overrides, { round: 1, teamId: teamId(e, 'T1'), at: 2_000_000, set: { kind: 'time' as const, rawMs: 60_000 } }] };
+    expect(e.round.phase).toBe('running');
+    expect(publicRoundUpdate(e, derive(e)).seedTotalsMs[teamId(e, 'T1')]).toBe(60_000);
+  });
+
   it('stays under 8 KB for 26 teams in a running bracket round', () => {
     let e = previousEvent();
     const byName = Object.fromEntries(fixture.teams.map((t) => [t.name, 200_000]));

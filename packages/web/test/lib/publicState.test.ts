@@ -22,4 +22,10 @@ describe('public state', () => {
     expect(next.rounds[1]!.races).toEqual([{ id: 'r2-new' }]);
     expect(next).not.toBe(s);
   });
+
+  it('copies the seeding totals from the update', () => {
+    const state = applySnapshot({ ...view, seedTotalsMs: {} });
+    const update = { round: view.round, projector: 'clock', races: [], seedTotalsMs: { t1: 60_000 } } as any;
+    expect(applyRoundUpdate(state, update).seedTotalsMs).toEqual({ t1: 60_000 });
+  });
 });

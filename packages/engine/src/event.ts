@@ -1,4 +1,4 @@
-import type { BracketSpec, EventInput, EventProgress } from './types';
+import type { BracketSpec, EventInput, EventProgress, RaceRole, SavedRace } from './types';
 import { rankRace, type RaceRanking } from './race';
 import { rankSeeding } from './seeding';
 import { buildHeats, buildPlacement } from './brackets';
@@ -10,7 +10,9 @@ export interface RaceView {
   round: number;
   label: string;
   bracketId?: string;
+  role: RaceRole;
   entrants: { teamId: string; table: number }[];
+  fallbackOrder: string[];
   ranking: RaceRanking;
 }
 
@@ -27,17 +29,13 @@ export interface DerivedEvent {
   /** categoryId → teamId per place (index 0 = 1st); null = undecided */
   standings: Record<string, (string | null)[]>;
   grandChampion: string | null;
+  /** bracketId → team ids in seed order; null until the first non-seeding round is reached */
+  bracketMembers: Record<string, string[]> | null;
   blockers: string[];
 }
 
 /** A race before tables are assigned. */
-interface Draft {
-  id: string;
-  label: string;
-  bracketId?: string;
-  teams: string[];
-  fallbackOrder: string[];
-}
+type Draft = Omit<SavedRace, 'tables'>;
 
 export function deriveEvent(input: EventInput, progress: EventProgress): DerivedEvent {
   const plan = buildRoundPlan(input);
@@ -65,29 +63,29 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
     }
     if (spec.kind !== 'seeding' && members === null) {
       seedRank = computeSeedRank();
-      members = computeMembers(seedRank);
+      members = progress.bracketMembers ? new Map(Object.entries(progress.bracketMembers)) : computeMembers(seedRank);
     }
 
-    const drafts = draftRaces(spec);
     const results = progress.results[spec.round] ?? {};
-    const laid = spec.kind === 'seeding'
-      ? drafts.map((d) => ({ race: d, tables: d.teams.map((id) => input.tableOf[id] ?? 0) }))
-      : layoutTables(drafts.map((d) => d.teams), input.tablesPerStation ?? 2).map(({ race, tables }) => ({
-          race: drafts.find((d) => d.teams === race)!,
-          tables,
-        }));
+    const saved = progress.lineups?.[spec.round];
+    const laid: { race: Draft; tables: number[] }[] = saved
+      ? saved.map((race) => ({ race, tables: race.tables }))
+      : layRaces(spec, draftRaces(spec));
 
     const races: RaceView[] = laid.map(({ race, tables }) => ({
       id: race.id,
       round: spec.round,
       label: race.label,
       ...(race.bracketId ? { bracketId: race.bracketId } : {}),
+      role: race.role,
       entrants: race.teams.map((teamId, i) => ({ teamId, table: tables[i]! })),
+      fallbackOrder: race.fallbackOrder,
       ranking: rankRace(
         race.teams.map((teamId) => ({ teamId, result: results[teamId] })),
         { fallbackOrder: race.fallbackOrder, tieOrder: progress.tieDecisions[race.id] },
       ),
     }));
+    races.forEach(recordRace);
 
     const locked = spec.round <= progress.finishedRounds;
     rounds.push({ spec, status: locked ? 'locked' : 'ready', races });
@@ -105,7 +103,32 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
     }
   }
 
-  return { rounds, seedRank, standings: computeStandings(), grandChampion: computeChampion(), blockers };
+  return {
+    rounds,
+    seedRank,
+    standings: computeStandings(),
+    grandChampion: computeChampion(),
+    bracketMembers: members ? Object.fromEntries(members) : null,
+    blockers,
+  };
+
+  function layRaces(spec: RoundSpec, drafts: Draft[]): { race: Draft; tables: number[] }[] {
+    if (spec.kind === 'seeding') return drafts.map((d) => ({ race: d, tables: d.teams.map((id) => input.tableOf[id] ?? 0) }));
+    return layoutTables(drafts.map((d) => d.teams), input.tablesPerStation ?? 2).map(({ race, tables }) => ({
+      race: drafts.find((d) => d.teams === race)!,
+      tables,
+    }));
+  }
+
+  /** Notes which races decide each bracket, and the grand race, by role. */
+  function recordRace(race: RaceView) {
+    if (race.role === 'grand') grandRaceId = race.id;
+    if (!race.bracketId) return;
+    const ids = raceIdsOf.get(race.bracketId) ?? { heats: [] };
+    raceIdsOf.set(race.bracketId, ids);
+    if (race.role === 'heat') ids.heats.push(race.id);
+    else if (race.role === 'final' || race.role === 'winners' || race.role === 'others') ids[race.role] = race.id;
+  }
 
   function draftRaces(spec: RoundSpec): Draft[] {
     const r = `r${spec.round}`;
@@ -114,6 +137,7 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
       return (group?.teamIds ?? []).map((teamId) => ({
         id: `${r}:seed:${teamId}`,
         label: `Group ${spec.groupId} · Run ${spec.run}`,
+        role: 'seed' as const,
         teams: [teamId],
         fallbackOrder: [teamId],
       }));
@@ -124,33 +148,29 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
         const winner = top ? bracketWinner(top.id) : null;
         return winner ? [winner] : [];
       });
-      grandRaceId = `${r}:grand`;
-      return [{ id: grandRaceId, label: 'Grand Championship', teams, fallbackOrder: teams }];
+      return [{ id: `${r}:grand`, label: 'Grand Championship', role: 'grand', teams, fallbackOrder: teams }];
     }
-    return spec.bracketIds.flatMap((bracketId) => {
+    return spec.bracketIds.flatMap((bracketId): Draft[] => {
       const bracket = bracketById.get(bracketId)!;
       const seeded = members!.get(bracketId) ?? [];
-      const ids = raceIdsOf.get(bracketId) ?? { heats: [] };
-      raceIdsOf.set(bracketId, ids);
       const base = { bracketId, fallbackOrder: seeded };
       if (spec.kind === 'heats') {
         if (seeded.length < 4) {
-          ids.final = `${r}:${bracketId}:final`;
-          return [{ ...base, id: ids.final, label: `${bracketLabel(bracket)} · Race`, teams: seeded }];
+          return [{ ...base, id: `${r}:${bracketId}:final`, label: `${bracketLabel(bracket)} · Race`, role: 'final', teams: seeded }];
         }
-        return buildHeats(seeded).map((teams, i) => {
-          const id = `${r}:${bracketId}:heat${i + 1}`;
-          ids.heats.push(id);
-          return { ...base, id, label: `${bracketLabel(bracket)} · Heat ${i + 1}`, teams };
-        });
+        return buildHeats(seeded).map((teams, i) => ({
+          ...base,
+          id: `${r}:${bracketId}:heat${i + 1}`,
+          label: `${bracketLabel(bracket)} · Heat ${i + 1}`,
+          role: 'heat',
+          teams,
+        }));
       }
-      const rankedHeats = ids.heats.map((id) => settled.get(id)!.order);
+      const rankedHeats = (raceIdsOf.get(bracketId)?.heats ?? []).map((id) => settled.get(id)!.order);
       const { winners, others } = buildPlacement(rankedHeats);
-      ids.winners = `${r}:${bracketId}:winners`;
-      ids.others = `${r}:${bracketId}:others`;
       return [
-        { ...base, id: ids.winners, label: `${bracketLabel(bracket)} · Winners race`, teams: winners },
-        { ...base, id: ids.others, label: `${bracketLabel(bracket)} · Others race`, teams: others },
+        { ...base, id: `${r}:${bracketId}:winners`, label: `${bracketLabel(bracket)} · Winners race`, role: 'winners', teams: winners },
+        { ...base, id: `${r}:${bracketId}:others`, label: `${bracketLabel(bracket)} · Others race`, role: 'others', teams: others },
       ];
     });
   }

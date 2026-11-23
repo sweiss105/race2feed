@@ -32,6 +32,10 @@ export interface EventInput {
   tablesPerStation?: 1 | 2;
 }
 
+export type RaceRole = 'seed' | 'heat' | 'final' | 'winners' | 'others' | 'grand';
+/** One race as it was published when its round opened. */
+export interface SavedRace { id: string; label: string; bracketId?: string; role: RaceRole; teams: string[]; tables: number[]; fallbackOrder: string[] }
+
 export interface EventProgress {
   /** Rounds 1..finishedRounds are locked. */
   finishedRounds: number;
@@ -39,4 +43,8 @@ export interface EventProgress {
   results: Record<number, Record<string, EntryResult>>;
   /** raceId → team order for its tied teams */
   tieDecisions: Record<string, string[]>;
+  /** round → the races it was opened with. A round listed here is never rebuilt. */
+  lineups?: Record<number, SavedRace[]>;
+  /** bracketId → team ids in seed order, as they stood when the first bracket round opened. */
+  bracketMembers?: Record<string, string[]>;
 }

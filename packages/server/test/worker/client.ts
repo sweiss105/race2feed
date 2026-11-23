@@ -57,11 +57,11 @@ export interface Socket {
   closed: Promise<CloseEvent>;
 }
 
-export async function connect(opts: { cookie?: string; bearer?: string; role?: 'public' } = {}): Promise<Socket> {
+export async function connect(opts: { cookie?: string; bearer?: string; role?: 'public'; query?: string } = {}): Promise<Socket> {
   const headers: Record<string, string> = { upgrade: 'websocket' };
   if (opts.cookie) headers.cookie = opts.cookie;
   if (opts.bearer) headers.authorization = `Bearer ${opts.bearer}`;
-  const res = await exports.default.fetch(`${BASE}/api/ws${opts.role ? `?role=${opts.role}` : ''}`, { headers });
+  const res = await exports.default.fetch(`${BASE}/api/ws${opts.query ? `?${opts.query}` : opts.role ? `?role=${opts.role}` : ''}`, { headers });
   const ws = res.webSocket;
   if (!ws) throw new Error(`no websocket: ${res.status}`);
   ws.accept();

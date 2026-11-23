@@ -311,8 +311,12 @@ export class Hub extends DurableObject<Env> {
     if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Expected WebSocket', { status: 426 });
     let actor = PUBLIC;
     let cred: CredentialHashes = {};
-    if (new URL(request.url).searchParams.get('role') !== 'public') {
-      const raw = credentials(request);
+    const role = new URL(request.url).searchParams.get('role');
+    if (role !== 'public') {
+      const all = credentials(request);
+      // The referee page asks to be treated as a referee: only the device cookie counts.
+      const raw: Credentials = role === 'referee' ? (all.device ? { device: all.device } : {}) : all;
+      if (role === 'referee' && !hasCredentials(raw)) return new Response('Unauthorized', { status: 401 });
       if (hasCredentials(raw)) {
         cred = await hashCredentials(raw);
         const found = this.authenticateHashed(cred);

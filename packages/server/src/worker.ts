@@ -73,7 +73,9 @@ export default {
     }
 
     if (path === '/api/me' && request.method === 'GET') {
-      const me = await hub.whoAmI(credentials(request));
+      const cred = credentials(request);
+      // `?as=referee`: the referee page answers from the device pairing only.
+      const me = await hub.whoAmI(url.searchParams.get('as') === 'referee' ? (cred.device ? { device: cred.device } : {}) : cred);
       return me ? json(me) : json({ error: 'unauthorized' }, 401);
     }
 

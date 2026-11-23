@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
-import { command, connect, controlAndReferee, lockedEvent, settle, wsCommand } from './client';
+import { call, command, connect, controlAndReferee, lockedEvent, settle, wsCommand } from './client';
 
 const hub = () => env.HUB.getByName('hub');
 
@@ -151,5 +151,15 @@ describe('live connections', () => {
     const { exports } = await import('cloudflare:workers');
     const res = await exports.default.fetch('https://r2f.test/api/ws', { headers: { upgrade: 'websocket', cookie: 'r2f_session=bogus' } });
     expect(res.status).toBe(401);
+  });
+  it('a browser with both a session and a pairing is a referee on the referee socket', async () => {
+    const admin = await lockedEvent();
+    const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;
+    const device = (await call('/api/pair', { code })).cookie!;
+    const both = `${admin}; ${device}`;
+    expect((await call('/api/me?as=referee', undefined, { cookie: both })).body).toMatchObject({ role: 'referee', station: 1 });
+    expect((await call('/api/me?as=referee', undefined, { cookie: admin })).status).toBe(401);
+    const s = await connect({ cookie: both, query: 'role=referee' });
+    expect((await s.next('view')).view.station.number).toBe(1);
   });
 });

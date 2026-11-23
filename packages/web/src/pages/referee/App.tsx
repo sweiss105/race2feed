@@ -20,7 +20,7 @@ export function App() {
       if (pairing.paired) return setGate({ kind: 'paired' });
       // A server error is not "unpaired": keep checking until the server answers.
       for (;;) {
-        const state = await authState();
+        const state = await authState(() => fetch('/api/me?as=referee'));
         if (cancelled) return;
         if (state === 'in') return setGate({ kind: 'paired' });
         if (state === 'out') return setGate({ kind: 'unpaired', ...('error' in pairing && pairing.error ? { error: pairing.error } : {}) });
@@ -57,8 +57,8 @@ function Live({ onSignedOut }: { onSignedOut(): void }) {
     let clockRef: ClockSync | null = null;
     const quickSync = () => [0, 250, 500].forEach((ms) => setTimeout(() => clockRef?.ping(), ms));
     const c = new LiveConnection({
-      url: wsUrl('/api/ws'),
-      checkAuth: async () => (await authState()) !== 'out',
+      url: wsUrl('/api/ws?role=referee'),
+      checkAuth: async () => (await authState(() => fetch('/api/me?as=referee'))) !== 'out',
       onStatus: (s) => {
         setStatus(s);
         if (s === 'open') quickSync();

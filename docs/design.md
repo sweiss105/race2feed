@@ -133,6 +133,8 @@ Sizes 4 and 6 reproduce the sheet's formats exactly.
 
 ### 3.5 Ranking rules
 
+All times in this section are **official times**: the raw time plus any penalties (§5.1).
+
 **Within a race:**
 1. Finishers, by time (fastest first).
 2. **DNF** (did not finish).
@@ -211,14 +213,37 @@ Sizes 4 and 6 reproduce the sheet's formats exactly.
 - **Validation:** taps before the start or after finish are rejected. Each team gets one active time; the first tap wins unless it's undone or edited.
 - **Head-to-head across stations:** every time is on the same master clock, so a race spanning stations (3- or 4-team races) needs no special handling.
 
+### 5.1 Time penalties
+
+- **What it does:** a referee can add a time penalty to a team for an infraction. The default is **+5 s**, and admin can change the amount.
+  - Penalties **stack**: three taps add 15 s.
+  - Each tap needs a single press, with no confirmation dialog.
+- **Official time = raw finish time + all penalties.** The official time is what counts everywhere:
+  - finish order within a race
+  - head-to-head winners
+  - exact-tie detection
+  - seeding totals and seeding rank
+- **When a referee can add one:** from **START** until race control presses **RACE FINISHED**. That includes before or after the team's finish tap, since infractions are often spotted at the end.
+  - After the round is finished, only race control can add or remove penalties. This is subject to the same late-correction rules as times (§4).
+- **On/off switch:** one **event-wide** switch on race control.
+  - Flipping it shows or hides the penalty buttons on every referee tablet **immediately**, even mid-race.
+  - Turning it off **never removes** penalties already given. Race control can still remove those one at a time, and can still add penalties while the switch is off.
+  - The switch is off by default for a new event.
+- **Corrections:**
+  - Each penalty tap has the same ~10-second referee **undo** as a finish tap (§6).
+  - After that, only race control can remove a penalty.
+  - Every add, undo and removal is audit-logged with station, device and time.
+- **DNF and DNS teams:** penalties are still recorded for them but don't change their ranking. DNF and DNS always rank after finishers.
+- **Offline taps:** a penalty tapped during a Wi-Fi dropout is queued like a finish tap. It counts if it is sent before RACE FINISHED; race control can see queued items as outstanding.
+
 ---
 
 ## 6. Corrections and audit
 
-- **Referee undo:** a referee can undo their own tap for about **10 seconds**. The window length is configurable.
-- **After the undo window:** only **race control** can edit a time, clear it, or set DNF or DNS.
+- **Referee undo:** a referee can undo their own tap (a finish or a penalty) for about **10 seconds**. The window length is configurable.
+- **After the undo window:** only **race control** can edit a time, clear it, set DNF or DNS, or add or remove a penalty.
 - **Audit log:** every state change goes in an append-only log, viewable in race control:
-  - taps, undos, edits, overrides, tie decisions, round transitions and logins
+  - taps, penalties, undos, edits, overrides, tie decisions, penalty-switch changes, round transitions and logins
   - each entry records who, which device, when, and the old and new values
 
 ---
@@ -228,6 +253,7 @@ Sizes 4 and 6 reproduce the sheet's formats exactly.
 ### 7.1 Admin (password)
 - Manage events, import and edit teams, set the venue table count.
 - Edit seeding groups and table assignments.
+- Set the **penalty amount** (default 5 s) and the referee undo window.
 - Edit the bracket plan and set Grand Championship eligibility.
 - Manage credentials and the Companion API key.
 - Type the **bag total** shown on the champion screen.
@@ -235,6 +261,8 @@ Sizes 4 and 6 reproduce the sheet's formats exactly.
 ### 7.2 Race control (password)
 - **Grid of every station:** each shows not ready / Ready / excluded, the teams with their times and status, and any overrides.
 - **Master clock** and round state, plus a "waiting on N teams" list with one-click DNF and DNS.
+- **Time penalties on/off switch** (event-wide, takes effect immediately, §5.1).
+- **Penalties per team:** each team shows `raw + penalties = official`, with buttons to add or remove a penalty.
 - **Tie resolution**, time edits and clears, and the audit log.
 - **Open next round,** with a results review first.
 - **Referee pairing:** a QR code per station, a paired-device list, and revoke.
@@ -245,6 +273,10 @@ Sizes 4 and 6 reproduce the sheet's formats exactly.
 - Shows the station's table numbers and the current round's teams.
 - **Ready** button. Once pressed it stays locked; only race control can clear it.
 - While running, one large button per team. A tap shows that team's time and an **Undo** countdown.
+- **Penalty button** (only while penalties are switched on): a separate, smaller **+5s PENALTY** button under each team.
+  - It is placed and coloured so it can't be mistaken for the finish button.
+  - It's available from START until RACE FINISHED, before or after the team's finish tap.
+  - It shows the number of penalties applied and the official time, e.g. `3:41.20 +5s = 3:46.20`. Each penalty tap has its own **Undo** countdown.
 - Shows connection status and any taps queued offline.
 
 ### 7.4 Participant (public, read-only, phone-first)
@@ -252,7 +284,7 @@ Sizes 4 and 6 reproduce the sheet's formats exactly.
 - The phone **remembers the team** (local storage), so later visits open straight to it.
 - **"Your next race":** round, table number and opponent(s). Before the round is opened it says "waiting for Round N to finish".
 - **Brackets:** all categories and tiers, live-updating.
-- **Race times:** the team's and its opponents' finish times, plus seeding totals and rank within category.
+- **Race times:** the team's and its opponents' official finish times, plus seeding totals and rank within category. Penalties are marked (e.g. `3:46.20 (incl. +5s)`).
 - **Full schedule:** every team's table for the current round.
 
 ### 7.5 Projector (public URL, full-screen)
@@ -261,7 +293,7 @@ Sizes 4 and 6 reproduce the sheet's formats exactly.
   | State | Screen |
   |---|---|
   | Open | Table assignments for the round |
-  | Running | Large master clock and a finish ticker |
+  | Running | Large master clock and a finish ticker (penalties shown as `+5s` on the ticker) |
   | Finished | Updated seeding results, brackets or standings |
   | Event complete | Final standings, then the champion |
 
@@ -285,6 +317,7 @@ A custom Companion module (`companion-module-race2feed`) connects to the server 
   - `ready_count`, `station_count`
   - `outstanding` (teams without a result)
   - `state`
+  - `penalties_enabled` (on/off)
 - **Rejected commands:** if START or FINISH is refused because of a gate, the module shows the reason (e.g. "3 stations not ready") as a variable and briefly flashes the button.
 
 ---
@@ -317,7 +350,9 @@ The server is reachable from the internet, so:
 - **The server is the single source of truth.** Pages subscribe to the live state, and everything is recomputed from stored races and results, nothing from client-side state. This keeps the rules testable and the pages simple.
 - **Core data:**
   - Event, Category, Team, Table/Station, SeedingGroup, Bracket, Round, Race
-  - RaceEntry (team, table, time in ms, status: pending / finished / DNF / DNS)
+  - RaceEntry (team, table, raw time in ms, status: pending / finished / DNF / DNS)
+  - Penalty (race entry, amount in ms, source: referee or race control, device, created and removed timestamps)
+  - Event settings, including the penalty switch, penalty amount and undo window
   - TieDecision, Device, ApiKey, AuditLog
 - **The rules engine is a pure module with no I/O:** group and table assignment, seeding rank, bracket plan, heat and placement generation, and final standings. This makes it straightforward to unit-test.
 
@@ -338,6 +373,7 @@ The server is reachable from the internet, so:
 |---|---|
 | **Venue internet outage.** Timing, start and finish all depend on reaching the home server. | Queued taps cover short dropouts (§5). Bring a phone hotspot as a backup uplink for race control and the Companion machine. A local fallback (a venue box) can be designed later if needed. |
 | A referee tablet is lost or misused | Pairing is per device and revocable, and taps are audit-logged. |
+| A referee taps penalty instead of finish, or the other way round | The two buttons look different and sit apart, each has its own undo, and race control can remove either. |
 | A wrong time decides a head-to-head | The referee can undo, race control can edit, results are reviewed before the next round opens, and every change is logged. |
 | The home server is exposed to the internet | Role authentication, rate limiting and a read-only public surface (§9). |
 

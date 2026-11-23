@@ -3,7 +3,8 @@ import { officialMs } from '@race2feed/engine';
 import type { Env } from './worker';
 import { applyCommand } from './core/apply';
 import { fail, newEvent, type Actor, type Command, type CommandResult, type LiveEvent } from './core/model';
-import { buildProgress, derive } from './core/results';
+import { derive } from './core/results';
+import { eventCsv } from './core/export';
 import { companionView, controlView, publicRoundUpdate, publicView, refereeView } from './core/views';
 import { needsSnapshot } from './core/broadcast';
 import { credentials, hasCredentials, type Credentials } from './http';
@@ -422,26 +423,6 @@ export class Hub extends DurableObject<Env> {
       const audit = this.sql.exec('SELECT at, actor, action, detail FROM audit WHERE event_id = ? ORDER BY id', eventId).toArray();
       return JSON.stringify({ event, audit });
     }
-    const d = derive(event);
-    const progress = buildProgress(event);
-    const team = new Map(event.setup.teams.map((t) => [t.id, t]));
-    const category = new Map(event.setup.categories.map((c) => [c.id, c.name]));
-    const cell = (v: unknown) => {
-      const s = v === null || v === undefined ? '' : String(v);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const lines = ['round,team,category,table,status,raw_ms,penalties_ms,official_ms,place'];
-    for (const r of d.rounds) {
-      for (const race of r.races) {
-        for (const { teamId, table } of race.entrants) {
-          const res = progress.results[r.spec.round]?.[teamId];
-          const t = team.get(teamId);
-          const place = res ? race.ranking.order.indexOf(teamId) + 1 : null;
-          lines.push([r.spec.round, t?.name, category.get(t?.categoryId ?? ''), table, res?.status ?? 'pending',
-            res?.rawMs, res?.penaltiesMs, res ? officialMs(res) : null, place].map(cell).join(','));
-        }
-      }
-    }
-    return lines.join('\n');
+    return eventCsv(event);
   }
 }

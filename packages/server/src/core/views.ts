@@ -1,6 +1,27 @@
 import { officialMs, stationOfTable, tablesOfStation, type DerivedEvent, type EntryResult } from '@race2feed/engine';
 import type { LiveEvent, ProjectorScreen } from './model';
 import { buildProgress, teamsInRound } from './results';
+import { reasonsOf, reviewOf } from './reasons';
+
+interface PenaltyInfo { notes: string[]; pending: boolean; dq: string | null }
+
+/** Per round and team: approved reason names, whether any penalty awaits review, and a DQ reason. */
+function penaltyIndex(e: LiveEvent): Map<string, PenaltyInfo> {
+  const index = new Map<string, PenaltyInfo>();
+  for (const t of e.taps) {
+    if (t.kind !== 'penalty' || t.removedAt !== null) continue;
+    const k = `${t.round}:${t.teamId}`;
+    const info = index.get(k) ?? { notes: [], pending: false, dq: null };
+    const review = reviewOf(t);
+    if (review.status === 'pending') info.pending = true;
+    else if (review.status === 'approved') {
+      if (review.dq) info.dq = review.reasonName ?? 'Disqualified';
+      else if (review.reasonName) info.notes.push(review.reasonName);
+    }
+    index.set(k, info);
+  }
+  return index;
+}
 
 export function projectorScreen(e: LiveEvent, d: DerivedEvent): ProjectorScreen {
   if (e.projectorPin) return e.projectorPin;
@@ -19,7 +40,7 @@ export function projectorScreen(e: LiveEvent, d: DerivedEvent): ProjectorScreen 
 
 const roundState = (e: LiveEvent) => ({ ...e.round });
 
-function racesOf(d: DerivedEvent, round: number, results: Record<string, EntryResult>) {
+function racesOf(d: DerivedEvent, round: number, results: Record<string, EntryResult>, pens: Map<string, PenaltyInfo>) {
   return (d.rounds[round - 1]?.races ?? []).map((race) => ({
     id: race.id,
     label: race.label,
@@ -34,6 +55,9 @@ function racesOf(d: DerivedEvent, round: number, results: Record<string, EntryRe
         penaltiesMs: r?.penaltiesMs ?? 0,
         officialMs: r ? officialMs(r) : null,
         place: r ? race.ranking.order.indexOf(teamId) + 1 : null,
+        penaltyNotes: pens.get(`${round}:${teamId}`)?.notes ?? [],
+        penaltyPending: pens.get(`${round}:${teamId}`)?.pending ?? false,
+        dq: pens.get(`${round}:${teamId}`)?.dq ?? null,
       };
     }),
   }));
@@ -42,6 +66,7 @@ function racesOf(d: DerivedEvent, round: number, results: Record<string, EntryRe
 /** Matchups are published when a round is opened, not before (spec §4); race control sees them early. */
 export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopened?: boolean } = {}) {
   const progress = buildProgress(e);
+  const pens = penaltyIndex(e);
   const seedTotalsMs: Record<string, number> = {};
   for (const r of d.rounds) {
     if (r.spec.kind !== 'seeding') continue;
@@ -61,7 +86,7 @@ export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopene
       kind: r.spec.kind,
       status: r.status,
       races: opts.includeUnopened || r.spec.round <= e.round.current
-        ? racesOf(d, r.spec.round, progress.results[r.spec.round] ?? {})
+        ? racesOf(d, r.spec.round, progress.results[r.spec.round] ?? {}, pens)
         : [],
     })),
     seedRank: d.seedRank,
@@ -76,7 +101,7 @@ export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopene
 /** The small live update sent to participant phones while a round is open or running. */
 export function publicRoundUpdate(e: LiveEvent, d: DerivedEvent) {
   const results = buildProgress(e).results[e.round.current] ?? {};
-  return { round: roundState(e), projector: projectorScreen(e, d), races: racesOf(d, e.round.current, results) };
+  return { round: roundState(e), projector: projectorScreen(e, d), races: racesOf(d, e.round.current, results, penaltyIndex(e)) };
 }
 
 function outstanding(e: LiveEvent, d: DerivedEvent) {
@@ -99,12 +124,19 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
       result: results[teamId] ?? null,
       taps: e.taps
         .filter((t) => t.round === e.round.current && t.teamId === teamId)
-        .map(({ id, clientTapId, kind, createdAt, removedAt }) => ({ id, clientTapId: clientTapId ?? null, kind, createdAt, removedAt })),
+        .map((t) => {
+          const review = reviewOf(t);
+          return {
+            id: t.id, clientTapId: t.clientTapId ?? null, kind: t.kind, source: t.source, createdAt: t.createdAt, removedAt: t.removedAt,
+            review: { status: review.status, refereeReasonId: review.refereeReasonId ?? null, refereeNote: review.refereeNote ?? null },
+          };
+        }),
     }));
   const s = e.stations[station] ?? { ready: false, excluded: true };
   return {
     round: roundState(e),
     settings: { ...e.settings },
+    reasons: reasonsOf(e),
     station: { number: station, tables, ready: s.ready, excluded: s.excluded },
     teams,
   };
@@ -119,6 +151,17 @@ export function controlView(e: LiveEvent, d: DerivedEvent, extras: { devices: un
     projectorPin: e.projectorPin,
     setup: e.setup,
     taps: e.taps,
+    penaltyReasons: reasonsOf(e),
+    penaltyReviews: e.taps
+      .filter((t) => t.kind === 'penalty' && t.source === 'referee' && !(t.removedAt !== null && reviewOf(t).status === 'pending'))
+      .map((t) => {
+        const r = reviewOf(t);
+        return {
+          tapId: t.id, round: t.round, teamId: t.teamId, status: r.status, amountMs: t.amountMs ?? 0,
+          refereeReasonId: r.refereeReasonId ?? null, refereeNote: r.refereeNote ?? null, reasonId: r.reasonId ?? null, createdAt: t.createdAt,
+        };
+      })
+      .reverse(),
     overrides: e.overrides,
     outstanding: outstanding(e, d),
     ties: d.rounds.flatMap((r) => r.races.filter((x) => x.ranking.ties.length).map((x) => ({ raceId: x.id, teams: x.ranking.ties }))),

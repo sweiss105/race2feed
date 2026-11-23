@@ -72,6 +72,17 @@ export default {
       return json(result, result.ok ? 200 : 400);
     }
 
+    if (path === '/api/me' && request.method === 'GET') {
+      const me = await hub.whoAmI(credentials(request));
+      return me ? json(me) : json({ error: 'unauthorized' }, 401);
+    }
+
+    if ((path === '/api/events' || path === '/api/apikeys') && request.method === 'GET') {
+      const actor = await hub.authenticate(credentials(request));
+      if (actor?.role !== 'admin') return json({ error: 'unauthorized' }, 401);
+      return json(path === '/api/events' ? await hub.listEvents() : await hub.listApiKeys());
+    }
+
     if (path === '/api/export' && request.method === 'GET') {
       const actor = await hub.authenticate(credentials(request));
       if (actor?.role !== 'admin') return json({ error: 'unauthorized' }, 401);

@@ -21,7 +21,17 @@ export type HubCommand =
 
 export type { Credentials };
 
-interface Attachment { actor: Actor; cred: Credentials }
+/** Hashed credentials only: raw tokens never sit in socket attachments. */
+interface CredentialHashes { session?: string; device?: string; apiKey?: string }
+interface Attachment { actor: Actor; cred: CredentialHashes }
+
+async function hashCredentials(cred: Credentials): Promise<CredentialHashes> {
+  return {
+    ...(cred.session ? { session: await sha256Hex(cred.session) } : {}),
+    ...(cred.device ? { device: await sha256Hex(cred.device) } : {}),
+    ...(cred.apiKey ? { apiKey: await sha256Hex(cred.apiKey) } : {}),
+  };
+}
 
 const PUBLIC: Actor = { role: 'public', label: 'public' };
 const PUBLIC_INTERVAL_MS = 1000;
@@ -106,20 +116,26 @@ export class Hub extends DurableObject<Env> {
   }
 
   async logout(token: string): Promise<void> {
-    this.sql.exec('DELETE FROM sessions WHERE token_hash = ?', await sha256Hex(token));
+    const hash = await sha256Hex(token);
+    this.sql.exec('DELETE FROM sessions WHERE token_hash = ?', hash);
+    this.closeSockets((a) => a.cred.session === hash);
   }
 
   async authenticate(cred: Credentials): Promise<Actor | null> {
+    return this.authenticateHashed(await hashCredentials(cred));
+  }
+
+  private authenticateHashed(cred: CredentialHashes): Actor | null {
     const now = Date.now();
     if (cred.session) {
       const row = this.sql.exec<{ role: Actor['role'] }>('SELECT role FROM sessions WHERE token_hash = ? AND expires_at > ?',
-        await sha256Hex(cred.session), now).toArray()[0];
+        cred.session, now).toArray()[0];
       if (row) return { role: row.role, label: row.role === 'admin' ? 'admin' : 'race control' };
     }
     if (cred.device && this.active) {
       const row = this.sql.exec<{ id: string; station: number; last_seen: number | null }>(
         'SELECT id, station, last_seen FROM devices WHERE token_hash = ? AND event_id = ? AND revoked_at IS NULL',
-        await sha256Hex(cred.device), this.active.id).toArray()[0];
+        cred.device, this.active.id).toArray()[0];
       if (row) {
         if (shouldTouch(row.last_seen, now)) this.sql.exec('UPDATE devices SET last_seen = ? WHERE id = ?', now, row.id);
         return { role: 'referee', label: `referee station ${row.station}`, deviceId: row.id, station: row.station };
@@ -127,7 +143,7 @@ export class Hub extends DurableObject<Env> {
     }
     if (cred.apiKey) {
       const row = this.sql.exec<{ label: string }>('SELECT label FROM api_keys WHERE key_hash = ? AND revoked_at IS NULL',
-        await sha256Hex(cred.apiKey)).toArray()[0];
+        cred.apiKey).toArray()[0];
       if (row) return { role: 'companion', label: `companion (${row.label})` };
     }
     return null;
@@ -185,6 +201,7 @@ export class Hub extends DurableObject<Env> {
         this.sql.exec('INSERT INTO events (id, name, created_at, active, doc) VALUES (?, ?, ?, ?, ?)',
           event.id, event.name, now, makeActive ? 1 : 0, JSON.stringify(event));
         if (makeActive) this.active = event;
+        await this.afterChange(cmd);
         return reply({ eventId: event.id });
       }
       case 'activateEvent': {
@@ -194,6 +211,8 @@ export class Hub extends DurableObject<Env> {
           this.sql.exec('UPDATE events SET active = CASE WHEN id = ? THEN 1 ELSE 0 END', cmd.eventId);
         });
         this.active = this.loadActive();
+        // Tablets are paired per event: disconnect the old event's referees.
+        this.closeSockets((a) => a.actor.role === 'referee');
         await this.afterChange(cmd);
         return reply({ eventId: cmd.eventId });
       }
@@ -238,11 +257,12 @@ export class Hub extends DurableObject<Env> {
   async fetch(request: Request): Promise<Response> {
     if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Expected WebSocket', { status: 426 });
     let actor = PUBLIC;
-    let cred: Credentials = {};
+    let cred: CredentialHashes = {};
     if (new URL(request.url).searchParams.get('role') !== 'public') {
-      cred = credentials(request);
-      if (hasCredentials(cred)) {
-        const found = await this.authenticate(cred);
+      const raw = credentials(request);
+      if (hasCredentials(raw)) {
+        cred = await hashCredentials(raw);
+        const found = this.authenticateHashed(cred);
         if (!found) return new Response('Unauthorized', { status: 401 });
         actor = found;
       }
@@ -264,7 +284,7 @@ export class Hub extends DurableObject<Env> {
     }
     let actor = att.actor;
     if (actor.role !== 'public') {
-      const current = await this.authenticate(att.cred);
+      const current = this.authenticateHashed(att.cred);
       if (!current) {
         ws.close(4401, 'unauthorized');
         return;
@@ -364,6 +384,32 @@ export class Hub extends DurableObject<Env> {
     } else if ((await this.ctx.storage.getAlarm()) === null) {
       await this.ctx.storage.setAlarm(this.lastPublicSent + PUBLIC_INTERVAL_MS);
     }
+  }
+
+  private closeSockets(match: (a: Attachment) => boolean) {
+    for (const ws of this.ctx.getWebSockets()) {
+      if (match(ws.deserializeAttachment() as Attachment)) {
+        try { ws.close(4401, 'signed out'); } catch { /* already closed */ }
+      }
+    }
+  }
+
+  async whoAmI(cred: Credentials): Promise<{ role: Actor['role']; label: string; station?: number } | null> {
+    const actor = await this.authenticate(cred);
+    return actor ? { role: actor.role, label: actor.label, ...(actor.station !== undefined ? { station: actor.station } : {}) } : null;
+  }
+
+  async listEvents(): Promise<{ id: string; name: string; date: string; active: boolean }[]> {
+    return this.sql.exec<{ doc: string; active: number }>('SELECT doc, active FROM events ORDER BY created_at DESC').toArray()
+      .map((r) => {
+        const e = JSON.parse(r.doc) as LiveEvent;
+        return { id: e.id, name: e.name, date: e.date, active: r.active === 1 };
+      });
+  }
+
+  async listApiKeys(): Promise<{ id: string; label: string; created_at: number; revoked_at: number | null }[]> {
+    return this.sql.exec<{ id: string; label: string; created_at: number; revoked_at: number | null }>(
+      'SELECT id, label, created_at, revoked_at FROM api_keys ORDER BY created_at DESC').toArray();
   }
 
   // ---------- export ----------

@@ -33,6 +33,8 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   // Every tap this page made (or found queued on load); undo rows are derived from the server view for these.
   const mine = useRef<Set<string> | null>(null);
   if (!mine.current) mine.current = new Set(queue.all().map((q) => q.clientTapId));
+  // Tap ids whose undo is waiting for an answer; a second press for the same tap is ignored.
+  const undoing = useRef(new Set<string>());
   const teamsRef = useRef<Team[]>([]);
   teamsRef.current = view?.teams ?? [];
 
@@ -92,11 +94,16 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   };
 
   const undo = async (tapId: string) => {
+    if (undoing.current.has(tapId)) return;
+    undoing.current.add(tapId);
     try {
       const ack = await send({ type: 'undoTap', tapId });
-      if (!ack.ok) setError(ack.message ?? 'Could not undo.');
+      // not_found: the tap is already gone (an earlier press got there first), which is what was asked.
+      if (!ack.ok && ack.code !== 'not_found') setError(ack.message ?? 'Could not undo.');
     } catch {
       setError('Could not undo — not connected. Try again.');
+    } finally {
+      undoing.current.delete(tapId);
     }
   };
 

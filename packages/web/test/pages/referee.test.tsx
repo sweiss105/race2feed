@@ -194,6 +194,27 @@ describe('referee page', () => {
     expect(screen.getByRole('button', { name: 'Undo T1 finished' })).toBeTruthy();
   });
 
+  it('sends one undo for two quick presses, and a tap already gone is no error', async () => {
+    const e = start(openNext(lockedFour()));
+    const queue = new TapQueue(new MemoryStorage());
+    let answer!: (a: { ok: boolean; code?: string }) => void;
+    const send = vi.fn((cmd: any) => cmd.type === 'undoTap' ? new Promise((r) => { answer = r; }) : Promise.resolve({ ok: true }));
+    const clock = { synced: () => true, serverNow: () => NOW };
+    const withTap = { ...e, taps: [serverTap(e, 'T1', 'srv-1', 'tap-1')] };
+    const { rerender } = render(<RefereePage view={refViewOf(e)} status="open" clock={clock} queue={queue} send={send as never} newId={() => 'tap-1'} />);
+    fireEvent.click(await enabledButton(/^T1/));
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+    rerender(<RefereePage view={refViewOf(withTap)} status="open" clock={clock} queue={queue} send={send as never} newId={() => 'x'} />);
+    const undo = await screen.findByRole('button', { name: 'Undo T1 finished' });
+    fireEvent.click(undo);
+    fireEvent.click(undo);
+    expect(send.mock.calls.filter(([c]) => c.type === 'undoTap')).toEqual([[{ type: 'undoTap', tapId: 'srv-1' }]]);
+    answer({ ok: false, code: 'not_found' });
+    await waitFor(() => expect(screen.queryByRole('alert')).toBeNull());
+    await new Promise((r) => setTimeout(r, 0));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('hides undo once the window has passed', async () => {
     const e = start(openNext(lockedFour()));
     const storage = new MemoryStorage();

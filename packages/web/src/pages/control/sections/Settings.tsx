@@ -48,8 +48,11 @@ function EventSettings({ view }: { view: ControlView }) {
         onSave={(s) => void runner.run({ type: 'setSettings', autoFinishMs: Math.round(s * 1000) }, 'setSettings-autofinish')} />
       <p class="footnote secondary" style={{ margin: 0 }}>The race finishes by itself this long after the last team has a result. Never shorter than the referee undo window. 0 turns auto-finish off.</p>
       <div class="race-actions">
-        <input class="input" style={{ flex: 1 }} aria-label="Bags of food packed" placeholder="e.g. 9,816" value={bags}
-          onInput={(e) => setBags((e.target as HTMLInputElement).value)} />
+        <label class="field" style={{ flex: 1, gridAutoFlow: 'column', alignItems: 'center', gap: 'var(--space-3)' }}>
+          <span class="callout">Bags of food packed</span>
+          <input class="input" aria-label="Bags of food packed" placeholder="e.g. 9,816" value={bags}
+            onInput={(e) => setBags((e.target as HTMLInputElement).value)} />
+        </label>
         <Button kind="secondary" busy={runner.busy('setBagTotal')} onClick={() => void runner.run({ type: 'setBagTotal', text: bags })}>Save bag total</Button>
       </div>
     </section>

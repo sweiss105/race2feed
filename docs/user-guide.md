@@ -53,6 +53,8 @@ Everything happens at **https://r2f.weiss-audio.com**:
 
 Race control sets up the event before the day, then runs it. Sign in at `/control` with your email address:
 
+![The console sign-in: choose Admin or Race control, then enter the password](guide/images/console-sign-in.png)
+
 1. Open `/control`. Cloudflare asks for your email address.
 2. Type it and wait for the email with a one-time code.
 3. Type the code. The console opens.
@@ -69,6 +71,8 @@ If the console says **"You are not signed in. Reload this page to sign in."**, p
 2. Type the **Event name**, pick the **Date** and enter the number of **Tables** at the venue.
 3. Press **Create event**.
 4. If no event is active and none has just ended, the new event becomes **Active** straight away. Otherwise, press **Make active** on its row when you're ready. (Creating next year's event right after ending this one doesn't take the champion off everyone's phones.)
+
+![Events: the form for a new event, the active event with End event, and last year's ended event with Make active](guide/images/console-events.jpg)
 
 Only one event is active at a time. Older events are kept for history, and you can download any of them with the **CSV** or **JSON** links on its row. In the CSV, text that starts with `=`, `+`, `-` or `@` is exported with a leading apostrophe so spreadsheets show it as text instead of running it as a formula.
 
@@ -87,6 +91,8 @@ Go to **Teams**.
 2. Paste it into **Paste CSV**, or press **Choose file…** to pick the file.
 3. Press **Import**.
 
+![Teams: a team list pasted into Paste CSV, ready to import](guide/images/console-teams-import.jpg)
+
 Things to know about importing:
 - **Importing replaces the whole team list.** It also clears seeding groups, tables and brackets, so import first and then do the rest of setup.
 - Categories appear in the order they first show up in the file.
@@ -102,14 +108,21 @@ Go to **Setup** and press **Suggest groups and brackets**. The app:
 - **Splits teams into seeding groups** that fit your tables (for example, 50 teams with 26 tables gives Group A with 26 and Group B with 24). It fills each group in category order, so categories stay together and only the last group is short. That last group can be much smaller (27 teams on 26 tables gives 26 and 1), so move teams between groups to even them out if you want. Each team gets a table.
 - **Suggests a bracket plan** for each category, in fours (Gold, Silver, Bronze, Copper, Tin). Leftover teams join the last bracket, making it 5, 6 or 7 teams.
 
+![Setup after Suggest groups and brackets: Lock setup, the Grand Championship switch, the Referees choice and each category's brackets](guide/images/console-setup.jpg)
+
 You can then adjust:
 - **Seeding groups and tables:** change any team's **Group** or **Table** in the list. Two teams can't share a table in the same group.
 - **Brackets:** for each category, rename a tier, change its number of teams, **Add tier** or **Remove last tier**, then press **Save [category] brackets**. The line "*X of Y teams placed*" must match before you can lock. Brackets hold 4 to 7 teams (a category with fewer than 4 teams gets one small bracket).
 - **Grand Championship:** the switch turns the final race between the top-bracket winners on or off. It needs a table for every category winner, so with more categories than tables you can't lock until you add tables or turn it off.
 
+![Seeding groups and tables: change a team's group or table here](guide/images/console-setup-groups.jpg)
+
 ### Tables per referee
 
-In **Setup**, choose how many tables each referee covers:
+In **Setup**, under **Referees**, choose how many tables each referee covers:
+
+![The Referees choice in Setup: one referee per two tables, or one per table](guide/images/console-tables-per-referee.jpg)
+
 - **One referee per two tables** (the default). Each referee looks after a pair of tables.
 - **One referee per table.** Each referee looks after a single table and gets one big team button. Head-to-heads are judged by two referees, both on the same master clock, so times still decide the winner.
 
@@ -128,6 +141,8 @@ When teams, groups and brackets look right, press **Lock setup** in **Setup**.
 
 The console has no password. The list of email addresses allowed to sign in is kept in Cloudflare, not in the console: whoever manages the Cloudflare account adds or removes addresses in Cloudflare's Zero Trust dashboard, on the policy of the Access application **Race to Feed console**. Ask them to add every member of race control well before the day, and have each person sign in once to check.
 
+![Settings: passwords, the active event's penalty, undo window and bag total, and the penalty list](guide/images/console-settings.jpg)
+
 ### 6. Companion keys
 
 Bitfocus Companion (the Stream Deck buttons) needs a key. Under **Settings → Companion keys**:
@@ -138,6 +153,8 @@ Bitfocus Companion (the Stream Deck buttons) needs a key. Under **Settings → C
 
 To stop a key working, press **Revoke** next to it. See [Bitfocus Companion](#bitfocus-companion-start-and-finish-buttons) for setting up the buttons.
 
+![Companion keys: name the key, then press Create key](guide/images/console-companion-keys.jpg)
+
 ### 7. Pair the referee tablets
 
 Go to **Devices**. There's one row per station.
@@ -145,6 +162,8 @@ Go to **Devices**. There's one row per station.
 1. Press **Pair tablet** on a station's row. A QR code and a short code appear.
 2. On the referee's tablet or phone, scan the QR code with the camera. It opens the referee page, which asks for the referee's name; once they press **Start** the tablet is paired to that station.
 3. Press **Done** to close the code.
+
+![Devices: the pairing QR code and short code for Tables 1 & 2, with one row per station](guide/images/console-devices-pairing.jpg)
 
 About pairing:
 - **Codes are single-use and expire after 10 minutes.** Make a new one if needed.
@@ -170,6 +189,8 @@ Under **Settings**, for the active event:
   | Unsafe conduct | DQ |
 
   To change it, go to **Settings → Penalty list**. Each row has a name, **Time** or **DQ**, and the seconds for a time penalty. Use **Add penalty** and **Remove**, then press **Save penalty list**. You can change the list at any time. Each name must be different, and the list can't be empty. Penalties that were already decided keep the reason and time they were given.
+
+  ![The penalty list editor: a name, Time or DQ, and the seconds for each reason](guide/images/console-penalty-list.jpg)
 
 ---
 
@@ -200,6 +221,8 @@ At the top of **Race** you'll see:
 "N referees" counts referee stations that are not Ready yet. With **one referee per table** (see [Tables per referee](#tables-per-referee)) each station is a single table, so these read "Waiting on N tables to be ready" and "All tables ready" instead. If both penalties and a tie are waiting, the status line names the penalties first.
 
 On a device set to reduce motion, the button doesn't pulse.
+
+![The Race page with round 1 open: Tables 1 & 2 is Ready, three stations are not ready yet, and time penalties are on](guide/images/console-race-open.jpg)
 
 ### Open a round
 
@@ -236,6 +259,8 @@ While the round is open, the status line tells you how many stations are not rea
 
 While a round runs, the **Waiting on *N* teams** panel lists every team without a result yet, with **DNF** and **DNS** buttons for each one.
 
+![A running round: the race clock, every station Ready, and the teams still waiting for a result](guide/images/console-race-running.jpg)
+
 When the round finishes, the clock stops and the round's results are locked in. Referees can no longer tap or undo.
 
 **Auto-finish:** once every team in the running round has a result, the race finishes by itself after the auto-finish delay (the **Auto-finish delay** in Settings).
@@ -255,6 +280,8 @@ The **Results** panel lists every team in the round, with its table, race and ti
 - **DNF** or **DNS:** mark the team.
 - **Clear:** remove the result.
 - **Add a penalty:** pick a reason from the penalty list and press **Add**. Penalties you add count straight away, with no review needed.
+![Results: correcting Alpha's time by typing 3:21.40 and pressing Set; the −5s button removes Alpha's penalty](guide/images/console-results.jpg)
+
 - **Remove a penalty:** take away the team's most recent penalty. The button shows what it removes: the seconds (for example **−10s**), **−DQ**, or **−Penalty** for a referee's penalty that is still waiting for review.
 
 The newest change always wins, so you can correct a referee's tap by entering the right time.
@@ -292,6 +319,8 @@ Pending penalties appear in the **Penalties to review** panel on the Race page (
    - **Approve with a DQ reason:** the team is disqualified from that race. It ranks like a DNF and shows as **DQ**.
    - **Reject:** the penalty is removed and the results update.
 
+![A penalty to review: the referee picked Started early and added a note; Approve or Reject](guide/images/console-penalty-review.jpg)
+
 **You can't open the next round while any penalty is still pending.** The big button stays greyed out and the status line reads "Waiting on *N* penalties to be reviewed".
 
 Approved reasons are shown to everyone:
@@ -328,6 +357,8 @@ When the last round is finished and every penalty has been decided (until then t
 
 While the champion is showing, the big button reads **Hide champion**. Pressing it returns everyone to the normal screens. You can change the bag number at any time.
 
+![Show the champion: enter the bags packed, then press Show](guide/images/console-show-champion.jpg)
+
 ### Devices and Log
 
 - **Devices:** pair or revoke referee tablets (see [Pair the referee tablets](#7-pair-the-referee-tablets)).
@@ -347,6 +378,8 @@ You'll use a tablet or phone paired to your station. The top of the screen shows
 
 If you see **"Scan the station QR code"**, your device isn't paired (or was disconnected). Ask race control for a new code.
 
+![An unpaired referee device asks you to scan the station QR code](guide/images/referee-scan.jpg)
+
 ### Before the race: Ready
 
 1. When race control opens a round, your teams and their tables appear.
@@ -354,6 +387,8 @@ If you see **"Scan the station QR code"**, your device isn't paired (or was disc
 3. Press **Ready**. You'll see **Ready ✓** and "Waiting for the start".
 
 Once pressed, Ready stays on. If you pressed it by mistake, ask race control to clear it.
+
+![Before the race: your teams and their tables, and the big Ready button](guide/images/referee-ready.jpg)
 
 If none of your tables has a team this round, you'll see "No teams at your tables this round". Stand by for the next one.
 
@@ -365,6 +400,8 @@ When the race starts, the clock runs and there's one large button per team.
 - **The screen stays on** while a round is open or running, on devices that support it.
 
 If the buttons are greyed out with **"Syncing clock…"**, wait a moment: the tablet is lining its clock up with the server.
+
+![During the race: one big button per team, the race clock at the top right, and the smaller +5s penalty buttons underneath](guide/images/referee-tap-buttons.jpg)
 
 ### Undo
 
@@ -379,6 +416,8 @@ Every tap gets its own bar at the bottom, newest on top, for example "**Alpha fi
 ### Only one referee tab
 
 The referee page runs in one browser tab per tablet, so two tabs never keep separate lists of saved taps. If you open it a second time, the new tab says **"The referee page is already open in another tab on this tablet"** with a **Use this tab instead** button. Press it to make this tab the live one; the other tab then shows the same message, with its own button to take it back. Browsers without this feature behave as before and allow several tabs.
+
+![After a tap: Alpha's button shows its time, the penalty button shows ×1, and the undo bar counts down at the bottom](guide/images/referee-undo.jpg)
 
 ### Penalty button
 
@@ -399,6 +438,8 @@ Once the round finishes, you'll see a **Penalty notes** card for each penalty yo
 
 Your note goes only to race control, who makes the final decision.
 
+![After the race: the Penalty notes card with Started early picked and a short note](guide/images/referee-penalty-notes.jpg)
+
 ### If the Wi-Fi drops
 
 Keep tapping. The tablet saves your taps with their exact times and sends them automatically when the connection is back, so the results aren't affected. A notice shows how many taps are waiting to send. Leave the page open until it disappears.
@@ -415,6 +456,9 @@ Anyone can follow the event on a phone at **r2f.weiss-audio.com**. You don't nee
 
 Your phone remembers your team, so next time it opens straight to it. Tap **Not you?** to choose a different team.
 
+![Find your team: type part of the name, then tap your team](guide/images/phone-search.png)
+![Your next race: the table number in large type, the round and the race](guide/images/phone-next-race.png)
+
 **Your next race** is at the top:
 - **Before a round opens:** it says "Round *N* — your table appears here when it opens."
 - **When the round opens:** it shows your **table number** in large type, the round, the race, and who you're racing against.
@@ -429,7 +473,12 @@ Your phone remembers your team, so next time it opens straight to it. Tap **Not 
 
 Times include penalties. For example, `3:46.20 (incl. +10s · Started early)` means the time already includes a 10-second penalty. **pending: under review** after a time means a referee has flagged the team and race control hasn't decided yet; the time may still change. **DQ** means the team was disqualified from that race.
 
+![My team: a race time that includes an approved +10s penalty for Started early](guide/images/phone-results-penalty.png)
+![Brackets as cards, with your team highlighted](guide/images/phone-brackets.png)
+
 When race control shows the champion, a champion card appears at the top of every phone. It shows the Grand Champion (or each category's winner if there's no Grand Championship), the bags packed and the final standings, with your team highlighted. The tabs stay available below. After the event ends, phones also show **Event complete**.
+
+![The champion card on a phone, with the final standings and your team highlighted](guide/images/phone-champion.png)
 
 ---
 
@@ -447,6 +496,15 @@ The projector follows the event by itself:
 | After a seeding round | **Seeding results** by category, coloured by bracket tier |
 | After a bracket round | **Brackets**, cycling through the categories |
 | After the Grand Championship, or when race control shows the champion | **Champion**: the Grand Champion and the bags packed. While a penalty is still pending review it stays on **Brackets**, and switches to the champion once every penalty is decided |
+
+![Projector: Welcome, with the QR code to the participant site](guide/images/projector-welcome.jpg)
+![Projector: Tables, while a round is open](guide/images/projector-tables.jpg)
+
+![Projector: the master clock, with finished teams along the bottom](guide/images/projector-clock.jpg)
+![Projector: seeding results by category, coloured by bracket tier](guide/images/projector-seeding-results.jpg)
+
+![Projector: a category's brackets](guide/images/projector-brackets.jpg)
+![Projector: the Grand Champion and the bags packed](guide/images/projector-champion.jpg)
 
 Race control can pin any screen, including **standings**, from the console (see [Projector control](#projector-control)). If the projector seems stuck on one screen, check whether it's been pinned.
 
@@ -498,6 +556,8 @@ When the event is over:
 1. Go to **Events**.
 2. Press **End event** on the active event.
 3. Confirm. The confirmation warns you if some rounds haven't been raced, or if any penalty is still waiting for a decision (decide those first, or they stay "under review" in the final results).
+
+![The End event confirmation](guide/images/console-end-event.jpg)
 
 When an event ends:
 - It's marked **Ended** and is no longer active.

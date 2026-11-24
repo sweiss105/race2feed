@@ -62,7 +62,7 @@ export function App() {
         <Header title="Referee" />
         <div class="center-page">
           <h1 class="title-1">Scan the station QR code</h1>
-          <p class="secondary callout">Race control shows a QR code for each pair of tables under Devices.</p>
+          <p class="secondary callout">Race control shows a QR code for each referee station under Devices.</p>
           {gate.error && <p class="callout" style={{ color: 'var(--danger)' }}>{gate.error}</p>}
         </div>
       </div>

@@ -129,7 +129,7 @@ function MyTeam({ state, teamId }: { state: PublicView; teamId: string }) {
         <ul class="list">
           {results.map((r) => (
             <li key={r.race.id}>
-              <span class="grow"><span class="headline">Round {r.round}</span><br /><span class="footnote secondary">{r.label}</span></span>
+              <span class="grow" style={{ minWidth: '7.5rem' }}><span class="headline">Round {r.round}</span><br /><span class="footnote secondary">{r.label}</span></span>
               <span style={{ textAlign: 'right' }}>
                 <Time entrant={r.me} />
                 {r.race.entrants.length > 1 && r.me.place !== null && <><br /><span class="footnote secondary">Place {r.me.place}</span></>}

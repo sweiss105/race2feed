@@ -12,10 +12,14 @@
     "deploy": "wrangler deploy -c packages/server/wrangler.jsonc",
     "build": "npm run build -w @race2feed/web",
     "pretest": "npm run build",
-    "e2e": "playwright test -c e2e/playwright.config.ts --trace off"
+    "e2e": "playwright test -c e2e/playwright.config.ts --trace off",
+    "guide:shots": "playwright test -c e2e/guide.config.ts --trace off",
+    "guide:pdf": "node scripts/build-guide.mjs",
+    "guide": "npm run guide:shots && npm run guide:pdf"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",
+    "marked": "18.1.3",
     "typescript": "^7.0.2",
     "vitest": "^5.1.1"
   }

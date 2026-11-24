@@ -1,6 +1,6 @@
 # Race to Feed
 
-Race to Feed is the live web app that runs our charity food-packing race. It replaced the Google Sheet we used to run the event.
+Race to Feed is the live web app that runs a charity food-packing race. It is intended to replace the Google Sheet that is currently used to run the event.
 
 On event day:
 - **Teams** race at numbered tables.
@@ -12,7 +12,7 @@ On event day:
 It covers the whole day: setup, seeding rounds, brackets, the Grand Championship, final standings and the champion screen. It runs on Cloudflare at **https://r2f.weiss-audio.com**.
 
 - **Spec:** [`docs/design.md`](docs/design.md). It is the source of truth for the rules.
-- **Guide for event staff:** [`docs/user-guide.md`](docs/user-guide.md).
+- **Guide for event staff:** [`docs/Race-to-Feed-User-Guide.pdf`](docs/Race-to-Feed-User-Guide.pdf) (printable, with screenshots), built from [`docs/user-guide.md`](docs/user-guide.md).
 
 ## How it works
 
@@ -128,8 +128,9 @@ npm workspaces (`packages/*`), TypeScript throughout.
 | `packages/engine` | **Pure race rules, no I/O.** Time parsing and formatting, stations, race ranking and ties, seeding rank, bracket plans and formats, seeding groups, round schedule, table layout, and `deriveEvent`. |
 | `packages/server` | **Cloudflare Worker + the `Hub` Durable Object.** `src/worker.ts` (routes), `src/hub.ts` (storage, auth, sockets, broadcasts), `src/core/` (pure command handlers and views), `src/auth/` (Cloudflare Access token check, console sign-in, token hashing, rate limiting). Config is in `wrangler.jsonc`. |
 | `packages/web` | **Vite multi-page Preact app.** Entry points are `index.html` (participants), `projector/`, `ref/`, `control/`, `emergency/` and `404.html`. Pages are in `src/pages/`, and the console sections are in `src/pages/control/sections/`. Shared code is in `src/lib/` (live connection, clock sync, tap queue, selectors) and `src/ui/`. Builds to `packages/web/dist`. |
-| `e2e/` | **Playwright tests.** `event.spec.ts` runs a seeding round across every page. `screens.spec.ts` captures screens for visual review. |
-| `docs/` | The design spec, the staff user guide, and implementation plans (`docs/superpowers/plans/`). |
+| `e2e/` | **Playwright tests.** `event.spec.ts` runs a seeding round across every page. `screens.spec.ts` captures screens for visual review. `guide.spec.ts` (run only by `guide.config.ts`) takes the user guide's screenshots. |
+| `scripts/` | `build-guide.mjs` turns the user guide into the PDF. |
+| `docs/` | The design spec, the staff user guide (Markdown, its screenshots in `docs/guide/images/`, and the PDF), and implementation plans (`docs/superpowers/plans/`). |
 | `.github/workflows/` | CI (`ci.yml`) and deploy (`deploy.yml`). |
 
 ## Local development
@@ -154,6 +155,7 @@ Other scripts in the root `package.json`:
 npm run typecheck        # tsc --noEmit for engine, server and web
 npm test                 # builds the pages (pretest), then runs every Vitest project
 npm run e2e              # Playwright against a fresh local wrangler dev server
+npm run guide            # retakes the user guide's screenshots and rebuilds its PDF (see Documentation)
 npm run deploy           # wrangler deploy (normally done by GitHub Actions; see below)
 ```
 
@@ -219,5 +221,9 @@ Step-by-step setup for the token and the secrets is in [`packages/server/README.
 
 ## Documentation
 
-- [`docs/user-guide.md`](docs/user-guide.md): how to run an event, by role (race control, referees, participants, projector, Companion). Written for event staff.
+- [`docs/Race-to-Feed-User-Guide.pdf`](docs/Race-to-Feed-User-Guide.pdf): the printable staff guide, with screenshots. Hand this to event staff.
+- [`docs/user-guide.md`](docs/user-guide.md): the source of that guide: how to run an event, by role (race control, referees, participants, projector, Companion). Its screenshots are in `docs/guide/images/`.
+  - **Regenerate the screenshots and the PDF with `npm run guide`.** It builds the pages and starts its own `wrangler dev` on port 8788 (throwaway store in `.wrangler/guide`), runs a fake event ("Race to Feed 2026", made-up teams) through `e2e/guide.spec.ts`, saves the screenshots, then runs `scripts/build-guide.mjs`.
+  - `npm run guide:shots` retakes only the screenshots; `npm run guide:pdf` rebuilds only the PDF (after a text-only change to the guide).
+  - It needs Playwright's Chromium (`npx playwright install chromium`, once). `npm run e2e` never runs the guide spec.
 - [`docs/design.md`](docs/design.md): the agreed design and rules (event model, round lifecycle, timing, penalties, pages, security, architecture).

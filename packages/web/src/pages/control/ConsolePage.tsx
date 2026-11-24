@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import './control.css';
 import type { Ack, ControlView } from '../../lib/types';
-import type { Me } from '../../lib/api';
+import { CONTROL_API, type ApiBase, type Me } from '../../lib/api';
 import type { LiveStatus } from '../../lib/live';
 import { StatusDot } from '../../ui/StatusDot';
 import { RunnerProvider } from './runner';
@@ -29,6 +29,10 @@ export interface ConsoleProps {
   send(cmd: object): Promise<Ack>;
   serverNow(): number;
   status: LiveStatus;
+  /** Where lists and exports are fetched from; `/api/control` unless given. */
+  api?: ApiBase;
+  /** Sign out by going to this address (Cloudflare Access); otherwise `onSignOut` is called. */
+  signOutHref?: string;
   onSignOut?(): void;
 }
 
@@ -54,7 +58,9 @@ export function ConsolePage(props: ConsoleProps) {
             <a key={s} href={`#${s}`} aria-current={s === section ? 'page' : undefined} onClick={() => setSection(s)}>{LABELS[s]}</a>
           ))}
           <div class="spacer" />
-          {props.onSignOut && <a href="#" onClick={(e) => { e.preventDefault(); props.onSignOut!(); }}>Sign out</a>}
+          {props.signOutHref
+            ? <a href={props.signOutHref}>Sign out</a>
+            : props.onSignOut && <a href="#" onClick={(e) => { e.preventDefault(); props.onSignOut!(); }}>Sign out</a>}
         </nav>
         <main class="content">
           <div class="page">
@@ -74,8 +80,8 @@ function SectionView({ section, ...p }: ConsoleProps & { section: Section }) {
     case 'teams': return <Teams view={p.view!} />;
     case 'setup': return <Setup view={p.view!} />;
     case 'devices': return <Devices view={p.view!} />;
-    case 'settings': return <Settings view={p.view} />;
-    case 'events': return <Events view={p.view} />;
+    case 'settings': return <Settings view={p.view} api={p.api ?? CONTROL_API} />;
+    case 'events': return <Events view={p.view} api={p.api ?? CONTROL_API} />;
     case 'log': return <Log view={p.view!} />;
   }
 }

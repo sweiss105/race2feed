@@ -51,11 +51,17 @@ Everything happens at **https://r2f.weiss-audio.com**:
 
 ## Setup before the day
 
-Race control sets up the event before the day, then runs it. There is one console password for everyone. Sign in at `/control`: enter the password, then press **Sign in**.
+Race control sets up the event before the day, then runs it. Sign in at `/control` with your email address:
 
-The console's menu on the left has these sections: **Race, Teams, Setup, Devices, Settings, Events, Log**. Everyone who signs in sees all of them.
+1. Open `/control`. Cloudflare asks for your email address.
+2. Type it and wait for the email with a one-time code.
+3. Type the code. The console opens.
 
-> **First sign-in:** the very first console password is set by whoever deployed the app. After you sign in, save your own under **Settings → Console password**.
+Only addresses on the console's allow list get a code. Signing in lasts 14 days on that browser, so **sign in before event day** on every laptop that will run the console. Your email is shown in the **Log** next to everything you do.
+
+The console's menu on the left has these sections: **Race, Teams, Setup, Devices, Settings, Events, Log**. Everyone who signs in sees all of them. **Sign out** (bottom of the menu) signs that browser out of Cloudflare.
+
+If the console says **"You are not signed in. Reload this page to sign in."**, press **Reload** and sign in again. If Cloudflare or email is down on the day, use the [emergency sign-in](#troubleshooting-and-faq).
 
 ### 1. Create the event
 
@@ -118,14 +124,9 @@ When teams, groups and brackets look right, press **Lock setup** in **Setup**.
 - **Unlock setup** is available only before the first round is opened.
 - **Some changes still work while locked:** renaming teams, settings, the penalty list and the bag total.
 
-### 5. Console password
+### 5. Who can sign in
 
-Under **Settings → Console password**:
-
-1. Type the new password (at least 8 characters).
-2. Press **Save password**.
-
-Changing the password signs out everyone using the console. Give them the new one.
+The console has no password. The list of email addresses allowed to sign in is kept in Cloudflare, not in the console: whoever manages the Cloudflare account adds or removes addresses in Cloudflare's Zero Trust dashboard, on the policy of the Access application **Race to Feed console**. Ask them to add every member of race control well before the day, and have each person sign in once to check.
 
 ### 6. Companion keys
 
@@ -174,7 +175,7 @@ Under **Settings**, for the active event:
 
 ## Race control
 
-Sign in at `/control` with the console password, then press **Sign in**. Most of your work happens in the **Race** section.
+Sign in at `/control` with your email address and the one-time code (see [Setup before the day](#setup-before-the-day)). Most of your work happens in the **Race** section.
 
 At the top of **Race** you'll see:
 - the round number and its state: **idle**, **open**, **running** or **finished**
@@ -548,11 +549,20 @@ Within the undo window, the referee presses **Undo**. After that, race control f
 **The projector is stuck on one screen.**
 It's probably pinned. On the **Race** page, set the projector menu back to **Projector: automatic**.
 
-**"Too many attempts. Wait five minutes and try again."**
-After 5 wrong passwords in 5 minutes, sign-in pauses for that network. Wait, then try again with the right password.
+**The console says "You are not signed in. Reload this page to sign in."**
+Your sign-in ended (it lasts 14 days) or you pressed **Sign out**. Press **Reload**, then sign in with your email and the code.
 
-**I changed the password and people got signed out.**
-That's expected: changing the password signs out everyone using the console. Give them the new one.
+**I don't get the email with the code, or Cloudflare says I'm not allowed.**
+Check the spam folder and that you typed the address on the allow list. Ask whoever manages the Cloudflare account to check the list (see [Who can sign in](#5-who-can-sign-in)).
+
+**The console says "Console sign-in is not set up."**
+The app's Cloudflare Access settings are missing. Tell whoever deployed the app. Meanwhile, use the emergency sign-in below.
+
+**Cloudflare or email is down and nobody can sign in (emergency sign-in).**
+Open `/emergency` (for example `r2f.weiss-audio.com/emergency`). It is not linked from any page. Type the emergency password and press **Sign in**. You get the same console for 12 hours; the Log shows your actions as "emergency sign-in". Whoever deployed the app holds the emergency password. If the page says **"Emergency sign-in is not enabled."**, no emergency password has been set.
+
+**"Too many attempts. Wait five minutes and try again."**
+After 5 wrong emergency passwords in 5 minutes, emergency sign-in pauses for that network. Wait, then try again with the right password.
 
 **"Setup is locked; unlock it before changing teams, groups or brackets."**
 **Unlock setup** works only before the first round is opened. After that, only renaming teams, settings, the penalty list and the bag total can change.

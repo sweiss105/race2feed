@@ -11,7 +11,8 @@ It's served at **https://r2f.weiss-audio.com**.
 | `/` | Participants: find your team, next table, brackets, results |
 | `/projector` | Projector screens |
 | `/ref` | Referees (open it by scanning a station QR code from the console) |
-| `/control` | Race control console |
+| `/control` | Race control console (signed in through Cloudflare Access) |
+| `/emergency` | Emergency sign-in to the same console, for when Access or email is down |
 
 ## How deploys work
 
@@ -32,9 +33,9 @@ Nothing goes live unless every test passes. Pull requests run the same tests wit
 2. **Add two secrets** in GitHub, under the repository's **Settings → Secrets and variables → Actions → New repository secret**:
    - `CLOUDFLARE_API_TOKEN`: the token from step 1.
    - `CLOUDFLARE_ACCOUNT_ID`: your account ID, shown in the Cloudflare dashboard on the right of any domain's **Overview** page.
-3. **Set the first console password,** if it isn't set yet. In Cloudflare, go to **Workers & Pages → race2feed → Settings → Variables and Secrets → Add**. Choose type **Secret**, name it `ADMIN_PASSWORD`, enter the value and deploy.
-
-   After that, change passwords in the console under **Settings**.
+3. **Console sign-in is Cloudflare Access.** The Access application "Race to Feed console" protects `r2f.weiss-audio.com/control*` and `r2f.weiss-audio.com/api/control/*` with an emailed one-time code. Who may sign in is the allow list on its policy, in Cloudflare's Zero Trust dashboard. The team domain and audience tag the Worker checks are in `wrangler.jsonc` (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`); without them the console refuses everyone.
+4. **Set the emergency password** before deploying. In Cloudflare, go to **Workers & Pages → race2feed → Settings → Variables and Secrets → Add**, choose type **Secret**, name it `EMERGENCY_PASSWORD` and enter a long password (or run `npx wrangler secret put EMERGENCY_PASSWORD -c packages/server/wrangler.jsonc`). It opens the console at `/emergency` when Access or email is down. Keep it somewhere safe off-site. Without it, `/emergency` is off.
+5. **After the first deploy with Access sign-in,** delete the old `ADMIN_PASSWORD` secret there (or `npx wrangler secret delete ADMIN_PASSWORD -c packages/server/wrangler.jsonc`). Nothing reads it any more.
 
 The workflow uses a GitHub environment named `production`. Optionally, under **Settings → Environments → production**, add yourself as a required reviewer so each deploy waits for your click.
 
@@ -54,7 +55,7 @@ npm run e2e         # full event in a real browser against a local server
 npm run dev         # local server at http://localhost:8787 (run `npm run build` first)
 ```
 
-For local development, put `ADMIN_PASSWORD=...` in `packages/server/.dev.vars`. That file is git-ignored.
+For local development, put `DEV_CONSOLE_USER=you@example.com` in `packages/server/.dev.vars` (git-ignored): the local console at `/control` is then signed in as that name, since there is no Cloudflare Access locally. Add `EMERGENCY_PASSWORD=...` there to try `/emergency`.
 
 `npm run e2e` also saves screenshots of every screen to `test-results/screens/`.
 

@@ -110,6 +110,6 @@ test('screens for visual review', async ({ browser }) => {
   await shot(admin, 'console-settings');
 
   const login = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage();
-  await login.goto('/control');
-  await shot(login, 'console-login');
+  await login.goto('/emergency');
+  await shot(login, 'emergency-login');
 });

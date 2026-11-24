@@ -10,7 +10,7 @@ export default defineConfig({
   outputDir: '../test-results/e2e',
   use: { baseURL: 'http://localhost:8787', trace: 'off', ...devices['Desktop Chrome'] },
   webServer: {
-    command: 'rm -rf .wrangler/e2e && npm run build && npx wrangler dev -c packages/server/wrangler.jsonc --port 8787 --ip 127.0.0.1 --persist-to .wrangler/e2e --var ADMIN_PASSWORD:e2e-admin --show-interactive-dev-session=false',
+    command: 'rm -rf .wrangler/e2e && npm run build && npx wrangler dev -c packages/server/wrangler.jsonc --port 8787 --ip 127.0.0.1 --local-upstream localhost:8787 --persist-to .wrangler/e2e --var DEV_CONSOLE_USER:e2e@example.com --show-interactive-dev-session=false',
     cwd: '..',
     url: 'http://localhost:8787/api/health',
     reuseExistingServer: false,

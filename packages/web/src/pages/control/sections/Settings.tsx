@@ -1,45 +1,20 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { ControlView } from '../../../lib/types';
 import { Button } from '../../../ui/Button';
-import { getJson } from '../../../lib/api';
+import { CONTROL_API, getJson, type ApiBase } from '../../../lib/api';
 import { useRunner } from '../runner';
 import { Switch } from '../../../ui/Switch';
 
 interface ApiKey { id: string; label: string; created_at: number; revoked_at: number | null }
 
-export function Settings({ view }: { view: ControlView | null }) {
+export function Settings({ view, api = CONTROL_API }: { view: ControlView | null; api?: ApiBase }) {
   return (
     <>
       <h2 class="title-1">Settings</h2>
-      <ConsolePassword />
       {view && <EventSettings view={view} />}
       {view && <PenaltyList key={view.event.id} view={view} />}
-      <CompanionKeys />
+      <CompanionKeys api={api} />
     </>
-  );
-}
-
-function ConsolePassword() {
-  const runner = useRunner();
-  const [password, setPassword] = useState('');
-  const [saved, setSaved] = useState(false);
-  return (
-    <form class="panel card stack" onSubmit={async (e) => {
-      e.preventDefault();
-      setSaved(false);
-      const ack = await runner.run({ type: 'setPassword', password }, 'setPassword');
-      if (ack?.ok) { setPassword(''); setSaved(true); }
-    }}>
-      <h3 class="headline">Console password</h3>
-      <div class="race-actions">
-        <input class="input" style={{ flex: 1 }} type="password" autocomplete="new-password" aria-label="New password" placeholder="At least 8 characters"
-          value={password} onInput={(e) => setPassword((e.target as HTMLInputElement).value)} />
-        <Button type="submit" busy={runner.busy('setPassword')} disabled={password.length < 8}>Save password</Button>
-      </div>
-      <p class="footnote secondary" style={{ margin: 0 }}>Changing the password signs out everyone using the console.</p>
-      {saved && <p class="callout" style={{ color: 'var(--success)', margin: 0 }}>Saved.</p>}
-      {runner.error('setPassword') && <p class="err">{runner.error('setPassword')}</p>}
-    </form>
   );
 }
 
@@ -81,12 +56,12 @@ function EventSettings({ view }: { view: ControlView }) {
   );
 }
 
-function CompanionKeys() {
+function CompanionKeys({ api }: { api: ApiBase }) {
   const runner = useRunner();
   const [keys, setKeys] = useState<ApiKey[]>([]);
   const [label, setLabel] = useState('');
   const [revealed, setRevealed] = useState<string | null>(null);
-  const load = () => void getJson<ApiKey[]>('/api/apikeys').then((k) => setKeys(k ?? [])).catch(() => {});
+  const load = () => void getJson<ApiKey[]>(api, '/apikeys').then((k) => setKeys(k ?? [])).catch(() => {});
   useEffect(load, []);
   const create = async () => {
     const ack = await runner.run({ type: 'createApiKey', label: label || 'Companion' }, 'createApiKey');

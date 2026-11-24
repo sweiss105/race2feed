@@ -93,7 +93,7 @@ Weaknesses this design fixes:
    - Admin can change bracket sizes (4–7) and rename tiers.
    - A category with fewer than 4 teams gets one bracket of that size. A size of 2–3 skips the heats and races once, ranked by time.
 5. **Grand Championship:** by default the winner of each category's top bracket. Admin can turn this on or off. Locking setup is refused when there are more category winners than tables.
-6. **Credentials:** set the console password, pair referee tablets (§9) and create a Companion API key.
+6. **Credentials:** pair referee tablets (§9) and create a Companion API key. Who may sign in to the console is managed in Cloudflare Access (§9).
 
 ### 3.3 Round structure
 
@@ -325,22 +325,23 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 | `/` | Participants |
 | `/projector` | Projector |
 | `/ref` | Referees (race control's pairing QR code opens `/ref?code=…`) |
-| `/control` | The race control console: one role, all seven sections (Race, Teams, Setup, Devices, Settings, Events, Log) |
+| `/control` | The race control console: one role, all seven sections (Race, Teams, Setup, Devices, Settings, Events, Log). Signed in through Cloudflare Access (§9) |
+| `/emergency` | The emergency sign-in: one password box, then the same console. Not linked from any page (§9) |
 
 - **Look:** clean Apple style with automatic light/dark mode and one accent colour, the spreadsheet's display red `#D71920`. The projector uses a dark theme, and the Gold/Silver/Bronze/Copper/Tin tier colours are kept.
 - **Referee page:** adapts to phones (team buttons stacked) and tablets (side by side).
 - **Brackets on phones:** a card list per bracket, with a toggle to the classic bracket diagram.
 - **Finding the site:** a QR code on the projector's welcome and table screens.
 
-### 7.1 Console: setup and event management (password)
+### 7.1 Console: setup and event management
 
-Race control and admin are one role. Everyone signed in to the console has every section and every command. The console's session label in the log is `race control`; `admin` survives only as the role value in code.
+Race control and admin are one role. Everyone signed in to the console has every section and every command. The log names each console action by the signed-in email (or `emergency sign-in`); `admin` survives only as the role value in code.
 
 - Manage events, import and edit teams, set the venue table count.
 - Edit seeding groups and table assignments.
 - Set the referee undo window and the auto-finish delay.
 - Edit the bracket plan and set Grand Championship eligibility.
-- Manage the console password and the Companion API key.
+- Manage the Companion API keys. (Who may sign in is managed in Cloudflare, not in the console.)
 - Type the **bag total** shown on the champion screen.
 
 ### 7.2 Console: running the race
@@ -435,13 +436,18 @@ The server is reachable from the internet, so:
 
 | Role | How they authenticate |
 |---|---|
-| Race control (the console; role `admin` in code) | One password. Stored hashes for the old separate race-control password, and its sessions, are deleted when the hub starts. |
+| Race control (the console; role `admin` in code) | Cloudflare Access: an emailed one-time code for an address on the allow list kept in Cloudflare's Zero Trust dashboard. The emergency password (below) when Access or email is down. |
 | Referee | Device token, paired by scanning a station's QR code in race control and entering their name (`POST /api/pair {code, name}`). Bound to one station and revocable; the name appears in the log. |
 | Companion | API key created in the console. Can be rotated. |
 | Participant, projector | Public, read-only |
 
 - HTTPS and certificates are handled by Cloudflare on the custom domain `r2f.weiss-audio.com`.
-- Login attempts are rate-limited, session cookies are `HttpOnly` and `Secure`, and every write endpoint requires an authenticated role.
+- **Console sign-in through Cloudflare Access.** The Access application "Race to Feed console" covers `r2f.weiss-audio.com/control*` and `r2f.weiss-audio.com/api/control/*` (session length 14 days, set on the application). The console page and all its requests (commands, lists, export, its live connection) are under `/api/control/`. The Worker accepts one only if its `Cf-Access-Jwt-Assertion` token verifies: RS256, signed by a key from `https://{team domain}/cdn-cgi/access/certs` (cached for an hour, fetched again for an unknown key id), issuer `https://{team domain}`, the application's audience tag, not expired, with an email. The team domain and audience tag are the Worker variables `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD`; if either is missing every console request is refused (`503 access_not_configured`). A request that fails the check gets `401`. The email is the actor name in the log. Sign out goes to Access's `/cdn-cgi/access/logout`. A console socket closes (code 4401) on the first message after the token's expiry.
+- **Console sockets.** The Worker signs the console in, then passes the socket to the hub with an internal `x-r2f-console` header naming who it is. The Worker deletes that header from every incoming request, and the hub reads it only on the console socket paths, so a caller cannot claim to be the console.
+- **Emergency sign-in.** `/emergency` is outside the Access application and shows one password box. The password is the Worker secret `EMERGENCY_PASSWORD`; if it is not set, every `/api/emergency/*` route answers `404` and the page says emergency sign-in is not enabled. A correct password sets a 12-hour `r2f_session` cookie that works only on `/api/emergency/*`, the same console routes as `/api/control/*`; each socket message checks the session again. Wrong passwords are rate-limited: 5 failures per address in 5 minutes. Log entries are named `emergency sign-in`.
+- **No passwords in the app's screens.** Console passwords stored by older versions are deleted when the hub starts and never checked. A session cookie no longer signs anyone in on `/api/command` or `/api/ws`, which serve referee tablets (device cookie), Companion (API key) and public screens only.
+- **Local development and tests.** `wrangler dev` has no Access in front of it. The Worker variable `DEV_CONSOLE_USER`, set only in `.dev.vars` and the test configuration, signs console requests in as that name. It is refused on the production hostname.
+- Every write endpoint requires an authenticated role, and session and device cookies are `HttpOnly`, `Secure` and `SameSite=Strict`.
 - Public endpoints expose only what the participant and projector pages show. They expose no device, audit or credential data.
 
 ---
@@ -473,7 +479,8 @@ The server is reachable from the internet, so:
   - Pages are served as Cloudflare static assets, which are free and unlimited.
   - Nothing goes live without the user's merge.
   - Pull requests run the tests only.
-- **Configuration:** the initial admin password is a Worker secret (`wrangler secret put ADMIN_PASSWORD`). Everything else is set in the admin page.
+- **Configuration:** `ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` are Worker variables in `wrangler.jsonc` (not secrets). `EMERGENCY_PASSWORD` is a Worker secret (`wrangler secret put EMERGENCY_PASSWORD`). The allow list of console emails is kept in Cloudflare's Zero Trust dashboard. Everything else is set in the console.
+- **Deploy order for console sign-in through Access:** (1) the Access application and policy exist, so `/control` asks for the emailed code (then the old password until this version is deployed); (2) set `EMERGENCY_PASSWORD` (the Access values ship in `wrangler.jsonc`); (3) deploy; (4) after the first successful deploy, delete the old secret with `wrangler secret delete ADMIN_PASSWORD`.
 - **Plan:** the Workers Free plan likely covers an event. Over a free daily limit, requests fail instead of slowing down, so the Workers Paid plan ($5/month) is recommended for the event month.
 - **Backups:** the Durable Object's SQLite keeps 30 days of point-in-time recovery, and admin has an "export event" option (JSON and CSV).
 

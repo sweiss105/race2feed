@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { ControlView } from '../../../lib/types';
 import { Button } from '../../../ui/Button';
 import { Sheet } from '../../../ui/Sheet';
-import { getJson } from '../../../lib/api';
+import { CONTROL_API, getJson, type ApiBase } from '../../../lib/api';
 import { useRunner } from '../runner';
 
 interface EventRow { id: string; name: string; date: string; active: boolean; ended?: boolean }
@@ -14,14 +14,14 @@ function roundsLeft(view: ControlView | null): number {
   return Math.max(0, view.rounds.length - raced);
 }
 
-export function Events({ view }: { view: ControlView | null }) {
+export function Events({ view, api = CONTROL_API }: { view: ControlView | null; api?: ApiBase }) {
   const runner = useRunner();
   const [events, setEvents] = useState<EventRow[]>([]);
   const [name, setName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [tables, setTables] = useState('26');
   const [confirm, setConfirm] = useState<{ kind: 'end' | 'reopen'; event: EventRow } | null>(null);
-  const load = () => void getJson<EventRow[]>('/api/events').then((e) => setEvents(e ?? [])).catch(() => {});
+  const load = () => void getJson<EventRow[]>(api, '/events').then((e) => setEvents(e ?? [])).catch(() => {});
   useEffect(load, []);
 
   const activate = async (ev: EventRow) => { await runner.run({ type: 'activateEvent', eventId: ev.id }, `activate-${ev.id}`); load(); };
@@ -57,8 +57,8 @@ export function Events({ view }: { view: ControlView | null }) {
                   {!ev.active && <Button kind="secondary" busy={runner.busy(`activate-${ev.id}`)}
                     onClick={() => (ev.ended ? setConfirm({ kind: 'reopen', event: ev }) : void activate(ev))}>Make active</Button>}
                   {ev.active && <Button kind="destructive" onClick={() => setConfirm({ kind: 'end', event: ev })}>End event</Button>}
-                  <a class="btn btn-plain" href={`/api/export?event=${ev.id}&format=csv`}>CSV</a>
-                  <a class="btn btn-plain" href={`/api/export?event=${ev.id}&format=json`}>JSON</a>
+                  <a class="btn btn-plain" href={`${api}/export?event=${ev.id}&format=csv`}>CSV</a>
+                  <a class="btn btn-plain" href={`${api}/export?event=${ev.id}&format=json`}>JSON</a>
                 </div></td>
               </tr>
             ))}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { call, command, connect, pairReferee, lockedEvent } from './client';
+import { command, connect, consoleGet, pairReferee, lockedEvent } from './client';
 
 describe('ending an event', () => {
   it('disconnects tablets, keeps results on phones, and can be reopened', async () => {
@@ -10,10 +10,10 @@ describe('ending an event', () => {
     await ref.next('view', 0);
     await phone.next('snapshot', 0);
 
-    const events = (await call('/api/events', undefined, { cookie: admin })).body as { id: string; active: boolean }[];
+    const events = (await consoleGet(admin, '/events')).body as { id: string; active: boolean }[];
     const eventId = events.find((e) => e.active)!.id;
     const since = phone.messages.length;
-    const ended = await command({ type: 'endEvent', eventId }, { cookie: admin });
+    const ended = await command({ type: 'endEvent', eventId }, admin);
     expect(ended.status).toBe(200);
 
     expect((await ref.closed).code).toBe(4401);
@@ -23,23 +23,23 @@ describe('ending an event', () => {
     const late = await connect({ role: 'public' });
     expect((await late.next('snapshot', 0)).view.event.id).toBe(eventId);
 
-    const list = (await call('/api/events', undefined, { cookie: admin })).body as { id: string; active: boolean; ended: boolean }[];
+    const list = (await consoleGet(admin, '/events')).body as { id: string; active: boolean; ended: boolean }[];
     expect(list.find((e) => e.id === eventId)).toMatchObject({ active: false, ended: true });
-    expect((await command({ type: 'openNextRound' }, { cookie: admin })).body.code).toBe('no_active_event');
+    expect((await command({ type: 'openNextRound' }, admin)).body.code).toBe('no_active_event');
 
-    await command({ type: 'activateEvent', eventId }, { cookie: admin });
-    const reopened = (await call('/api/events', undefined, { cookie: admin })).body as { id: string; active: boolean; ended: boolean }[];
+    await command({ type: 'activateEvent', eventId }, admin);
+    const reopened = (await consoleGet(admin, '/events')).body as { id: string; active: boolean; ended: boolean }[];
     expect(reopened.find((e) => e.id === eventId)).toMatchObject({ active: true, ended: false });
   });
 
   it('creating the next event after ending one leaves the champion on phones', async () => {
     const admin = await lockedEvent();
-    const events = (await call('/api/events', undefined, { cookie: admin })).body as { id: string; active: boolean }[];
+    const events = (await consoleGet(admin, '/events')).body as { id: string; active: boolean }[];
     const eventId = events.find((e) => e.active)!.id;
-    await command({ type: 'endEvent', eventId }, { cookie: admin });
-    const created = await command({ type: 'createEvent', name: 'Next year', date: '2027-11-20', tableCount: 4 }, { cookie: admin });
+    await command({ type: 'endEvent', eventId }, admin);
+    const created = await command({ type: 'createEvent', name: 'Next year', date: '2027-11-20', tableCount: 4 }, admin);
     expect(created.status).toBe(200);
-    const list = (await call('/api/events', undefined, { cookie: admin })).body as { id: string; name: string; active: boolean }[];
+    const list = (await consoleGet(admin, '/events')).body as { id: string; name: string; active: boolean }[];
     expect(list.find((e) => e.name === 'Next year')!.active).toBe(false);
     const phone = await connect({ role: 'public' });
     expect((await phone.next('snapshot', 0)).view.event.id).toBe(eventId);
@@ -47,10 +47,10 @@ describe('ending an event', () => {
 
   it('reopening an event that ended early takes the champion screen down', async () => {
     const admin = await lockedEvent();
-    const events = (await call('/api/events', undefined, { cookie: admin })).body as { id: string; active: boolean }[];
+    const events = (await consoleGet(admin, '/events')).body as { id: string; active: boolean }[];
     const eventId = events.find((e) => e.active)!.id;
-    await command({ type: 'endEvent', eventId }, { cookie: admin });
-    await command({ type: 'activateEvent', eventId }, { cookie: admin });
+    await command({ type: 'endEvent', eventId }, admin);
+    await command({ type: 'activateEvent', eventId }, admin);
     const phone = await connect({ role: 'public' });
     expect((await phone.next('snapshot', 0)).view).toMatchObject({ championShown: false, ended: false });
   });

@@ -1,31 +1,31 @@
 import { env } from 'cloudflare:workers';
 import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
-import { call, command, connect, lockedEvent } from './client';
+import { command, connect, consoleGet, lockedEvent, type As } from './client';
 import type { LiveEvent } from '../../src/core/model';
 
 const hub = () => env.HUB.getByName('hub');
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 /** A 4-team event with a 1 s auto-finish and no undo window, round 1 running. Returns the admin cookie and the team ids. */
-async function runningRound(): Promise<{ admin: string; teams: string[] }> {
+async function runningRound(): Promise<{ admin: As; teams: string[] }> {
   const admin = await lockedEvent();
-  expect((await command({ type: 'setSettings', autoFinishMs: 1000, undoWindowMs: 0 }, { cookie: admin })).status).toBe(200);
-  await command({ type: 'openNextRound' }, { cookie: admin });
-  for (const station of [1, 2]) await command({ type: 'overrideStation', station, state: 'ready' }, { cookie: admin });
-  expect((await command({ type: 'startRace' }, { cookie: admin })).status).toBe(200);
-  const ctl = await connect({ cookie: admin });
+  expect((await command({ type: 'setSettings', autoFinishMs: 1000, undoWindowMs: 0 }, admin)).status).toBe(200);
+  await command({ type: 'openNextRound' }, admin);
+  for (const station of [1, 2]) await command({ type: 'overrideStation', station, state: 'ready' }, admin);
+  expect((await command({ type: 'startRace' }, admin)).status).toBe(200);
+  const ctl = await connect(admin);
   const teams = (await ctl.next('view', 0)).view.teams.map((t: { id: string }) => t.id);
   ctl.ws.close();
   expect(teams).toHaveLength(4);
   return { admin, teams };
 }
 
-const setTime = (admin: string, teamId: string) =>
-  command({ type: 'setResult', round: 1, teamId, set: { kind: 'time', rawMs: 200_000 } }, { cookie: admin });
+const setTime = (admin: As, teamId: string) =>
+  command({ type: 'setResult', round: 1, teamId, set: { kind: 'time', rawMs: 200_000 } }, admin);
 
-async function consoleView(admin: string) {
-  const ctl = await connect({ cookie: admin });
+async function consoleView(admin: As) {
+  const ctl = await connect(admin);
   const view = (await ctl.next('view', 0)).view;
   ctl.ws.close();
   return view;
@@ -74,11 +74,11 @@ describe('auto-finish', () => {
   it('gives referees the full window again when an event is reopened mid-countdown', async () => {
     const { admin, teams } = await runningRound();
     for (const teamId of teams) await setTime(admin, teamId);
-    const eventId = ((await call('/api/events', undefined, { cookie: admin })).body as { id: string; active: boolean }[]).find((e) => e.active)!.id;
-    expect((await command({ type: 'endEvent', eventId }, { cookie: admin })).status).toBe(200);
+    const eventId = ((await consoleGet(admin, '/events')).body as { id: string; active: boolean }[]).find((e) => e.active)!.id;
+    expect((await command({ type: 'endEvent', eventId }, admin)).status).toBe(200);
     await wait(1100);
     const reopenedAt = Date.now();
-    expect((await command({ type: 'activateEvent', eventId }, { cookie: admin })).status).toBe(200);
+    expect((await command({ type: 'activateEvent', eventId }, admin)).status).toBe(200);
 
     const stored = await runInDurableObject(hub(), (_i, state) => JSON.parse(
       state.storage.sql.exec<{ doc: string }>('SELECT doc FROM events WHERE id = ?', eventId).toArray()[0]!.doc) as LiveEvent);

@@ -8,7 +8,7 @@ const dist = resolve(__dirname, '../dist');
 
 describe('build output', () => {
   it('has one HTML entry per page', () => {
-    for (const page of ['index.html', 'projector/index.html', 'ref/index.html', 'control/index.html', '404.html']) {
+    for (const page of ['index.html', 'projector/index.html', 'ref/index.html', 'control/index.html', 'emergency/index.html', '404.html']) {
       expect(existsSync(resolve(dist, page)), page).toBe(true);
     }
   });

@@ -16,5 +16,10 @@
     "bindings": [{ "name": "HUB", "class_name": "Hub" }]
   },
   "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Hub"] }],
-  "routes": [{ "pattern": "r2f.weiss-audio.com", "custom_domain": true }]
+  "routes": [{ "pattern": "r2f.weiss-audio.com", "custom_domain": true }],
+  // Cloudflare Access in front of /control* and /api/control/* (not secrets). See README "Console sign-in".
+  "vars": {
+    "ACCESS_TEAM_DOMAIN": "silent-butterfly-7498.cloudflareaccess.com",
+    "ACCESS_AUD": "00d2d484090bf7ba4b3a038668fea3c5daaa94a1b3861f3178d13bf83486d879"
+  }
 }

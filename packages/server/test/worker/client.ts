@@ -1,9 +1,19 @@
-import { env, exports } from 'cloudflare:workers';
-import { runInDurableObject } from 'cloudflare:test';
+import { exports } from 'cloudflare:workers';
 
 export const BASE = 'https://r2f.test';
 
 export interface Reply { status: number; body: any; cookie: string | null }
+
+/**
+ * Who a request comes from. `api` is where console requests go (`/api/control` or `/api/emergency`);
+ * without it, commands and sockets use `/api/command` and `/api/ws` (tablets, Companion, phones).
+ */
+export interface As { cookie?: string; bearer?: string; ip?: string; api?: string; headers?: Record<string, string> }
+
+/** The console, signed in as the dev console user (`DEV_CONSOLE_USER` in the test bindings). */
+export const CONSOLE: As = { api: '/api/control' };
+export const DEV_USER = 'tester@example.com';
+export const EMERGENCY_PASSWORD = 'test-emergency';
 
 /** Extracts `name=value` from a Set-Cookie header. */
 export function cookieFrom(res: Response): string | null {
@@ -11,12 +21,12 @@ export function cookieFrom(res: Response): string | null {
   return raw ? raw.split(';')[0]! : null;
 }
 
-export async function call(path: string, body?: unknown, opts: { cookie?: string; bearer?: string; ip?: string } = {}): Promise<Reply> {
-  const headers: Record<string, string> = { 'content-type': 'application/json' };
+export async function call(path: string, body?: unknown, opts: As = {}): Promise<Reply> {
+  const headers: Record<string, string> = { 'content-type': 'application/json', ...opts.headers };
   if (opts.cookie) headers.cookie = opts.cookie;
   if (opts.bearer) headers.authorization = `Bearer ${opts.bearer}`;
   if (opts.ip) headers['cf-connecting-ip'] = opts.ip;
-  const res = await exports.default.fetch(`${BASE}${path}`, {
+  const res = await exports.default.fetch(path.startsWith('http') ? path : `${BASE}${path}`, {
     method: body === undefined ? 'GET' : 'POST',
     headers,
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -27,24 +37,27 @@ export async function call(path: string, body?: unknown, opts: { cookie?: string
   return { status: res.status, body: parsed, cookie: cookieFrom(res) };
 }
 
-export async function loginAdmin(ip = '10.0.0.1'): Promise<string> {
-  const r = await call('/api/login', { password: 'test-admin' }, { ip });
-  if (!r.cookie) throw new Error(`admin login failed: ${r.status}`);
-  return r.cookie;
+/** Signs in with the emergency password and returns the console for `/api/emergency`, with its session cookie. */
+export async function emergencySignIn(ip = '10.9.0.1'): Promise<As & { cookie: string }> {
+  const r = await call('/api/emergency/login', { password: EMERGENCY_PASSWORD }, { ip });
+  if (!r.cookie) throw new Error(`emergency sign-in failed: ${r.status}`);
+  return { api: '/api/emergency', cookie: r.cookie };
 }
 
-export const command = (cmd: unknown, opts: { cookie?: string; bearer?: string } = {}) => call('/api/command', { cmd }, opts);
+export const command = (cmd: unknown, opts: As = {}) => call(`${opts.api ?? '/api'}/command`, { cmd }, opts);
 
-/** Creates and activates an event with `teams` teams (A, B, C, …) on as many tables, setup locked. Returns the admin cookie. */
-export async function lockedEvent(teams = 4): Promise<string> {
-  const admin = await loginAdmin();
-  const created = await command({ type: 'createEvent', name: 'Test', date: '2026-12-01', tableCount: teams }, { cookie: admin });
-  await command({ type: 'activateEvent', eventId: created.body.reply.eventId }, { cookie: admin });
+/** A console list or export (`/events`, `/apikeys`, `/export?…`) for the given console. */
+export const consoleGet = (as: As, path: string) => call(`${as.api}${path}`, undefined, as);
+
+/** Creates and activates an event with `teams` teams (A, B, C, …) on as many tables, setup locked. Returns the console. */
+export async function lockedEvent(teams = 4, admin: As = CONSOLE): Promise<As> {
+  const created = await command({ type: 'createEvent', name: 'Test', date: '2026-12-01', tableCount: teams }, admin);
+  await command({ type: 'activateEvent', eventId: created.body.reply.eventId }, admin);
   const names = Array.from({ length: teams }, (_, i) => String.fromCharCode(65 + i));
-  await command({ type: 'importTeams', csv: ['team,category', ...names.map((n) => `${n},X`)].join('\n') }, { cookie: admin });
-  await command({ type: 'setGrandChampionship', enabled: false }, { cookie: admin });
-  await command({ type: 'suggestSetup' }, { cookie: admin });
-  const locked = await command({ type: 'lockSetup' }, { cookie: admin });
+  await command({ type: 'importTeams', csv: ['team,category', ...names.map((n) => `${n},X`)].join('\n') }, admin);
+  await command({ type: 'setGrandChampionship', enabled: false }, admin);
+  await command({ type: 'suggestSetup' }, admin);
+  const locked = await command({ type: 'lockSetup' }, admin);
   if (locked.status !== 200) throw new Error(JSON.stringify(locked.body));
   return admin;
 }
@@ -58,11 +71,17 @@ export interface Socket {
   closed: Promise<CloseEvent>;
 }
 
-export async function connect(opts: { cookie?: string; bearer?: string; role?: 'public'; query?: string } = {}): Promise<Socket> {
-  const headers: Record<string, string> = { upgrade: 'websocket' };
+/** The raw upgrade response for a socket at `{api}/ws`. */
+export function upgrade(opts: As & { role?: 'public'; query?: string; url?: string } = {}): Promise<Response> {
+  const headers: Record<string, string> = { upgrade: 'websocket', ...opts.headers };
   if (opts.cookie) headers.cookie = opts.cookie;
   if (opts.bearer) headers.authorization = `Bearer ${opts.bearer}`;
-  const res = await exports.default.fetch(`${BASE}/api/ws${opts.query ? `?${opts.query}` : opts.role ? `?role=${opts.role}` : ''}`, { headers });
+  const query = opts.query ? `?${opts.query}` : opts.role ? `?role=${opts.role}` : '';
+  return exports.default.fetch(`${opts.url ?? BASE}${opts.api ?? '/api'}/ws${query}`, { headers });
+}
+
+export async function connect(opts: As & { role?: 'public'; query?: string } = {}): Promise<Socket> {
+  const res = await upgrade(opts);
   const ws = res.webSocket;
   if (!ws) throw new Error(`no websocket: ${res.status}`);
   ws.accept();
@@ -99,13 +118,8 @@ export async function wsCommand(s: Socket, cmd: unknown): Promise<any> {
 export const settle = () => new Promise((r) => setTimeout(r, 50));
 
 /** Pairs a tablet for `station` and returns its device cookie. */
-export async function pairReferee(admin: string, station = 1): Promise<{ device: string }> {
-  const code = (await command({ type: 'createPairingCode', station }, { cookie: admin })).body.reply.code;
+export async function pairReferee(admin: As, station = 1): Promise<{ device: string }> {
+  const code = (await command({ type: 'createPairingCode', station }, admin)).body.reply.code;
   const device = (await call('/api/pair', { code, name: 'Ref' })).cookie!;
   return { device };
-}
-
-/** Forgets a console password set during a test, so the next test signs in with the ADMIN_PASSWORD secret again. */
-export async function resetConsolePassword(): Promise<void> {
-  await runInDurableObject(env.HUB.getByName('hub'), (_i, state) => { state.storage.sql.exec("DELETE FROM credentials WHERE role = 'admin'"); });
 }

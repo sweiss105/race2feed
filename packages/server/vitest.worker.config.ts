@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [
     cloudflareTest({
       wrangler: { configPath: './wrangler.jsonc' },
-      miniflare: { bindings: { ADMIN_PASSWORD: 'test-admin' } },
+      miniflare: { bindings: { DEV_CONSOLE_USER: 'tester@example.com', EMERGENCY_PASSWORD: 'test-emergency' } },
     }),
   ],
   test: { name: 'server-worker', include: ['test/worker/**/*.test.ts'] },

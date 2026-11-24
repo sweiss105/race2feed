@@ -15,6 +15,7 @@ export default defineConfig({
         projector: resolve(here, 'projector/index.html'),
         ref: resolve(here, 'ref/index.html'),
         control: resolve(here, 'control/index.html'),
+        emergency: resolve(here, 'emergency/index.html'),
         notFound: resolve(here, '404.html'),
       },
     },

@@ -5,6 +5,9 @@ import { Teams } from '../../src/pages/control/sections/Teams';
 import { Setup } from '../../src/pages/control/sections/Setup';
 import { Devices } from '../../src/pages/control/sections/Devices';
 import { Settings } from '../../src/pages/control/sections/Settings';
+import { Events } from '../../src/pages/control/sections/Events';
+import { App, EmergencyApp } from '../../src/pages/control/App';
+import { FakeWebSocket } from '../lib/fakes';
 import { ctlViewOf, lockedFour } from '../support/state';
 import { blank } from '../../../server/test/core/helpers';
 import type { Ack } from '../../src/lib/types';
@@ -35,14 +38,13 @@ describe('admin sections', () => {
     expect(screen.getAllByRole('button', { name: /Rename/ }).length).toBe(4);
   });
 
-  it('settings has one console password and sends it without a role', async () => {
-    const send = vi.fn(async () => ({ ok: true }));
-    withRunner(<Settings view={null} />, send);
-    expect(screen.queryByLabelText('Password for')).toBeNull();
-    expect(screen.getByText('Console password')).toBeTruthy();
-    fireEvent.input(screen.getByLabelText('New password'), { target: { value: 'a-new-password' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
-    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setPassword', password: 'a-new-password' }));
+  it('settings has no console password', () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
+    const { container } = withRunner(<Settings view={ctlViewOf(lockedFour())} />, vi.fn(async () => ({ ok: true })));
+    expect(screen.queryByText('Console password')).toBeNull();
+    expect(screen.queryByLabelText('New password')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Save password' })).toBeNull();
+    expect(container.querySelector('input[type="password"]')).toBeNull();
   });
 
   it('shows every problem when locking fails', async () => {
@@ -125,5 +127,108 @@ describe('admin sections', () => {
     cleanup();
     withRunner(<Setup view={ctlViewOf(lockedFour())} />, send);
     expect((screen.getByRole('radio', { name: 'One referee per table' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+});
+
+type Route = (url: string, init?: RequestInit) => Response;
+const jsonResponse = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+
+function stubServer(route: Route) {
+  const fetchFn = vi.fn(async (url: string, init?: RequestInit) => route(url, init));
+  vi.stubGlobal('fetch', fetchFn);
+  vi.stubGlobal('WebSocket', FakeWebSocket);
+  return fetchFn;
+}
+
+describe('console sign-in', () => {
+  beforeEach(() => { cleanup(); FakeWebSocket.reset(); });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('opens the console from Cloudflare Access, with Sign out going to the Access sign-out address', async () => {
+    const fetchFn = stubServer((url) => (url === '/api/control/me' ? jsonResponse({ role: 'admin', label: 'a@b.c' }) : jsonResponse([])));
+    render(<App />);
+    const signOut = await screen.findByRole('link', { name: 'Sign out' });
+    expect(signOut.getAttribute('href')).toBe('/cdn-cgi/access/logout');
+    expect(fetchFn).toHaveBeenCalledWith('/api/control/me');
+    await waitFor(() => expect(FakeWebSocket.instances.at(-1)?.url).toMatch(/\/api\/control\/ws$/));
+    expect(document.querySelector('input[type="password"]')).toBeNull();
+  });
+
+  it('has no sign-in form: a signed-out browser is told to reload', async () => {
+    stubServer(() => jsonResponse({ error: 'unauthorized' }, 401));
+    render(<App />);
+    expect(await screen.findByText('You are not signed in. Reload this page to sign in.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeTruthy();
+    expect(document.querySelector('input[type="password"]')).toBeNull();
+    expect(FakeWebSocket.instances).toHaveLength(0);
+  });
+
+  it('says so when Access is not set up', async () => {
+    stubServer(() => jsonResponse({ error: 'access_not_configured' }, 503));
+    render(<App />);
+    expect(await screen.findByText('Console sign-in is not set up.')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Reload' })).toBeTruthy();
+  });
+
+  it('fetches lists and exports from the console API it is given', async () => {
+    const fetchFn = stubServer(() => jsonResponse([{ id: 'e1', name: 'Gala', date: '2026-12-01', active: true }]));
+    withRunner(<Events view={null} />, vi.fn(async () => ({ ok: true })));
+    expect((await screen.findByRole('link', { name: 'CSV' })).getAttribute('href')).toBe('/api/control/export?event=e1&format=csv');
+    expect(screen.getByRole('link', { name: 'JSON' }).getAttribute('href')).toBe('/api/control/export?event=e1&format=json');
+    expect(fetchFn).toHaveBeenCalledWith('/api/control/events');
+    cleanup();
+    withRunner(<Events view={null} api="/api/emergency" />, vi.fn(async () => ({ ok: true })));
+    expect((await screen.findByRole('link', { name: 'CSV' })).getAttribute('href')).toBe('/api/emergency/export?event=e1&format=csv');
+    expect(fetchFn).toHaveBeenCalledWith('/api/emergency/events');
+    cleanup();
+    withRunner(<Settings view={null} api="/api/emergency" />, vi.fn(async () => ({ ok: true })));
+    await waitFor(() => expect(fetchFn).toHaveBeenCalledWith('/api/emergency/apikeys'));
+  });
+});
+
+describe('emergency sign-in page', () => {
+  beforeEach(() => { cleanup(); FakeWebSocket.reset(); });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('signs in with the password and opens the console against /api/emergency', async () => {
+    let signedIn = false;
+    const fetchFn = stubServer((url) => {
+      if (url === '/api/emergency/login') { signedIn = true; return jsonResponse({ ok: true, role: 'admin' }); }
+      if (url === '/api/emergency/me') return signedIn ? jsonResponse({ role: 'admin', label: 'emergency sign-in' }) : jsonResponse({ error: 'unauthorized' }, 401);
+      return jsonResponse([]);
+    });
+    render(<EmergencyApp />);
+    fireEvent.input(await screen.findByLabelText('Password'), { target: { value: 'the-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await screen.findByRole('link', { name: 'Sign out' });
+    expect(fetchFn).toHaveBeenCalledWith('/api/emergency/login', expect.objectContaining({ method: 'POST', body: JSON.stringify({ password: 'the-password' }) }));
+    await waitFor(() => expect(FakeWebSocket.instances.at(-1)?.url).toMatch(/\/api\/emergency\/ws$/));
+
+    fireEvent.click(screen.getByRole('link', { name: 'Sign out' }));
+    expect(await screen.findByLabelText('Password')).toBeTruthy();
+    expect(fetchFn).toHaveBeenCalledWith('/api/emergency/logout', expect.objectContaining({ method: 'POST' }));
+  });
+
+  it('says a wrong password is wrong', async () => {
+    stubServer((url) => (url === '/api/emergency/login' ? jsonResponse({ error: 'invalid_login' }, 401) : jsonResponse({ error: 'unauthorized' }, 401)));
+    render(<EmergencyApp />);
+    fireEvent.input(await screen.findByLabelText('Password'), { target: { value: 'nope' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText('Wrong password')).toBeTruthy();
+  });
+
+  it('says emergency sign-in is not enabled when the login route answers 404', async () => {
+    stubServer((url) => (url === '/api/emergency/login' ? jsonResponse({ error: 'not_found' }, 404) : jsonResponse({ error: 'unauthorized' }, 401)));
+    render(<EmergencyApp />);
+    fireEvent.input(await screen.findByLabelText('Password'), { target: { value: 'whatever' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText('Emergency sign-in is not enabled.')).toBeTruthy();
+  });
+
+  it('says emergency sign-in is not enabled when the routes are not there at all', async () => {
+    stubServer(() => jsonResponse({ error: 'not_found' }, 404));
+    render(<EmergencyApp />);
+    expect(await screen.findByText('Emergency sign-in is not enabled.')).toBeTruthy();
+    expect(screen.queryByLabelText('Password')).toBeNull();
   });
 });

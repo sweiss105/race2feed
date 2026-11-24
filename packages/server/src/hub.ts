@@ -8,15 +8,14 @@ import { eventCsv } from './core/export';
 import { companionView, controlView, publicRoundUpdate, publicView, refereeView } from './core/views';
 import { needsSnapshot } from './core/broadcast';
 import { autoFinishDelay, nextAlarm } from './core/autofinish';
-import { credentials, hasCredentials, type Credentials } from './http';
-import { hashPassword, randomToken, sha256Hex, verifyPassword, type StoredPassword } from './auth/crypto';
+import { CONSOLE_HEADER, credentials, hasCredentials, sessionToken, type Credentials } from './http';
+import { randomToken, sha256Hex } from './auth/crypto';
 import { LOCKOUT_WINDOW_MS, loginAllowed, shouldTouch } from './auth/ratelimit';
 
 export type HubCommand =
   | { type: 'createEvent'; name: string; date: string; tableCount: number }
   | { type: 'activateEvent'; eventId: string }
   | { type: 'endEvent'; eventId: string }
-  | { type: 'setPassword'; password: string }
   | { type: 'createApiKey'; label: string }
   | { type: 'revokeApiKey'; id: string }
   | { type: 'createPairingCode'; station: number }
@@ -26,7 +25,22 @@ export type { Credentials };
 
 /** Hashed credentials only: raw tokens never sit in socket attachments. */
 interface CredentialHashes { session?: string; device?: string; apiKey?: string }
-interface Attachment { actor: Actor; cred: CredentialHashes }
+/** `exp`: when a console socket's Access sign-in ends (ms); absent or null for no end. */
+interface Attachment { actor: Actor; cred: CredentialHashes; exp?: number | null }
+
+/** The console sockets: the Worker signs these in and says who in the CONSOLE_HEADER. */
+const CONSOLE_SOCKETS = new Set(['/api/control/ws', '/api/emergency/ws']);
+
+/** The `{ label, exp }` the Worker put in the CONSOLE_HEADER, or null when missing or malformed. */
+function consoleIdentity(request: Request): { label: string; exp: number | null } | null {
+  try {
+    const v = JSON.parse(request.headers.get(CONSOLE_HEADER) ?? '') as { label?: unknown; exp?: unknown };
+    if (typeof v.label !== 'string' || v.label === '' || !(v.exp === null || typeof v.exp === 'number')) return null;
+    return { label: v.label, exp: v.exp };
+  } catch {
+    return null;
+  }
+}
 
 async function hashCredentials(cred: Credentials): Promise<CredentialHashes> {
   return {
@@ -56,7 +70,6 @@ const HUB_COMMANDS: Record<HubCommand['type'], Actor['role'][]> = {
   createEvent: ['admin'],
   activateEvent: ['admin'],
   endEvent: ['admin'],
-  setPassword: ['admin'],
   createApiKey: ['admin'],
   revokeApiKey: ['admin'],
   createPairingCode: ['admin'],
@@ -88,8 +101,9 @@ export class Hub extends DurableObject<Env> {
     this.sql = ctx.storage.sql;
     ctx.blockConcurrencyWhile(async () => {
       this.sql.exec(SCHEMA);
-      // Race control and admin used to have separate passwords; there is one console role now.
-      this.sql.exec("DELETE FROM credentials WHERE role = 'control'");
+      // Console passwords stored by older versions (race control's and admin's) are no longer used:
+      // the console signs in through Cloudflare Access, or with the EMERGENCY_PASSWORD secret.
+      this.sql.exec('DELETE FROM credentials');
       this.sql.exec("DELETE FROM sessions WHERE role = 'control'");
       this.active = this.loadActive();
       this.ended = this.loadEnded();
@@ -129,6 +143,7 @@ export class Hub extends DurableObject<Env> {
 
   // ---------- authentication ----------
 
+  /** The emergency sign-in: the EMERGENCY_PASSWORD secret, rate-limited per address. */
   async login(password: string, ip: string):
     Promise<{ ok: true; token: string } | { ok: false; status: 401 | 429 }> {
     const now = Date.now();
@@ -136,12 +151,8 @@ export class Hub extends DurableObject<Env> {
     const failures = this.sql.exec<{ at: number }>('SELECT at FROM login_failures WHERE ip = ?', ip).toArray().map((r) => r.at);
     if (!loginAllowed(failures, now)) return { ok: false, status: 429 };
 
-    const stored: StoredPassword | undefined = this.sql.exec<{ hash: string; salt: string; iterations: number }>("SELECT hash, salt, iterations FROM credentials WHERE role = 'admin'").toArray()[0];
-    let valid = false;
-    if (stored) valid = await verifyPassword(password, stored);
-    else if (this.env.ADMIN_PASSWORD) {
-      valid = (await sha256Hex(password)) === (await sha256Hex(this.env.ADMIN_PASSWORD));
-    }
+    const expected = this.env.EMERGENCY_PASSWORD;
+    const valid = Boolean(expected) && (await sha256Hex(password)) === (await sha256Hex(expected!));
     if (!valid) {
       this.sql.exec('INSERT INTO login_failures (ip, at) VALUES (?, ?)', ip, now);
       return { ok: false, status: 401 };
@@ -167,7 +178,7 @@ export class Hub extends DurableObject<Env> {
     if (cred.session) {
       const row = this.sql.exec<{ role: Actor['role'] }>("SELECT role FROM sessions WHERE token_hash = ? AND expires_at > ? AND role = 'admin'",
         cred.session, now).toArray()[0];
-      if (row) return { role: row.role, label: 'race control' };
+      if (row) return { role: row.role, label: 'emergency sign-in' };
     }
     if (cred.device && this.active) {
       const row = this.sql.exec<{ id: string; station: number; label: string | null; last_seen: number | null }>(
@@ -289,14 +300,6 @@ export class Hub extends DurableObject<Env> {
         await this.afterChange(cmd);
         return reply({ eventId: event.id }, { eventId: event.id }, event.id);
       }
-      case 'setPassword': {
-        if (typeof cmd.password !== 'string' || cmd.password.length < 8) return fail('invalid', 'Use at least 8 characters.');
-        const stored = await hashPassword(cmd.password);
-        this.sql.exec("INSERT OR REPLACE INTO credentials (role, hash, salt, iterations) VALUES ('admin', ?, ?, ?)",
-          stored.hash, stored.salt, stored.iterations);
-        this.sql.exec("DELETE FROM sessions WHERE role = 'admin'");
-        return reply(null);
-      }
       case 'createApiKey': {
         const id = crypto.randomUUID();
         const key = randomToken();
@@ -330,8 +333,25 @@ export class Hub extends DurableObject<Env> {
     if (request.headers.get('upgrade')?.toLowerCase() !== 'websocket') return new Response('Expected WebSocket', { status: 426 });
     let actor = PUBLIC;
     let cred: CredentialHashes = {};
-    const role = new URL(request.url).searchParams.get('role');
-    if (role !== 'public') {
+    let exp: number | null = null;
+    const url = new URL(request.url);
+    const role = url.searchParams.get('role');
+    if (CONSOLE_SOCKETS.has(url.pathname)) {
+      // Trusted only here: the Worker deletes this header from every incoming request and sets it
+      // after signing the console in.
+      const who = consoleIdentity(request);
+      if (!who) return new Response('Unauthorized', { status: 401 });
+      actor = { role: 'admin', label: who.label };
+      exp = who.exp;
+      if (url.pathname === '/api/emergency/ws') {
+        // Emergency sockets keep their session, checked again on every message.
+        const session = sessionToken(request);
+        cred = session ? await hashCredentials({ session }) : {};
+        const found = session ? this.authenticateHashed(cred) : null;
+        if (found?.role !== 'admin') return new Response('Unauthorized', { status: 401 });
+        actor = found;
+      }
+    } else if (role !== 'public') {
       const all = credentials(request);
       // The referee page asks to be treated as a referee: only the device cookie counts.
       const raw: Credentials = role === 'referee' ? (all.device ? { device: all.device } : {}) : all;
@@ -345,7 +365,7 @@ export class Hub extends DurableObject<Env> {
     }
     const [client, server] = Object.values(new WebSocketPair()) as [WebSocket, WebSocket];
     this.ctx.acceptWebSocket(server, [tagFor(actor)]);
-    server.serializeAttachment({ actor, cred } satisfies Attachment);
+    server.serializeAttachment({ actor, cred, exp } satisfies Attachment);
     server.send(this.initialMessage(actor));
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -359,7 +379,11 @@ export class Hub extends DurableObject<Env> {
       return;
     }
     let actor = att.actor;
-    if (actor.role !== 'public') {
+    if (typeof att.exp === 'number' && Date.now() >= att.exp) {
+      ws.close(4401, 'signed out');
+      return;
+    }
+    if (actor.role !== 'public' && hasCredentials(att.cred)) {
       const current = this.authenticateHashed(att.cred);
       if (!current) {
         ws.close(4401, 'unauthorized');

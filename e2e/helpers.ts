@@ -2,10 +2,9 @@ import { expect, type Browser, type Page } from '@playwright/test';
 
 export const TEAMS = ['Alpha', 'Bravo', 'Charlie', 'Delta'];
 
+/** `wrangler dev` has no Cloudflare Access in front of it: DEV_CONSOLE_USER signs the console in. */
 export async function signInAdmin(page: Page) {
   await page.goto('/control');
-  await page.getByLabel('Password').fill('e2e-admin');
-  await page.getByRole('button', { name: 'Sign in' }).click();
   await expect(page.getByRole('link', { name: 'Race' })).toBeVisible();
 }
 

@@ -1,40 +1,79 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import { LiveConnection, wsUrl, type LiveStatus } from '../../lib/live';
 import { ClockSync } from '../../lib/clock';
-import { authState, login, logout, me as fetchMe, type Me } from '../../lib/api';
+import { ACCESS_LOGOUT, CONTROL_API, consoleAuth, EMERGENCY_API, login, logout, type ApiBase, type ConsoleAuth, type Me } from '../../lib/api';
 import type { ControlView } from '../../lib/types';
+import { Button } from '../../ui/Button';
 import { Login } from './Login';
 import { ConsolePage } from './ConsolePage';
 
-export function App() {
-  const [me, setMe] = useState<Me | null | 'loading' | 'unreachable'>('loading');
+type AuthView = ConsoleAuth | { state: 'loading' };
+
+/** Asks `api` who is signed in; retries every 3 s while the server can't be reached. */
+function useConsoleAuth(api: ApiBase) {
+  const [auth, setAuth] = useState<AuthView>({ state: 'loading' });
   const refresh = () => {
     void (async () => {
-      const state = await authState();
-      if (state === 'unknown') {
-        // Server error or no network: don't drop to the login form, try again shortly.
-        setMe('unreachable');
-        setTimeout(refresh, 3000);
-        return;
-      }
-      setMe(state === 'out' ? null : await fetchMe().catch(() => null));
+      const next = await consoleAuth(api);
+      setAuth(next);
+      if (next.state === 'unknown') setTimeout(refresh, 3000);
     })();
   };
   useEffect(refresh, []);
-  if (me === 'loading') return <div class="center-page"><p class="secondary">Loading…</p></div>;
-  if (me === 'unreachable') return <div class="center-page"><p class="secondary">Can’t reach the server — retrying…</p></div>;
-  if (!me || me.role !== 'admin') return <Login login={login} onSignedIn={refresh} />;
-  return <LiveConsole me={me} onSignOut={() => void logout().then(() => setMe(null))} onSignedOut={() => setMe(null)} />;
+  return [auth, setAuth, refresh] as const;
 }
 
-function LiveConsole({ me, onSignOut, onSignedOut }: { me: Me; onSignOut(): void; onSignedOut(): void }) {
+const Loading = () => <div class="center-page"><p class="secondary">Loading…</p></div>;
+const Unreachable = () => <div class="center-page"><p class="secondary">Can’t reach the server — retrying…</p></div>;
+
+function Notice({ message }: { message: string }) {
+  return (
+    <div class="center-page">
+      <div class="card login">
+        <p class="callout" role="alert" style={{ margin: 0 }}>{message}</p>
+        <Button onClick={() => location.reload()}>Reload</Button>
+      </div>
+    </div>
+  );
+}
+
+/** `/control`: signed in by Cloudflare Access before the page loads; no sign-in form here. */
+export function App() {
+  const [auth, setAuth] = useConsoleAuth(CONTROL_API);
+  switch (auth.state) {
+    case 'loading': return <Loading />;
+    case 'in': return <LiveConsole api={CONTROL_API} me={auth.me} signOutHref={ACCESS_LOGOUT} onSignedOut={() => setAuth({ state: 'out' })} />;
+    case 'out': return <Notice message="You are not signed in. Reload this page to sign in." />;
+    case 'not_configured': return <Notice message="Console sign-in is not set up." />;
+    default: return <Unreachable />;
+  }
+}
+
+/** `/emergency`: the emergency password, then the same console against `/api/emergency`. */
+export function EmergencyApp() {
+  const [auth, setAuth, refresh] = useConsoleAuth(EMERGENCY_API);
+  switch (auth.state) {
+    case 'loading': return <Loading />;
+    case 'in': return (
+      <LiveConsole api={EMERGENCY_API} me={auth.me} onSignedOut={() => setAuth({ state: 'out' })}
+        onSignOut={() => void logout(EMERGENCY_API).finally(() => setAuth({ state: 'out' }))} />
+    );
+    case 'out': return <Login login={(password) => login(EMERGENCY_API, password)} onSignedIn={refresh} />;
+    case 'not_found': return <div class="center-page"><p class="callout" role="alert">Emergency sign-in is not enabled.</p></div>;
+    default: return <Unreachable />;
+  }
+}
+
+function LiveConsole({ api, me, signOutHref, onSignOut, onSignedOut }: {
+  api: ApiBase; me: Me; signOutHref?: string; onSignOut?(): void; onSignedOut(): void;
+}) {
   const [view, setView] = useState<ControlView | null>(null);
   const [status, setStatus] = useState<LiveStatus>('connecting');
   const [conn, clock] = useMemo(() => {
     let clockRef: ClockSync | null = null;
     const c = new LiveConnection({
-      url: wsUrl('/api/ws'),
-      checkAuth: async () => (await authState()) !== 'out',
+      url: wsUrl(`${api}/ws`),
+      checkAuth: async () => (await consoleAuth(api)).state !== 'out',
       onStatus: (s) => {
         setStatus(s);
         if (s === 'open') clockRef?.start(5000);
@@ -47,7 +86,7 @@ function LiveConsole({ me, onSignOut, onSignedOut }: { me: Me; onSignOut(): void
     });
     clockRef = new ClockSync(c);
     return [c, clockRef] as const;
-  }, [onSignedOut]);
+  }, [api, onSignedOut]);
 
   useEffect(() => {
     conn.start();
@@ -61,5 +100,5 @@ function LiveConsole({ me, onSignOut, onSignedOut }: { me: Me; onSignOut(): void
 
   const send = useMemo(() => (cmd: object) => conn.command(cmd), [conn]);
   const serverNow = useMemo(() => () => clock.serverNow(), [clock]);
-  return <ConsolePage me={me} view={view} send={send} serverNow={serverNow} status={status} onSignOut={onSignOut} />;
+  return <ConsolePage api={api} me={me} view={view} send={send} serverNow={serverNow} status={status} signOutHref={signOutHref} onSignOut={onSignOut} />;
 }

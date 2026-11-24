@@ -1,7 +1,8 @@
 import { env } from 'cloudflare:workers';
 import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
-import { call, command, connect, pairReferee, lockedEvent, resetConsolePassword, settle, wsCommand } from './client';
+import { call, command, connect, emergencySignIn, pairReferee, lockedEvent, settle, upgrade, wsCommand } from './client';
+import { sha256Hex } from '../../src/auth/crypto';
 
 const hub = () => env.HUB.getByName('hub');
 
@@ -25,7 +26,7 @@ describe('live connections', () => {
 
   it('commands over a socket are acked and broadcast', async () => {
     const admin = await lockedEvent();
-    const ctl = await connect({ cookie: admin });
+    const ctl = await connect(admin);
     const pub = await connect({ role: 'public' });
     await ctl.next('view', 0);
     await pub.next('snapshot', 0);
@@ -49,7 +50,7 @@ describe('live connections', () => {
 
   it('coalesces public round updates to one per second', async () => {
     const admin = await lockedEvent(6);
-    const ctl = await connect({ cookie: admin });
+    const ctl = await connect(admin);
     const pub = await connect({ role: 'public' });
     await wsCommand(ctl, { type: 'openNextRound' });
     for (const station of [1, 2, 3]) await wsCommand(ctl, { type: 'overrideStation', station, state: 'ready' });
@@ -75,7 +76,7 @@ describe('live connections', () => {
 
   it('sends phones a fresh snapshot for corrections made while reviewing a finished round', async () => {
     const admin = await lockedEvent();
-    const ctl = await connect({ cookie: admin });
+    const ctl = await connect(admin);
     const pub = await connect({ role: 'public' });
     await wsCommand(ctl, { type: 'openNextRound' });
     for (const station of [1, 2]) await wsCommand(ctl, { type: 'overrideStation', station, state: 'ready' });
@@ -92,9 +93,9 @@ describe('live connections', () => {
 
   it('tells race control when a tablet pairs', async () => {
     const admin = await lockedEvent();
-    const control = await connect({ cookie: admin });
+    const control = await connect(admin);
     await control.next('view');
-    const code = (await command({ type: 'createPairingCode', station: 2 }, { cookie: admin })).body.reply.code;
+    const code = (await command({ type: 'createPairingCode', station: 2 }, admin)).body.reply.code;
     const since = control.messages.length;
     await call('/api/pair', { code, name: 'Ref' });
     const v = (await control.next('view', since)).view;
@@ -103,14 +104,14 @@ describe('live connections', () => {
 
   it('rejects commands named after built-in properties', async () => {
     const admin = await lockedEvent();
-    const r = await command({ type: 'constructor' }, { cookie: admin });
+    const r = await command({ type: 'constructor' }, admin);
     expect(r.status).toBe(400);
   });
 
   it('keeps the race and socket roles across eviction', async () => {
     const admin = await lockedEvent();
     const { device } = await pairReferee(admin);
-    const ctl = await connect({ cookie: admin });
+    const ctl = await connect(admin);
     const ref = await connect({ cookie: device });
     await wsCommand(ctl, { type: 'openNextRound' });
     expect((await wsCommand(ref, { type: 'stationReady' })).ok).toBe(true);
@@ -139,53 +140,85 @@ describe('live connections', () => {
     await ref.next('view', 0);
     const deviceId = (await runInDurableObject(hub(), (_i, state) =>
       state.storage.sql.exec<{ id: string }>('SELECT id FROM devices ORDER BY created_at DESC LIMIT 1').one())).id;
-    await command({ type: 'revokeDevice', deviceId }, { cookie: admin });
+    await command({ type: 'revokeDevice', deviceId }, admin);
     const closed = await ref.closed; // closed as soon as the device is revoked
     expect(closed.code).toBe(4401);
   });
 
-  it('closes a socket whose session ended, on its next message', async () => {
-    const admin = await lockedEvent();
-    const ctl = await connect({ cookie: admin });
+  it('closes an emergency socket whose session ended, on its next message', async () => {
+    const admin = await lockedEvent(4, await emergencySignIn());
+    const ctl = await connect(admin);
     await ctl.next('view', 0);
-    // Changing the console password ends existing console sessions.
-    await command({ type: 'setPassword', password: 'another-password' }, { cookie: admin });
+    // The session expires (or is removed) while the socket stays open.
+    const hash = await sha256Hex(admin.cookie!.split('=')[1]!);
+    await runInDurableObject(hub(), (_i, state) => { state.storage.sql.exec('DELETE FROM sessions WHERE token_hash = ?', hash); });
     ctl.send({ type: 'ping', t0: 1 });
     expect((await ctl.closed).code).toBe(4401);
-    await resetConsolePassword();
+  });
+
+  it('closes a console socket whose Access sign-in expired, on its next message', async () => {
+    await lockedEvent();
+    const socketFor = async (exp: number) => {
+      // The hub is reached only through the Worker, which sets this header after checking Access.
+      const res = await hub().fetch('https://r2f.test/api/control/ws', {
+        headers: { upgrade: 'websocket', 'x-r2f-console': JSON.stringify({ label: 'a@b.c', exp }) },
+      });
+      const ws = res.webSocket!;
+      ws.accept();
+      const messages: any[] = [];
+      ws.addEventListener('message', (e) => { messages.push(JSON.parse(e.data as string)); });
+      const closed = new Promise<CloseEvent>((r) => ws.addEventListener('close', r));
+      return { ws, messages, closed };
+    };
+    const live = await socketFor(Date.now() + 60_000);
+    live.ws.send(JSON.stringify({ type: 'ping', t0: 1 }));
+    await settle();
+    expect(live.messages.map((m) => m.type)).toEqual(['view', 'pong']);
+    expect(live.messages[0].view).not.toBeNull();
+
+    const expiring = await socketFor(Date.now() + 200);
+    await new Promise((r) => setTimeout(r, 300));
+    expiring.ws.send(JSON.stringify({ type: 'cmd', id: 'x', cmd: { type: 'openNextRound' } }));
+    expect((await expiring.closed).code).toBe(4401);
+    expect(expiring.messages.filter((m) => m.type === 'ack')).toEqual([]);
+    live.ws.close();
   });
 
   it('rejects socket credentials that are no longer valid', async () => {
-    const { exports } = await import('cloudflare:workers');
-    const res = await exports.default.fetch('https://r2f.test/api/ws', { headers: { upgrade: 'websocket', cookie: 'r2f_session=bogus' } });
-    expect(res.status).toBe(401);
+    expect((await upgrade({ api: '/api/emergency', cookie: 'r2f_session=bogus' })).status).toBe(401);
+    expect((await upgrade({ api: '/api/emergency' })).status).toBe(401);
   });
+
+  it('does not sign a session cookie in on /api/ws', async () => {
+    const admin = await lockedEvent(4, await emergencySignIn());
+    const s = await connect({ cookie: admin.cookie });
+    expect((await s.next('snapshot', 0)).view).not.toBeNull();
+    expect(s.messages.some((m) => m.type === 'view')).toBe(false);
+  });
+
   it('a browser with both a session and a pairing is a referee on the referee socket', async () => {
-    const admin = await lockedEvent();
-    const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;
+    const admin = await lockedEvent(4, await emergencySignIn());
+    const code = (await command({ type: 'createPairingCode', station: 1 }, admin)).body.reply.code;
     const device = (await call('/api/pair', { code, name: 'Ref' })).cookie!;
-    const both = `${admin}; ${device}`;
+    const both = `${admin.cookie}; ${device}`;
     expect((await call('/api/me?as=referee', undefined, { cookie: both })).body).toMatchObject({ role: 'referee', station: 1 });
-    expect((await call('/api/me?as=referee', undefined, { cookie: admin })).status).toBe(401);
+    expect((await call('/api/me?as=referee', undefined, admin)).status).toBe(401);
     const s = await connect({ cookie: both, query: 'role=referee' });
     expect((await s.next('view')).view.station.number).toBe(1);
   });
 
   it('refuses the referee socket without a device cookie, even for an admin session or an API key', async () => {
-    const { exports } = await import('cloudflare:workers');
-    const admin = await lockedEvent();
-    const key = (await command({ type: 'createApiKey', label: 'Deck' }, { cookie: admin })).body.reply.key;
-    const upgrade = (headers: Record<string, string>) =>
-      exports.default.fetch('https://r2f.test/api/ws?role=referee', { headers: { upgrade: 'websocket', ...headers } });
-    expect((await upgrade({ cookie: admin })).status).toBe(401);
-    expect((await upgrade({ authorization: `Bearer ${key}` })).status).toBe(401);
+    const admin = await lockedEvent(4, await emergencySignIn());
+    const key = (await command({ type: 'createApiKey', label: 'Deck' }, admin)).body.reply.key;
+    expect((await upgrade({ query: 'role=referee', cookie: admin.cookie })).status).toBe(401);
+    expect((await upgrade({ query: 'role=referee', bearer: key })).status).toBe(401);
   });
 
   it('pairing a tablet sends no snapshot to a public screen', async () => {
     const admin = await lockedEvent();
     const pub = await connect({ role: 'public' });
     await pub.next('snapshot', 0);
-    const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;
+    const code = (await command({ type: 'createPairingCode', station: 1 }, admin)).body.reply.code;
     const since = pub.messages.length;
     await call('/api/pair', { code, name: 'Ref' });
     await settle();

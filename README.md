@@ -20,42 +20,43 @@ It covers the whole day: setup, seeding rounds, brackets, the Grand Championship
 
 ```
  phones, projector        referee tablets        race control               Bitfocus Companion
-   (public, read-only)      (device cookie)        (password session)         (API key)
+   (public, read-only)      (device cookie)      (Cloudflare Access)          (API key)
           │                        │                       │                        │
           └──────────── HTTPS + WebSocket (/api/*) ────────┴────────────────────────┘
                                          │
                         Cloudflare Worker  (packages/server/src/worker.ts)
                         ├─ static pages from packages/web/dist (Workers static assets)
                         └─ /api/* → one Durable Object, "Hub"  (packages/server/src/hub.ts)
-                                     ├─ SQLite: events, audit, credentials, sessions,
+                                     ├─ SQLite: events, audit, emergency sessions,
                                      │          devices, pairing codes, API keys, login failures
                                      ├─ hibernating WebSockets, tagged by role
                                      └─ pure command core (packages/server/src/core)
                                             └─ rules engine (packages/engine)
 ```
 
-- **One Worker** serves the built pages as static assets and the JSON API. Only `/api/*` runs Worker code first (`run_worker_first`).
+- **One Worker** serves the built pages as static assets and the JSON API. Only `/api/*` runs Worker code first (`run_worker_first`). The Worker signs the console in (see [Console sign-in](#console-sign-in)) and passes the signed-in actor to the hub.
 - **One Durable Object, the hub**, holds every event, and only one event is active at a time. The Worker always calls the same instance (`HUB.getByName('hub')`). The hub owns the live state and the master clock, checks credentials and pushes updates to every connected page.
 - **The server is the single source of truth.** Each event is stored as one JSON document (`LiveEvent`) holding setup, settings, round state, taps, overrides and tie decisions. Seeding ranks, race places and standings are never stored. They are recomputed each time by the engine's `deriveEvent(setup, progress)`. The one exception is line-ups: when a round opens, the hub saves its races (`lineups`) and, at the first bracket round, each bracket's teams (`bracketMembers`), so a late correction re-tabulates but never rewrites a round that has been opened (`packages/server/src/core/lineups.ts`).
 - **Commands go through a pure core.** `applyCommand(event, cmd, ctx)` in `core/apply.ts` checks permissions, applies the rules and returns a new event plus an audit entry, or a refusal with a `code` and a readable `message`. The hub saves the event and the audit entry in one transaction, then broadcasts.
   - The `PERMISSIONS` table in `core/apply.ts` says which role can send each command.
   - Rules and error messages live in `core/setup.ts`, `core/lifecycle.ts`, `core/taps.ts` and `core/corrections.ts`.
-  - Commands that aren't about one event's rules (create, activate or end an event, passwords, API keys, pairing codes, revoking a device) are handled in `hub.ts`.
+  - Commands that aren't about one event's rules (create, activate or end an event, API keys, pairing codes, revoking a device) are handled in `hub.ts`.
 
-### The four pages
+### The pages
 
 | Address | Page | Who | How they sign in |
 |---|---|---|---|
 | `/` | Participants: team search, next table, schedule, brackets, results | Public | None (read-only) |
 | `/projector` | Full-screen projector that follows the round state | Public | None (read-only) |
 | `/ref` | Referee tablet: Ready, finish taps, penalties, undo | Referees | Device cookie from a pairing QR code (`/ref?code=…`) |
-| `/control` | Race control console (all sections) | Race control | One console password |
+| `/control` | Race control console (all sections) | Race control | Cloudflare Access: emailed one-time code |
+| `/emergency` | The same console, for when Access or email is down (not linked anywhere) | Race control | The `EMERGENCY_PASSWORD` secret |
 
 Bitfocus Companion has no page. It sends commands with an API key (see [Companion API](#companion-api)).
 
 ### Real-time model
 
-Every page opens a WebSocket at `/api/ws`. The hub accepts it with the Durable Object **hibernation API**, so idle connections cost nothing. Each socket is tagged by role (`public`, `control`, `referee:<station>`, `companion`).
+Every page opens a WebSocket: `/api/ws` for phones, the projector, referee tablets and Companion; `/api/control/ws` (or `/api/emergency/ws`) for the console. The hub accepts it with the Durable Object **hibernation API**, so idle connections cost nothing. Each socket is tagged by role (`public`, `control`, `referee:<station>`, `companion`).
 
 - **Public pages** connect with `?role=public`. They receive:
   - a full `snapshot` when something structural changes (`core/broadcast.ts` decides which commands need one)
@@ -65,23 +66,37 @@ Every page opens a WebSocket at `/api/ws`. The hub accepts it with the Durable O
 - **Clock sync:** pages send `ping` and get `pong` with the server time, NTP-style, to estimate their offset from the server clock.
   - Referee taps are stamped on the tablet in server time.
   - Taps made while offline are queued in local storage and sent later with their original timestamp.
-- **Credentials are checked on every message**, so revoking a device, changing a password or logging out takes effect immediately (close code `4401`).
+- **Credentials are checked on every message**, so revoking a device or ending an emergency session takes effect immediately (close code `4401`). A console socket signed in through Access closes on the first message after the Access token expires.
 
 ### HTTP routes (`packages/server/src/worker.ts`)
 
 | Route | Purpose |
 |---|---|
 | `GET /api/health` | Liveness check |
-| `GET /api/ws` | WebSocket upgrade (public, or authenticated by cookie or `Authorization: Bearer <key>`; `?role=public` forces public, `?role=referee` authenticates with the device cookie only) |
-| `POST /api/login` | `{password}`. Sets the `r2f_session` cookie (12 hours). Rate-limited: 5 failures per IP in 5 minutes. |
-| `POST /api/logout` | Ends the session and closes its sockets |
+| `GET /api/ws` | WebSocket upgrade for phones, the projector, referee tablets and Companion (public, or authenticated by the device cookie or `Authorization: Bearer <key>`; `?role=public` forces public, `?role=referee` authenticates with the device cookie only). A session cookie signs no one in here. |
 | `POST /api/pair` | `{code, name}`. Pairs a referee device, stores the name (1–40 chars, else `400 name_required` with the code unspent) and sets the `r2f_device` cookie |
-| `POST /api/command` | `{cmd}`. Runs one command as the authenticated caller |
-| `GET /api/me` | Who the caller is (role, label, station); `?as=referee` answers from the device cookie only |
-| `GET /api/events`, `GET /api/apikeys` | Admin lists |
-| `GET /api/export?event=<id>&format=csv\|json` | Admin export of one event |
+| `POST /api/command` | `{cmd}`. Runs one command as the referee tablet (device cookie) or Companion (Bearer key) |
+| `GET /api/me` | Who the tablet or Companion is (role, label, station); `?as=referee` answers from the device cookie only |
+| `GET /api/control/me` | The console: who is signed in (`{role: 'admin', label: <email>}`) |
+| `POST /api/control/command` | The console: `{cmd}`, run as the signed-in email |
+| `GET /api/control/events`, `GET /api/control/apikeys` | The console's lists |
+| `GET /api/control/export?event=<id>&format=csv\|json` | Export of one event |
+| `GET /api/control/ws` | The console's WebSocket |
+| `POST /api/emergency/login` | `{password}`, checked against `EMERGENCY_PASSWORD`. Sets the `r2f_session` cookie (12 hours). Rate-limited: 5 failures per IP in 5 minutes. |
+| `POST /api/emergency/logout` | Ends the emergency session and closes its sockets |
+| `/api/emergency/me`, `/command`, `/events`, `/apikeys`, `/export`, `/ws` | The same as under `/api/control/`, signed in by the `r2f_session` cookie, as `emergency sign-in` |
 
-Passwords are stored as salted hashes. Session, device and API-key tokens are stored only as SHA-256 hashes. The first console login uses the `ADMIN_PASSWORD` Worker secret until a console password is saved in the console. There is one console role (`admin` in code); a hub start deletes any stored `control` password and sessions left by older versions.
+Every `/api/control/*` route answers `401 {error: 'unauthorized'}` without a valid Access token and `503 {error: 'access_not_configured'}` when `ACCESS_TEAM_DOMAIN` or `ACCESS_AUD` is missing. Every `/api/emergency/*` route answers `404` while `EMERGENCY_PASSWORD` is unset, and `401` without a valid session.
+
+Session, device and API-key tokens are stored only as SHA-256 hashes. There is one console role (`admin` in code); a hub start deletes any console password and `control` sessions stored by older versions.
+
+### Console sign-in
+
+- **Cloudflare Access** (application "Race to Feed console") covers `r2f.weiss-audio.com/control*` and `r2f.weiss-audio.com/api/control/*`, with an emailed one-time code and an allow list kept in Cloudflare's Zero Trust dashboard. Sessions last 14 days.
+- **The Worker checks Access's token** (`src/auth/access.ts`, `src/auth/console.ts`) on every `/api/control/*` request: the `Cf-Access-Jwt-Assertion` header must be an RS256 token signed by one of the team's keys (`https://{ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`, cached for an hour), from issuer `https://{ACCESS_TEAM_DOMAIN}`, for audience `ACCESS_AUD`, unexpired and with an email. The email is the actor in the log.
+- **Console sockets:** the Worker passes the signed-in name and token expiry to the hub in the internal `x-r2f-console` header. It deletes that header from every incoming request first, and the hub reads it only on `/api/control/ws` and `/api/emergency/ws`.
+- **Emergency sign-in** at `/emergency` is outside Access: one password, the Worker secret `EMERGENCY_PASSWORD`. Nothing links to it; the staff guide's troubleshooting section describes it.
+- **Local development and tests:** `DEV_CONSOLE_USER` signs every console request in as that name, except on the production hostname.
 
 ### Companion API
 
@@ -110,8 +125,8 @@ npm workspaces (`packages/*`), TypeScript throughout.
 | Path | What it is |
 |---|---|
 | `packages/engine` | **Pure race rules, no I/O.** Time parsing and formatting, stations, race ranking and ties, seeding rank, bracket plans and formats, seeding groups, round schedule, table layout, and `deriveEvent`. |
-| `packages/server` | **Cloudflare Worker + the `Hub` Durable Object.** `src/worker.ts` (routes), `src/hub.ts` (storage, auth, sockets, broadcasts), `src/core/` (pure command handlers and views), `src/auth/` (password hashing, rate limiting). Config is in `wrangler.jsonc`. |
-| `packages/web` | **Vite multi-page Preact app.** Entry points are `index.html` (participants), `projector/`, `ref/`, `control/` and `404.html`. Pages are in `src/pages/`, and the console sections are in `src/pages/control/sections/`. Shared code is in `src/lib/` (live connection, clock sync, tap queue, selectors) and `src/ui/`. Builds to `packages/web/dist`. |
+| `packages/server` | **Cloudflare Worker + the `Hub` Durable Object.** `src/worker.ts` (routes), `src/hub.ts` (storage, auth, sockets, broadcasts), `src/core/` (pure command handlers and views), `src/auth/` (Cloudflare Access token check, console sign-in, token hashing, rate limiting). Config is in `wrangler.jsonc`. |
+| `packages/web` | **Vite multi-page Preact app.** Entry points are `index.html` (participants), `projector/`, `ref/`, `control/`, `emergency/` and `404.html`. Pages are in `src/pages/`, and the console sections are in `src/pages/control/sections/`. Shared code is in `src/lib/` (live connection, clock sync, tap queue, selectors) and `src/ui/`. Builds to `packages/web/dist`. |
 | `e2e/` | **Playwright tests.** `event.spec.ts` runs a seeding round across every page. `screens.spec.ts` captures screens for visual review. |
 | `docs/` | The design spec, the staff user guide, and implementation plans (`docs/superpowers/plans/`). |
 | `.github/workflows/` | CI (`ci.yml`) and deploy (`deploy.yml`). |
@@ -126,7 +141,8 @@ npm run build            # builds the pages into packages/web/dist
 npm run dev              # wrangler dev: Worker + Hub + built pages at http://localhost:8787
 ```
 
-- **Set a local console password.** Put `ADMIN_PASSWORD=...` in `packages/server/.dev.vars` (git-ignored), then sign in at `http://localhost:8787/control`.
+- **Sign the local console in.** `wrangler dev` has no Cloudflare Access in front of it. Put `DEV_CONSOLE_USER=you@example.com` in `packages/server/.dev.vars` (git-ignored) and open `http://localhost:8787/control`: every console request is signed in as that name. It never works on the production hostname. `npm run dev` passes `--local-upstream localhost:8787` because without it wrangler dev reports requests as arriving on the production hostname (the route in `wrangler.jsonc`), where `DEV_CONSOLE_USER` is refused.
+- **Try the emergency sign-in locally:** also put `EMERGENCY_PASSWORD=...` in `.dev.vars` and open `http://localhost:8787/emergency`.
 - **Rebuild after page changes.** `npm run dev` serves the *built* pages, so run `npm run build` again after changing anything in `packages/web`.
 - **The Vite dev server is for the pages alone.** `npm run dev -w @race2feed/web` starts it, but `vite.config.ts` has no proxy to the API, so use the build plus `npm run dev` to run the whole app.
 - **Local data** is kept by wrangler under `.wrangler/` (git-ignored).
@@ -154,7 +170,7 @@ npm run deploy           # wrangler deploy (normally done by GitHub Actions; see
 - **Run one project:** for example `npx vitest run --project server-core`.
 - **The web tests read the built pages.** Use `npm test` (which builds first), or run `npm run build` before running the `web` project on its own.
 
-**End-to-end:** `npm run e2e` builds the pages and starts `wrangler dev` on port 8787. It uses a throwaway store in `.wrangler/e2e` and a test console password. Then it drives real browser windows: console, referee tablet, phone and projector.
+**End-to-end:** `npm run e2e` builds the pages and starts `wrangler dev` on port 8787. It uses a throwaway store in `.wrangler/e2e` and signs the console in with `--var DEV_CONSOLE_USER:e2e@example.com`. Then it drives real browser windows: console, referee tablet, phone and projector.
 - The first time, install the browser with `npx playwright install --with-deps chromium` (as CI does).
 - Screenshots of every screen are saved to `test-results/screens/`.
 
@@ -175,6 +191,7 @@ The app is deployed to Cloudflare Workers on the custom domain **r2f.weiss-audio
 - `workers_dev` and preview URLs are off. The route is the custom domain `r2f.weiss-audio.com`.
 - Static assets come from `../web/dist`, bound as `ASSETS`. HTML handling is `auto-trailing-slash`, and unknown pages get `404.html`.
 - The Durable Object binding `HUB` uses class `Hub`. Migration `v1` declares it as a SQLite-backed class (`new_sqlite_classes`).
+- `vars`: `ACCESS_TEAM_DOMAIN` (`silent-butterfly-7498.cloudflareaccess.com`) and `ACCESS_AUD` (the Access application's audience tag). Not secrets.
 
 **Secrets** (names only):
 
@@ -182,9 +199,12 @@ The app is deployed to Cloudflare Workers on the custom domain **r2f.weiss-audio
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` | GitHub Actions secret | `wrangler deploy` |
 | `CLOUDFLARE_ACCOUNT_ID` | GitHub Actions secret | `wrangler deploy` |
-| `ADMIN_PASSWORD` | Cloudflare Worker secret | First console sign-in, until a console password is saved in the console |
+| `EMERGENCY_PASSWORD` | Cloudflare Worker secret (`npx wrangler secret put EMERGENCY_PASSWORD -c packages/server/wrangler.jsonc`) | The emergency sign-in at `/emergency`. Unset: emergency sign-in is off |
+| `ADMIN_PASSWORD` | Cloudflare Worker secret, **no longer used** | Delete it after the first deploy of the Access sign-in: `npx wrangler secret delete ADMIN_PASSWORD -c packages/server/wrangler.jsonc` |
 
-Step-by-step setup for the token, the secrets and the first console password is in [`packages/server/README.md`](packages/server/README.md), along with notes on the Workers plan and limits.
+**Deploy order for the Access sign-in:** (1) the Access application and its policy exist, so `/control` asks for the emailed code (then the old password until this version is deployed); (2) set `EMERGENCY_PASSWORD` (`ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` ship in `wrangler.jsonc`); (3) deploy; (4) after the first successful deploy, delete the `ADMIN_PASSWORD` secret.
+
+Step-by-step setup for the token and the secrets is in [`packages/server/README.md`](packages/server/README.md), along with notes on the Workers plan and limits.
 
 **Backups:** the hub's SQLite storage has Cloudflare's point-in-time recovery. Admin can also export any event as CSV or JSON from the console's **Events** section.
 

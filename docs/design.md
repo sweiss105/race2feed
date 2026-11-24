@@ -383,6 +383,7 @@ Race control and admin are one role. Everyone signed in to the console has every
 - Shows the station's table numbers and the current round's teams.
 - **Ready** button. Once pressed it stays locked; only race control can clear it.
 - While running, one large button per team. A tap shows that team's time and an **Undo** countdown.
+- **Below the team buttons** is one area holding the **Undo** rows (newest first) and then the **Penalty notes** cards; nothing floats over the page. On a tablet the area has a fixed height and scrolls; on a phone the buttons keep their own height and the page scrolls. Either way the finish buttons never move or change size when an Undo row or a card appears or goes.
 - **Penalty button** (only while penalties are switched on): a separate, smaller **Penalty** button under each team.
   - It is placed and coloured so it can't be mistaken for the finish button.
   - It's available from START until RACE FINISHED, before or after the team's finish tap.

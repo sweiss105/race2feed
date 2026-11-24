@@ -396,6 +396,21 @@ describe('pairing', () => {
         await waitFor(() => expect(sent).toContainEqual({ type: 'notePenalty', tapId: 'pen-1', reasonId: 'early' }));
       });
 
+      it('puts the Undo rows and the card in one scrolling area below the team buttons, Undo rows first', async () => {
+        const e = runningWith(NOW - 1_000, (b) => ({ taps: [...b.taps, finishTap(b, NOW - 2_000)] }));
+        await mount(e);
+        const undoFinish = await screen.findByRole('button', { name: 'Undo T1 finished' });
+        const undoPen = screen.getByRole('button', { name: 'Undo penalty for T1' });
+        const notes = card()!.closest('.ref-notes')!;
+        const below = notes.closest('.ref-below')!;
+        expect(below).not.toBeNull();
+        expect(below.contains(undoFinish) && below.contains(undoPen)).toBe(true);
+        for (const u of [undoFinish, undoPen]) expect(u.compareDocumentPosition(notes) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        const teams = document.querySelector('.ref-teams')!;
+        expect(below.contains(teams) || teams.contains(below)).toBe(false);
+        expect(teams.compareDocumentPosition(below) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      });
+
       it('shows the card straight away for a penalty given after the team finished', async () => {
         const e = runningWith(NOW - 1_000, (b) => ({ taps: [...b.taps, finishTap(b, NOW - 60_000)] }));
         await mount(e);

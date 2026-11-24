@@ -1,5 +1,4 @@
 .ref { min-height: 100dvh; display: flex; flex-direction: column; }
-.ref-main.has-undo { padding-bottom: calc(2rem + 4.5rem * var(--undo-rows, 1) + env(safe-area-inset-bottom)); }
 .ref-main { flex: 1; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4) max(var(--space-4), env(safe-area-inset-left)) calc(var(--space-6) + env(safe-area-inset-bottom)); }
 .ref-meta { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); }
 .ref-clock { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
@@ -35,23 +34,34 @@
 .ref-pen:active { background: var(--surface-2); transform: scale(0.98); }
 .ref-pen .count { color: var(--warning); margin-left: var(--space-2); }
 
-.undo-stack {
-  position: fixed; left: 50%; bottom: calc(var(--space-4) + env(safe-area-inset-bottom)); transform: translateX(-50%);
-  width: min(36rem, calc(100vw - 2rem)); display: flex; flex-direction: column; gap: var(--space-2);
+/* Below the team buttons: the Undo rows, then the penalty notes. While running it has a fixed height and scrolls,
+   so the buttons keep their place and size whatever appears here. */
+.ref-below { display: flex; flex-direction: column; align-items: center; gap: var(--space-3); }
+.ref-below:empty { display: none; }
+.ref-below.live {
+  display: flex; flex: 0 0 auto; height: clamp(10rem, 40dvh, 28rem); overflow-y: auto; overscroll-behavior: contain;
+  padding-bottom: env(safe-area-inset-bottom);
 }
+.ref-main.running .ref-teams { flex: 1 0 auto; min-height: 15rem; }
+/* Phones: the buttons keep their own height (they never grow into free space), and the page scrolls to what is below them. */
+@media (max-width: 699px) {
+  .ref-main.running .ref-teams { flex: 0 0 auto; }
+  .ref-below.live { height: auto; overflow-y: visible; }
+}
+.undo-stack { width: min(36rem, 100%); display: flex; flex-direction: column; gap: var(--space-2); flex: 0 0 auto; }
 .undo-bar {
   position: relative; overflow: hidden;
   display: flex; align-items: center; justify-content: space-between; gap: var(--space-3);
   padding: var(--space-3) var(--space-4); border-radius: var(--radius-l);
   background: var(--material); -webkit-backdrop-filter: var(--blur); backdrop-filter: var(--blur);
-  box-shadow: var(--shadow-m); animation: undo-in 220ms cubic-bezier(.2,.9,.3,1);
+  box-shadow: var(--shadow-m); animation: undo-in 220ms ease-out;
 }
 .undo-bar .progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); transform-origin: left; }
-@keyframes undo-in { from { transform: translateY(120%); } to { transform: translateY(0); } }
+@keyframes undo-in { from { opacity: 0; } to { opacity: 1; } }
 
-.ref-notes { display: grid; gap: var(--space-3); text-align: left; width: min(100%, 36rem); margin-top: var(--space-4); align-self: center; }
+.ref-notes { display: grid; gap: var(--space-3); text-align: left; width: min(100%, 36rem); flex: 0 0 auto; }
 /* After the round the notes follow the results list instead of being pushed to the bottom. */
-.ref-center:has(+ .ref-notes) { flex: 0 0 auto; }
+.ref-center:has(+ .ref-below .ref-notes) { flex: 0 0 auto; }
 .ref-notes h2, .ref-notes p { margin: 0; }
 .ref-note { display: grid; gap: var(--space-3); }
 .ref-note form { display: grid; gap: var(--space-2); }

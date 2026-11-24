@@ -196,18 +196,23 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   }
 
   return (
-    <div class={`ref-main${undoRows.length ? ' has-undo' : ''}`} style={{ '--undo-rows': undoRows.length }}>
+    <div class={`ref-main${running ? ' running' : ''}`}>
       {meta}
       {error && <p class="ref-notice callout" role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
       {body}
-      {/* One place for both phases, so a half-written note survives the round finishing. */}
-      {(round.phase === 'running' || round.phase === 'finished') && <PenaltyNotes key="notes" view={view} send={send} ready={noteReady} />}
-      {undoRows.length > 0 && (
-        <div class="undo-stack">
-          {undoRows.map(({ tap: x, team }) => (
-            <UndoRow key={x.id} kind={x.kind === 'penalty' ? 'penalty' : 'finish'} name={team.name}
-              leftMs={x.createdAt + settings.undoWindowMs - serverNow} windowMs={settings.undoWindowMs} onUndo={() => void undo(x.id)} />
-          ))}
+      {/* One place for both phases, so a half-written note survives the round finishing. While running, this area has
+          a fixed height and scrolls, so the team buttons never move or shrink and the Undo rows never cover a card. */}
+      {(round.phase === 'running' || round.phase === 'finished') && (
+        <div key="below" class={`ref-below${running ? ' live' : ''}`}>
+          {undoRows.length > 0 && (
+            <div class="undo-stack">
+              {undoRows.map(({ tap: x, team }) => (
+                <UndoRow key={x.id} kind={x.kind === 'penalty' ? 'penalty' : 'finish'} name={team.name}
+                  leftMs={x.createdAt + settings.undoWindowMs - serverNow} windowMs={settings.undoWindowMs} onUndo={() => void undo(x.id)} />
+              ))}
+            </div>
+          )}
+          <PenaltyNotes key="notes" view={view} send={send} ready={noteReady} />
         </div>
       )}
     </div>

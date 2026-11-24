@@ -411,7 +411,7 @@ If the buttons are greyed out with **"Syncing clock…"**, wait a moment: the ta
 
 ### Undo
 
-Every tap gets its own bar at the bottom, newest on top, for example "**Alpha finished**" or "**Penalty for Alpha**", each with an **Undo** button and a shrinking countdown (about 10 seconds by default). Tapping two teams in a row gives two bars.
+Every tap gets its own bar just below the team buttons (above any penalty notes), newest on top, for example "**Alpha finished**" or "**Penalty for Alpha**", each with an **Undo** button and a shrinking countdown (about 10 seconds by default). Tapping two teams in a row gives two bars.
 - **Press Undo before its bar runs out** to take that tap back.
 - **Taps sent after a dropout** get their bar too, once they reach the server. The countdown runs from the moment the tap was recorded.
 - **If Undo can't be sent,** you'll see "Could not undo — not connected. Try again." and the bar stays until its time runs out.
@@ -419,7 +419,7 @@ Every tap gets its own bar at the bottom, newest on top, for example "**Alpha fi
 - **If the server refuses a tap that was waiting to send** (for example the team already has a result), a red message says "The saved tap for Alpha in round 3 was refused", with the reason. You see it even if the round changed while the tap was being sent. Tell race control if the time looks wrong.
 - **If a red message says "The server could not process that. Try again."**, the tap is not lost: it stays saved on the tablet and is sent again automatically within a few seconds. Tell race control if the message keeps coming back.
 
-![After a penalty tap and a finish tap for Alpha: its button shows its time marked "pending: under review", the Penalty button shows ×1, the Penalty notes card for Alpha is already below the buttons, and each tap has its own Undo bar counting down](guide/images/referee-undo.jpg)
+![After a penalty tap and a finish tap for Alpha: its button shows its time marked "pending: under review", the Penalty button shows ×1, each tap has its own Undo bar counting down below the buttons, and the Penalty notes card for Alpha follows](guide/images/referee-undo.jpg)
 
 ### Only one referee tab
 
@@ -436,7 +436,7 @@ When race control has switched penalties on, each team has a smaller **Penalty**
 
 ### Penalty notes
 
-You don't have to wait for the round to finish to say why you gave a penalty. A **Penalty notes** card appears below the team buttons for each penalty you gave that still needs review:
+You don't have to wait for the round to finish to say why you gave a penalty. A **Penalty notes** card appears below the team buttons and the Undo bars for each penalty you gave that still needs review:
 - **During the race:** as soon as you tap the team's finish button (or race control marks the team DNF, DNS or DQ). If you give a penalty after the team finished, its card appears straight away. The **Undo** bars still work as usual: if you undo the finish, the card goes away (with anything you typed) until you tap the finish again; if you undo the penalty, its card goes away.
 - **After the race:** every penalty you gave that still needs review has a card.
 

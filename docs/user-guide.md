@@ -255,7 +255,7 @@ The **Results** panel lists every team in the round, with its table, race and ti
 - **DNF** or **DNS:** mark the team.
 - **Clear:** remove the result.
 - **Add a penalty:** pick a reason from the penalty list and press **Add**. Penalties you add count straight away, with no review needed.
-- **Remove a penalty:** take away the team's most recent penalty.
+- **Remove a penalty:** take away the team's most recent penalty. The button shows what it removes: the seconds (for example **−10s**), **−DQ**, or **−Penalty** for a referee's penalty that is still waiting for review.
 
 The newest change always wins, so you can correct a referee's tap by entering the right time.
 

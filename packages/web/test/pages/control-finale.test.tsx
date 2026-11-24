@@ -65,6 +65,18 @@ describe('penalty review', () => {
     expect(row.querySelector('button[data-action="remove-penalty"]')!.textContent).toBe('−DQ');
   });
 
+  it('labels the remove button "−Penalty" while the penalty is pending review, and with its time once approved', () => {
+    const e = withPending();
+    const pendingTap = { ...e, taps: e.taps.map((t) => (t.id === 'pen-1' ? { ...t, amountMs: 0 } : t)) };
+    const { rerender } = console_(pendingTap, async () => ({ ok: true }));
+    const removeLabel = () => screen.getByTestId(`team-${teamId(e, 'T2')}`).querySelector('button[data-action="remove-penalty"]')!.textContent;
+    expect(removeLabel()).toBe('−Penalty');
+    const approved = { ...e, taps: e.taps.map((t) => (t.id === 'pen-1'
+      ? { ...t, amountMs: 10_000, review: { status: 'approved' as const, reasonId: 'early', reasonName: 'Started early' } } : t)) };
+    rerender(<ConsolePage me={me('admin')} view={ctlViewOf(approved)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    expect(removeLabel()).toBe('−10s');
+  });
+
   it('falls back to a listed reason when the picked one is removed', async () => {
     const send = vi.fn(async () => ({ ok: true }));
     const e = runRound(lockedFour(), seedTimes);

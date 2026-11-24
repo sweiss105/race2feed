@@ -181,7 +181,7 @@ function Results({ view }: { view: ControlView }) {
                     onAdd={(reasonId) => void runner.run({ type: 'addPenalty', round, teamId: x.teamId, reasonId }, `${key}-pen`)} />
                   {pens.length > 0 && (
                     <Button kind="destructive" data-action="remove-penalty" busy={runner.busy(`${key}-pen`)}
-                      onClick={() => void runner.run({ type: 'removePenalty', tapId: pens.at(-1)!.id }, `${key}-pen`)}>{pens.at(-1)!.review?.dq ? '−DQ' : `−${(pens.at(-1)!.amountMs ?? 0) / 1000}s`}</Button>
+                      onClick={() => void runner.run({ type: 'removePenalty', tapId: pens.at(-1)!.id }, `${key}-pen`)}>{removeLabel(pens.at(-1)!)}</Button>
                   )}
                 </div></td>
               </tr>
@@ -191,6 +191,12 @@ function Results({ view }: { view: ControlView }) {
       </table>
     </section>
   );
+}
+
+/** What the remove button takes away: a pending referee tap has no time yet. */
+function removeLabel(tap: ControlView['taps'][number]): string {
+  if (tap.review?.status === 'pending') return '−Penalty';
+  return tap.review?.dq ? '−DQ' : `−${(tap.amountMs ?? 0) / 1000}s`;
 }
 
 function TimeEntry({ onSet }: { onSet(rawMs: number): void }) {

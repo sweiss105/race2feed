@@ -492,9 +492,10 @@ export class Hub extends DurableObject<Env> {
 
   private sendPublicRound() {
     const d = this.active ? this.safeDerive(this.active) : null;
+    // Nothing to send: drop the waiting update too, or the alarm would keep re-arming for it.
+    this.publicDue = null;
     if (!this.active || !d) return;
     this.lastPublicSent = Date.now();
-    this.publicDue = null;
     this.send('public', JSON.stringify({ type: 'round', update: publicRoundUpdate(this.active, d) }));
   }
 
@@ -509,6 +510,8 @@ export class Hub extends DurableObject<Env> {
     const d = e ? this.safeDerive(e) : null;
     if (!e || !d) {
       if (!e) {
+        // No event is running, so no paced round update is owed.
+        this.publicDue = null;
         this.send('control', JSON.stringify({ type: 'view', view: null }));
         this.send('companion', JSON.stringify({ type: 'view', view: null }));
         const shown = this.display;

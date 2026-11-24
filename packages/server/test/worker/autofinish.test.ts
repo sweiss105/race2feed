@@ -106,4 +106,16 @@ describe('auto-finish', () => {
     expect(view.round.autoFinishAt).toBeNull();
     expect(await runDurableObjectAlarm(hub())).toBe(false);
   });
+
+  it('leaves no alarm behind when the event ends with a paced phone update waiting', async () => {
+    const { admin, teams } = await runningRound();
+    // Two quick results: the second always lands inside the pacing interval and waits for the alarm.
+    for (const teamId of teams.slice(0, 2)) expect((await setTime(admin, teamId)).status).toBe(200);
+    const eventId = ((await consoleGet(admin, '/events')).body as { id: string; active: boolean }[]).find((e) => e.active)!.id;
+    expect((await command({ type: 'endEvent', eventId }, admin)).status).toBe(200);
+
+    const ran = [await runDurableObjectAlarm(hub()), await runDurableObjectAlarm(hub())];
+    expect(ran.filter(Boolean).length).toBeLessThanOrEqual(1);
+    expect(ran[1]).toBe(false);
+  });
 });

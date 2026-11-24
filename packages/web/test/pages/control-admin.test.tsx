@@ -103,6 +103,12 @@ describe('admin sections', () => {
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setSettings', autoFinishMs: 45_000 }));
   });
 
+  it('explains the auto-finish delay under its field', () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
+    withRunner(<Settings view={ctlViewOf(lockedFour())} />, vi.fn(async () => ({ ok: true })));
+    expect(screen.getByText(/Never shorter than the referee undo window\. 0 turns auto-finish off\./)).toBeTruthy();
+  });
+
   it("has the Time penalties switch in the event's settings, flipping at once while the server confirms", async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
     let resolve!: (a: Ack) => void;

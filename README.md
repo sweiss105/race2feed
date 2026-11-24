@@ -205,6 +205,14 @@ The app is deployed to Cloudflare Workers on the custom domain **r2f.weiss-audio
 
 **Deploy order for the Access sign-in:** (1) the Access application and its policy exist, so `/control` asks for the emailed code (then the old password until this version is deployed); (2) set `EMERGENCY_PASSWORD` (`ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` ship in `wrangler.jsonc`); (3) deploy; (4) after the first successful deploy, delete the `ADMIN_PASSWORD` secret.
 
+After this deploy, reload every open console tab and referee tablet: pages loaded before it cannot sign in or pair.
+
+**After the deploy, check:**
+
+- Sign in at `/control` (Cloudflare asks for the email and code; the console opens).
+- Press **Sign out** (the next visit to `/control` asks for the email again).
+- Open `/emergency` from a private window (the emergency password page appears).
+
 Step-by-step setup for the token and the secrets is in [`packages/server/README.md`](packages/server/README.md), along with notes on the Workers plan and limits.
 
 **Backups:** the hub's SQLite storage has Cloudflare's point-in-time recovery. Admin can also export any event as CSV or JSON from the console's **Events** section.

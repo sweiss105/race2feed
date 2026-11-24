@@ -57,7 +57,7 @@ Race control sets up the event before the day, then runs it. Sign in at `/contro
 2. Type it and wait for the email with a one-time code.
 3. Type the code. The console opens.
 
-Only addresses on the console's allow list get a code. Signing in lasts 14 days on that browser, so **sign in before event day** on every laptop that will run the console. Your email is shown in the **Log** next to everything you do.
+Only addresses on the console's allow list get a code. **Sign in again the day before the event** on every laptop that will run the console: a sign-in lasts 14 days on that browser, and signing in needs email, which you don't want to depend on during the event. Your email is shown in the **Log** next to everything you do.
 
 The console's menu on the left has these sections: **Race, Teams, Setup, Devices, Settings, Events, Log**. Everyone who signs in sees all of them. **Sign out** (bottom of the menu) signs that browser out of Cloudflare.
 
@@ -552,6 +552,9 @@ It's probably pinned. On the **Race** page, set the projector menu back to **Pro
 
 **The console says "You are not signed in. Reload this page to sign in."**
 Your sign-in ended (it lasts 14 days) or you pressed **Sign out**. Press **Reload**, then sign in with your email and the code.
+
+**An export link shows "cross_site".**
+This can happen when you click an export link straight after signing in again. Click the link again from the console.
 
 **I don't get the email with the code, or Cloudflare says I'm not allowed.**
 Check the spam folder and that you typed the address on the allow list. Ask whoever manages the Cloudflare account to check the list (see [Who can sign in](#5-who-can-sign-in)).

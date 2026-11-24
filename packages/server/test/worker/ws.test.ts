@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
-import { call, command, connect, emergencySignIn, pairReferee, lockedEvent, settle, upgrade, wsCommand } from './client';
+import { call, command, connect, CONSOLE, emergencySignIn, pairReferee, lockedEvent, settle, upgrade, wsCommand } from './client';
 import { sha256Hex } from '../../src/auth/crypto';
 
 const hub = () => env.HUB.getByName('hub');
@@ -182,6 +182,24 @@ describe('live connections', () => {
     expect((await expiring.closed).code).toBe(4401);
     expect(expiring.messages.filter((m) => m.type === 'ack')).toEqual([]);
     live.ws.close();
+  });
+
+  it('closes a silent console socket whose Access sign-in expired, instead of sending it the next view', async () => {
+    await lockedEvent();
+    const res = await hub().fetch('https://r2f.test/api/control/ws', {
+      headers: { upgrade: 'websocket', 'x-r2f-console': JSON.stringify({ label: 'a@b.c', exp: Date.now() + 200 }) },
+    });
+    const ws = res.webSocket!;
+    ws.accept();
+    const messages: any[] = [];
+    ws.addEventListener('message', (e) => { messages.push(JSON.parse(e.data as string)); });
+    const closed = new Promise<CloseEvent>((r) => ws.addEventListener('close', r));
+    await settle();
+    expect(messages.map((m) => m.type)).toEqual(['view']);
+    await new Promise((r) => setTimeout(r, 300));
+    expect((await command({ type: 'openNextRound' }, CONSOLE)).status).toBe(200);
+    expect((await closed).code).toBe(4401);
+    expect(messages.map((m) => m.type)).toEqual(['view']);
   });
 
   it('rejects socket credentials that are no longer valid', async () => {

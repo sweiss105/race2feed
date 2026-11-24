@@ -4,6 +4,12 @@ import { describe, it, expect } from 'vitest';
 import { call, command, connect, consoleGet, CONSOLE, DEV_USER, EMERGENCY_PASSWORD, emergencySignIn, lockedEvent, upgrade, type As } from './client';
 import { hashPassword, sha256Hex } from '../../src/auth/crypto';
 
+/** The newest audit row, read from storage: no socket left closing before the eviction tests below. */
+async function lastAudit() {
+  return runInDurableObject(env.HUB.getByName('hub'), (_i, state) =>
+    state.storage.sql.exec<{ actor: string; action: string }>('SELECT actor, action FROM audit ORDER BY id DESC LIMIT 1').one());
+}
+
 async function consoleView(admin: As) {
   const ctl = await connect(admin);
   const view = (await ctl.next('view', 0)).view;
@@ -19,7 +25,7 @@ describe('console sign-in', () => {
   it('audits a console command with the signed-in name', async () => {
     const admin = await lockedEvent();
     expect((await command({ type: 'openNextRound' }, admin)).status).toBe(200);
-    expect((await consoleView(admin)).audit[0]).toMatchObject({ actor: DEV_USER, action: 'openNextRound' });
+    expect(await lastAudit()).toMatchObject({ actor: DEV_USER, action: 'openNextRound' });
   });
 
   it('never uses the dev console user on the production hostname', async () => {
@@ -39,21 +45,6 @@ describe('console sign-in', () => {
     for (const path of ['/api/events', '/api/apikeys', '/api/export?event=x&format=json']) {
       expect((await call(path, undefined, emergency)).status, path).toBe(404);
     }
-  });
-
-  it('does not trust an x-r2f-console header from the internet', async () => {
-    await lockedEvent();
-    const forged = { 'x-r2f-console': JSON.stringify({ label: 'evil', exp: null }) };
-    const pub = await connect({ headers: forged });
-    expect((await pub.next('snapshot', 0)).view).not.toBeNull();
-    expect(pub.messages.some((m) => m.type === 'view')).toBe(false);
-    pub.send({ type: 'cmd', id: 'x', cmd: { type: 'openNextRound' } });
-    expect(await pub.next('ack')).toMatchObject({ ok: false, code: 'forbidden' });
-    pub.ws.close();
-    expect((await upgrade({ query: 'role=referee', headers: forged })).status).toBe(401);
-    expect((await upgrade({ api: '/api/emergency', headers: forged })).status).toBe(401);
-    expect((await call('/api/command', { cmd: { type: 'openNextRound' } }, { headers: forged })).status).toBe(401);
-    expect((await call('/api/me', undefined, { headers: forged })).status).toBe(401);
   });
 });
 
@@ -97,7 +88,7 @@ describe('emergency sign-in', () => {
     expect((await call('/api/emergency/me', undefined, emergency)).body).toEqual({ role: 'admin', label: 'emergency sign-in' });
     await lockedEvent(4, emergency);
     expect((await command({ type: 'openNextRound' }, emergency)).status).toBe(200);
-    expect((await consoleView(emergency)).audit[0]).toMatchObject({ actor: 'emergency sign-in', action: 'openNextRound' });
+    expect(await lastAudit()).toMatchObject({ actor: 'emergency sign-in', action: 'openNextRound' });
     expect((await consoleGet(emergency, '/events')).status).toBe(200);
     expect((await consoleGet(emergency, '/apikeys')).status).toBe(200);
 
@@ -268,5 +259,80 @@ describe('companion API key', () => {
     expect(r.status).toBe(400);
     expect(r.body.code).toBe('round_not_open');
     expect((await command({ type: 'startRace' }, { bearer: 'wrong' })).status).toBe(401);
+  });
+});
+
+describe('cross-site console requests', () => {
+  const FOREIGN = { origin: 'https://evil.example' };
+  const OWN = { origin: 'https://r2f.test' };
+  const cmd = { cmd: { type: 'pinProjector', screen: null } };
+
+  it('refuses a foreign Origin on console commands, sockets and the emergency login', async () => {
+    await lockedEvent();
+    expect(await call('/api/control/command', cmd, { headers: FOREIGN })).toMatchObject({ status: 403, body: { error: 'cross_site' } });
+    expect((await call('/api/control/me', undefined, { headers: FOREIGN })).status).toBe(403);
+    expect((await upgrade({ api: '/api/control', headers: FOREIGN })).status).toBe(403);
+    expect(await call('/api/emergency/login', { password: EMERGENCY_PASSWORD }, { ip: '10.2.0.1', headers: FOREIGN }))
+      .toMatchObject({ status: 403, body: { error: 'cross_site' }, cookie: null });
+    const emergency = await emergencySignIn('10.2.0.2');
+    expect((await command({ type: 'suggestSetup' }, { ...emergency, headers: FOREIGN })).status).toBe(403);
+    expect((await upgrade({ ...emergency, headers: FOREIGN })).status).toBe(403);
+  });
+
+  it('refuses Sec-Fetch-Site: cross-site even without an Origin', async () => {
+    const xs = { 'sec-fetch-site': 'cross-site' };
+    expect((await call('/api/control/command', cmd, { headers: xs })).status).toBe(403);
+    expect((await upgrade({ api: '/api/control', headers: xs })).status).toBe(403);
+    expect((await call('/api/emergency/login', { password: EMERGENCY_PASSWORD }, { ip: '10.2.0.3', headers: xs })).status).toBe(403);
+  });
+
+  it('accepts the same requests from the site itself or with no Origin', async () => {
+    await lockedEvent();
+    for (const headers of [OWN, { ...OWN, 'sec-fetch-site': 'same-origin' }, {}]) {
+      expect((await call('/api/control/command', cmd, { headers })).status).toBe(200);
+      const res = await upgrade({ api: '/api/control', headers });
+      expect(res.status).toBe(101);
+      res.webSocket!.accept();
+      res.webSocket!.close();
+    }
+    expect((await call('/api/emergency/login', { password: EMERGENCY_PASSWORD }, { ip: '10.2.0.4', headers: OWN })).status).toBe(200);
+    expect((await call('/api/emergency/login', { password: EMERGENCY_PASSWORD }, { ip: '10.2.0.5' })).status).toBe(200);
+  });
+
+  it('leaves tablet, Companion and public routes alone', async () => {
+    const pub = await connect({ role: 'public', headers: FOREIGN });
+    expect((await pub.next('snapshot', 0)).type).toBe('snapshot');
+    pub.ws.close();
+  });
+});
+
+describe('emergency sign-in turned off', () => {
+  it('answers 404 on every emergency route when EMERGENCY_PASSWORD is unset', async () => {
+    const { default: worker } = await import('../../src/worker');
+    const off = { ...env, EMERGENCY_PASSWORD: undefined } as typeof env;
+    const fetchOff = (path: string, init: RequestInit = {}) => worker.fetch(new Request(`https://r2f.test${path}`, init) as never, off);
+    expect((await fetchOff('/api/emergency/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ password: EMERGENCY_PASSWORD }) })).status).toBe(404);
+    expect((await fetchOff('/api/emergency/me')).status).toBe(404);
+    expect((await fetchOff('/api/emergency/ws', { headers: { upgrade: 'websocket' } })).status).toBe(404);
+    const emergency = await emergencySignIn('10.2.0.6');
+    expect((await fetchOff('/api/emergency/me', { headers: { cookie: emergency.cookie } })).status).toBe(404);
+  });
+});
+
+// Opens a socket: kept after the eviction tests above, which wait on sockets still closing.
+describe('the internal console header', () => {
+  it('does not trust an x-r2f-console header from the internet', async () => {
+    await lockedEvent();
+    const forged = { 'x-r2f-console': JSON.stringify({ label: 'evil', exp: null }) };
+    const pub = await connect({ headers: forged });
+    expect((await pub.next('snapshot', 0)).view).not.toBeNull();
+    expect(pub.messages.some((m) => m.type === 'view')).toBe(false);
+    pub.send({ type: 'cmd', id: 'x', cmd: { type: 'openNextRound' } });
+    expect(await pub.next('ack')).toMatchObject({ ok: false, code: 'forbidden' });
+    pub.ws.close();
+    expect((await upgrade({ query: 'role=referee', headers: forged })).status).toBe(401);
+    expect((await upgrade({ api: '/api/emergency', headers: forged })).status).toBe(401);
+    expect((await call('/api/command', { cmd: { type: 'openNextRound' } }, { headers: forged })).status).toBe(401);
+    expect((await call('/api/me', undefined, { headers: forged })).status).toBe(401);
   });
 });

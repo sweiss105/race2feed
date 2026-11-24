@@ -86,7 +86,7 @@ Every page opens a WebSocket: `/api/ws` for phones, the projector, referee table
 | `POST /api/emergency/logout` | Ends the emergency session and closes its sockets |
 | `/api/emergency/me`, `/command`, `/events`, `/apikeys`, `/export`, `/ws` | The same as under `/api/control/`, signed in by the `r2f_session` cookie, as `emergency sign-in` |
 
-Every `/api/control/*` route answers `401 {error: 'unauthorized'}` without a valid Access token and `503 {error: 'access_not_configured'}` when `ACCESS_TEAM_DOMAIN` or `ACCESS_AUD` is missing. Every `/api/emergency/*` route answers `404` while `EMERGENCY_PASSWORD` is unset, and `401` without a valid session.
+Every `/api/control/*` and `/api/emergency/*` route answers `403 {error: 'cross_site'}` when the request's `Origin` is another site's or `Sec-Fetch-Site` is `cross-site` (no `Origin` passes). Every `/api/control/*` route answers `401 {error: 'unauthorized'}` without a valid Access token and `503 {error: 'access_not_configured'}` when `ACCESS_TEAM_DOMAIN` or `ACCESS_AUD` is missing. Every `/api/emergency/*` route answers `404` while `EMERGENCY_PASSWORD` is unset, and `401` without a valid session.
 
 Session, device and API-key tokens are stored only as SHA-256 hashes. There is one console role (`admin` in code); a hub start deletes any console password and `control` sessions stored by older versions.
 
@@ -94,6 +94,7 @@ Session, device and API-key tokens are stored only as SHA-256 hashes. There is o
 
 - **Cloudflare Access** (application "Race to Feed console") covers `r2f.weiss-audio.com/control*` and `r2f.weiss-audio.com/api/control/*`, with an emailed one-time code and an allow list kept in Cloudflare's Zero Trust dashboard. Sessions last 14 days.
 - **The Worker checks Access's token** (`src/auth/access.ts`, `src/auth/console.ts`) on every `/api/control/*` request: the `Cf-Access-Jwt-Assertion` header must be an RS256 token signed by one of the team's keys (`https://{ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`, cached for an hour), from issuer `https://{ACCESS_TEAM_DOMAIN}`, for audience `ACCESS_AUD`, unexpired and with an email. The email is the actor in the log.
+- **Cross-site requests are refused** on the console routes, since Access's `CF_Authorization` cookie (SameSite Lax, set on the Access application) and the emergency session are cookies. A console socket that stays silent is still closed (4401) at the first update after its token expires.
 - **Console sockets:** the Worker passes the signed-in name and token expiry to the hub in the internal `x-r2f-console` header. It deletes that header from every incoming request first, and the hub reads it only on `/api/control/ws` and `/api/emergency/ws`.
 - **Emergency sign-in** at `/emergency` is outside Access: one password, the Worker secret `EMERGENCY_PASSWORD`. Nothing links to it; the staff guide's troubleshooting section describes it.
 - **Local development and tests:** `DEV_CONSOLE_USER` signs every console request in as that name, except on the production hostname.

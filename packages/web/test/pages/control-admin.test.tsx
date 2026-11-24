@@ -149,7 +149,7 @@ describe('console sign-in', () => {
     render(<App />);
     const signOut = await screen.findByRole('link', { name: 'Sign out' });
     expect(signOut.getAttribute('href')).toBe('/cdn-cgi/access/logout');
-    expect(fetchFn).toHaveBeenCalledWith('/api/control/me');
+    expect(fetchFn).toHaveBeenCalledWith('/api/control/me', { redirect: 'manual' });
     await waitFor(() => expect(FakeWebSocket.instances.at(-1)?.url).toMatch(/\/api\/control\/ws$/));
     expect(document.querySelector('input[type="password"]')).toBeNull();
   });

@@ -33,7 +33,8 @@ export async function authState(fetchFn: (path: string) => Promise<Response> = (
 }
 
 /**
- * The console's sign-in state at `api`: signed in (with who), signed out (401/403), Access not set up
+ * The console's sign-in state at `api`: signed in (with who), signed out (401/403, or a redirect: an
+ * expired Access sign-in is redirected to Access's login page on another origin), Access not set up
  * (503 `access_not_configured`), the route not there (404: emergency sign-in not enabled), or unknown
  * (server error or no network, so the page retries).
  */
@@ -41,9 +42,12 @@ export type ConsoleAuth =
   | { state: 'in'; me: Me }
   | { state: 'out' | 'not_configured' | 'not_found' | 'unknown' };
 
-export async function consoleAuth(api: ApiBase, fetchFn: (path: string) => Promise<Response> = (p) => fetch(p)): Promise<ConsoleAuth> {
+export async function consoleAuth(
+  api: ApiBase, fetchFn: (path: string, init?: RequestInit) => Promise<Response> = (p, init) => fetch(p, init),
+): Promise<ConsoleAuth> {
   try {
-    const res = await fetchFn(`${api}/me`);
+    const res = await fetchFn(`${api}/me`, { redirect: 'manual' });
+    if (res.type === 'opaqueredirect' || res.status === 0) return { state: 'out' };
     if (res.ok) return { state: 'in', me: (await res.json()) as Me };
     if (res.status === 401 || res.status === 403) return { state: 'out' };
     if (res.status === 404) return { state: 'not_found' };

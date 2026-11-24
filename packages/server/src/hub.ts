@@ -478,7 +478,14 @@ export class Hub extends DurableObject<Env> {
   }
 
   private send(tag: string, message: string) {
+    const now = Date.now();
     for (const ws of this.ctx.getWebSockets(tag)) {
+      // A console socket whose Access sign-in has ended gets nothing more, even if it never speaks.
+      const { exp } = ws.deserializeAttachment() as Attachment;
+      if (typeof exp === 'number' && now >= exp) {
+        try { ws.close(4401, 'signed out'); } catch { /* already closed */ }
+        continue;
+      }
       try { ws.send(message); } catch { /* socket already closing */ }
     }
   }

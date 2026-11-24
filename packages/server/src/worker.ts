@@ -36,6 +36,16 @@ async function body(request: Request): Promise<Record<string, unknown>> {
 
 type HubStub = DurableObjectStub<Hub>;
 
+/**
+ * A request another site's page made in the browser: an `Origin` that is not this site's, or
+ * `Sec-Fetch-Site: cross-site`. The console's credentials are cookies (Access's and the emergency
+ * session), so console routes refuse these. No `Origin` (curl, a same-origin navigation) passes.
+ */
+function crossSite(request: Request, url: URL): boolean {
+  const origin = request.headers.get('origin');
+  return (origin !== null && origin !== url.origin) || request.headers.get('sec-fetch-site') === 'cross-site';
+}
+
 async function runCommand(hub: HubStub, actor: Actor, request: Request): Promise<Response> {
   const { cmd } = await body(request);
   if (!cmd || typeof cmd !== 'object' || typeof (cmd as { type?: unknown }).type !== 'string') {
@@ -89,6 +99,10 @@ export default {
     const post = request.method === 'POST';
 
     if (path === '/api/health') return json({ ok: true });
+
+    if ((path.startsWith('/api/control/') || path.startsWith('/api/emergency/')) && crossSite(request, url)) {
+      return json({ error: 'cross_site' }, 403);
+    }
 
     if (path.startsWith('/api/control/')) {
       const now = Date.now();

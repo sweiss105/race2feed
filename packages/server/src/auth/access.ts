@@ -64,20 +64,31 @@ const KEYS_TTL_MS = 60 * 60 * 1000;
 /** Per Worker isolate: the team's keys and when they were fetched. */
 const keyCache = new Map<string, { keys: JsonWebKey[]; at: number }>();
 
+async function fetchCerts(teamDomain: string): Promise<JsonWebKey[]> {
+  const res = await fetch(`https://${teamDomain}/cdn-cgi/access/certs`);
+  if (!res.ok) throw new Error(`Access certs: ${res.status}`);
+  const body = (await res.json()) as { keys?: unknown };
+  if (!Array.isArray(body.keys)) throw new Error('Access certs: no keys');
+  return body.keys as JsonWebKey[];
+}
+
 /**
  * `fetchKeys` for one request: the first call answers from a one-hour in-memory cache of
  * `https://{teamDomain}/cdn-cgi/access/certs`; a second call (the `kid` was unknown) fetches again.
+ * When a fetch fails, keys cached earlier are used however old they are; with none cached it throws.
  */
 export function accessKeyFetcher(teamDomain: string, now: number): () => Promise<JsonWebKey[]> {
   let calls = 0;
   return async () => {
     const cached = keyCache.get(teamDomain);
     if (calls++ === 0 && cached && now - cached.at < KEYS_TTL_MS) return cached.keys;
-    const res = await fetch(`https://${teamDomain}/cdn-cgi/access/certs`);
-    if (!res.ok) throw new Error(`Access certs: ${res.status}`);
-    const body = (await res.json()) as { keys?: unknown };
-    if (!Array.isArray(body.keys)) throw new Error('Access certs: no keys');
-    const keys = body.keys as JsonWebKey[];
+    let keys: JsonWebKey[];
+    try {
+      keys = await fetchCerts(teamDomain);
+    } catch (err) {
+      if (cached) return cached.keys;
+      throw err;
+    }
     keyCache.set(teamDomain, { keys, at: now });
     return keys;
   };

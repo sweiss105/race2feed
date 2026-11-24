@@ -136,6 +136,25 @@ describe('accessKeyFetcher', () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it('keeps using the cached keys after the hour when the certs cannot be fetched', async () => {
+    const domain = `stale-${crypto.randomUUID()}.cloudflareaccess.com`;
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ keys: [publicJwk] }))));
+    expect(await accessKeyFetcher(domain, now)()).toEqual([publicJwk]);
+
+    const later = now + 61 * 60_000;
+    const failing = vi.fn(async () => { throw new Error('network down'); });
+    vi.stubGlobal('fetch', failing);
+    const claims = { ...goodClaims(), iss: `https://${domain}`, exp: later / 1000 + 60 };
+    const token = await sign(goodHeader, claims);
+    expect(await verifyAccessJwt(token, { teamDomain: domain, aud: 'aud-1', now: later, fetchKeys: accessKeyFetcher(domain, later) }))
+      .toEqual({ email: 'a@b.c', exp: (later / 1000 + 60) * 1000 });
+    expect(failing).toHaveBeenCalled();
+
+    const fresh = `none-${crypto.randomUUID()}.cloudflareaccess.com`;
+    const freshToken = await sign(goodHeader, { ...claims, iss: `https://${fresh}` });
+    expect(await verifyAccessJwt(freshToken, { teamDomain: fresh, aud: 'aud-1', now: later, fetchKeys: accessKeyFetcher(fresh, later) })).toBeNull();
+  });
+
   it('throws when the certs cannot be fetched, which verifyAccessJwt turns into null', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 500 })));
     await expect(accessKeyFetcher(`down-${crypto.randomUUID()}.cloudflareaccess.com`, now)()).rejects.toThrow();

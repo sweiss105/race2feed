@@ -402,6 +402,7 @@ Race control and admin are one role. Everyone signed in to the console has every
   | Open | Table assignments for the round |
   | Running | Large master clock and a finish ticker (approved penalties shown as `+5s`, and `under review` while one is pending) |
   | Finished | Updated seeding results, brackets or standings |
+  | Grand Championship finished | The champion, once no penalty is pending review (§4.1); brackets until then |
   | Event complete | Final standings, then the champion |
 
 - Race control can **pin** any screen, which overrides automatic mode.

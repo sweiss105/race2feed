@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import { applyCommand } from '../../src/core/apply';
 import { buildProgress, derive } from '../../src/core/results';
-import type { Command, LiveEvent } from '../../src/core/model';
-import { admin, ctx, lockedFour, ok, referee, runRound, teamId } from './helpers';
+import { publicView } from '../../src/core/views';
+import { stationOfTable } from '@race2feed/engine';
+import { perStation, type Command, type LiveEvent } from '../../src/core/model';
+import { admin, blank, csvFor, ctx, lockedFour, ok, referee, runRound, teamId } from './helpers';
 
 const NOW = 2_000_000;
 const seed = { T1: 100_000, T2: 110_000, T3: 120_000, T4: 130_000 };
@@ -133,5 +135,27 @@ describe('penalty review', () => {
     const tapId = e.taps.find((t) => t.kind === 'penalty')!.id;
     e = ok(run(e, { type: 'decidePenalty', tapId, decision: 'approve', reasonId: 'sealed' }));
     expect(code(run(e, { type: 'undoTap', tapId }, referee(1)))).toBe('already_decided');
+  });
+
+  it("the projector announces the Grand Champion only once the grand final's penalties are decided", () => {
+    let e = ok(run(blank(8), { type: 'importTeams', csv: csvFor({ A: 4, B: 4 }) }));
+    e = ok(run(e, { type: 'setGrandChampionship', enabled: true }));
+    e = ok(run(e, { type: 'suggestSetup' }));
+    e = ok(run(e, { type: 'lockSetup' }));
+    const times = Object.fromEntries(e.setup.teams.map((t, i) => [t.name, 100_000 + i * 1_000]));
+    const kindOf = (ev: LiveEvent, round: number) => derive(ev).rounds[round - 1]?.spec.kind;
+    while (kindOf(e, e.round.current + 1) !== 'grand') e = runRound(e, times);
+
+    e = startNext(e);
+    const entrant = derive(e).rounds[e.round.current - 1]!.races[0]!.entrants[0]!;
+    const station = stationOfTable(entrant.table, perStation(e));
+    e = ok(run(e, { type: 'tapPenalty', teamId: entrant.teamId, clientTapId: 'grand-pen' }, referee(station)));
+    e = finish(e, times);
+    expect(e.round.phase).toBe('finished');
+    expect(publicView(e, derive(e)).projector).toBe('brackets');
+
+    const tapId = e.taps.find((t) => t.kind === 'penalty')!.id;
+    e = ok(run(e, { type: 'decidePenalty', tapId, decision: 'reject' }));
+    expect(publicView(e, derive(e)).projector).toBe('champion');
   });
 });

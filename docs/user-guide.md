@@ -445,7 +445,7 @@ The projector follows the event by itself:
 | A race is running | **Clock**: a big master clock, with finishing teams appearing below as they finish (approved penalties shown as `+5s`, `under review` while one is pending, or `DQ`) |
 | After a seeding round | **Seeding results** by category, coloured by bracket tier |
 | After a bracket round | **Brackets**, cycling through the categories |
-| After the Grand Championship, or when race control shows the champion | **Champion**: the Grand Champion and the bags packed |
+| After the Grand Championship, or when race control shows the champion | **Champion**: the Grand Champion and the bags packed. While a penalty is still pending review it stays on **Brackets**, and switches to the champion once every penalty is decided |
 
 Race control can pin any screen, including **standings**, from the console (see [Projector control](#projector-control)). If the projector seems stuck on one screen, check whether it's been pinned.
 

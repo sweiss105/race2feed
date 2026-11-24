@@ -2,6 +2,7 @@ import { officialMs, stationOfTable, tablesOfStation, type DerivedEvent, type En
 import { perStation, type LiveEvent, type ProjectorScreen } from './model';
 import { buildProgress, teamsInRound } from './results';
 import { reasonsOf, reviewOf } from './reasons';
+import { pendingPenalties } from './lifecycle';
 
 interface PenaltyInfo { notes: string[]; pending: boolean; dq: string | null }
 
@@ -33,7 +34,8 @@ export function projectorScreen(e: LiveEvent, d: DerivedEvent): ProjectorScreen 
     case 'finished': {
       const kind = d.rounds[e.round.current - 1]?.spec.kind;
       if (kind === 'seeding') return 'seeding-results';
-      if (kind === 'grand') return 'champion';
+      // The champion is announced only once no penalty can still change the result.
+      if (kind === 'grand') return pendingPenalties(e).length === 0 ? 'champion' : 'brackets';
       return 'brackets';
     }
   }

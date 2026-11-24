@@ -30,9 +30,11 @@ export function raceAction(view: ControlView, now: number): RaceAction {
   }
 
   if (round.phase === 'open') {
+    // A station is one referee, except with one table per referee, where it is one table.
+    const [one, many] = (view.setup.tablesPerStation ?? 2) === 1 ? ['table', 'tables'] : ['referee', 'referees'];
     const notReady = Object.values(view.stations).filter((s) => !s.excluded && !s.ready).length;
-    if (notReady) return act('Start', 'start', false, false, `Waiting on ${count(notReady, 'table', 'tables')} to be ready`);
-    return act('Start', 'start', true, true, 'All tables ready');
+    if (notReady) return act('Start', 'start', false, false, `Waiting on ${count(notReady, one, many)} to be ready`);
+    return act('Start', 'start', true, true, `All ${many} ready`);
   }
 
   const lastDone = round.phase === 'finished' && view.rounds.length > 0 && round.current >= view.rounds.length;
@@ -43,6 +45,7 @@ export function raceAction(view: ControlView, now: number): RaceAction {
   if (pending) return act(label, kind, false, false, `Waiting on ${count(pending, 'penalty', 'penalties')} to be reviewed`);
   if (view.ties.length || view.blockers.length) return act(label, kind, false, false, 'Waiting on a tie to be decided');
   if (lastDone) return act(label, kind, true, true, 'Event complete');
-  // The server refuses to open a round until setup is locked.
-  return act(label, kind, view.setupLocked, true, round.current ? `Ready to open round ${next}` : 'Not started');
+  // The server refuses to open a round until setup is locked (which is only ever before round 1).
+  if (!view.setupLocked) return act(label, kind, false, false, 'Waiting on setup to be locked');
+  return act(label, kind, true, true, `Ready to open round ${next}`);
 }

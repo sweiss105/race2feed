@@ -22,9 +22,14 @@ const allIn = (autoFinishAt: number | null): ControlView => {
   return { ...v, outstanding: [], round: { ...v.round, autoFinishAt } };
 };
 const tied = (v: ControlView): ControlView => ({ ...v, ties: [{ raceId: 'r1-a', teams: [['a', 'b']] }], blockers: ['Round 1: tie in r1-a'] });
-const openWith = (ready: boolean[]): ControlView => {
+const openWith = (ready: boolean[], tablesPerStation?: 1 | 2): ControlView => {
   const v = ctlViewOf(openNext(lockedFour()));
-  return { ...v, stations: Object.fromEntries(ready.map((r, i) => [i + 1, { ready: r, excluded: false }])) };
+  const setup = tablesPerStation === undefined ? v.setup : { ...v.setup, tablesPerStation };
+  return { ...v, setup, stations: Object.fromEntries(ready.map((r, i) => [i + 1, { ready: r, excluded: false }])) };
+};
+const withoutPerStation = (v: ControlView): ControlView => {
+  const { tablesPerStation: _, ...setup } = v.setup;
+  return { ...v, setup };
 };
 
 type Row = [string, ControlView, ReturnType<typeof raceAction>];
@@ -40,9 +45,15 @@ const rows: Row[] = [
     { label: 'Finish now', kind: 'finish', enabled: true, pulse: false, status: 'All teams in — finishing in 0 s' }],
   ['running, all in, no auto-finish', allIn(null),
     { label: 'Finish now', kind: 'finish', enabled: true, pulse: true, status: 'All teams in' }],
-  ['open, tables not ready', openWith([false, false]),
+  ['open, referees not ready (2 tables per referee)', openWith([false, false], 2),
+    { label: 'Start', kind: 'start', enabled: false, pulse: false, status: 'Waiting on 2 referees to be ready' }],
+  ['open, referees not ready (tables per referee not stored)', withoutPerStation(openWith([false, false])),
+    { label: 'Start', kind: 'start', enabled: false, pulse: false, status: 'Waiting on 2 referees to be ready' }],
+  ['open, all referees ready', openWith([true, true], 2),
+    { label: 'Start', kind: 'start', enabled: true, pulse: true, status: 'All referees ready' }],
+  ['open, tables not ready (1 table per referee)', openWith([false, false], 1),
     { label: 'Start', kind: 'start', enabled: false, pulse: false, status: 'Waiting on 2 tables to be ready' }],
-  ['open, all ready', openWith([true, true]),
+  ['open, all tables ready (1 table per referee)', openWith([true, true], 1),
     { label: 'Start', kind: 'start', enabled: true, pulse: true, status: 'All tables ready' }],
   ['penalties pending', ctlViewOf(pending(afterRound1(), 2)),
     { label: 'Open round 2', kind: 'open', enabled: false, pulse: false, status: 'Waiting on 2 penalties to be reviewed' }],
@@ -61,7 +72,9 @@ const rows: Row[] = [
   ['between rounds', ctlViewOf(afterRound1()),
     { label: 'Open round 2', kind: 'open', enabled: true, pulse: true, status: 'Ready to open round 2' }],
   ['before round 1', ctlViewOf(lockedFour()),
-    { label: 'Open round 1', kind: 'open', enabled: true, pulse: true, status: 'Not started' }],
+    { label: 'Open round 1', kind: 'open', enabled: true, pulse: true, status: 'Ready to open round 1' }],
+  ['setup not locked', { ...ctlViewOf(lockedFour()), setupLocked: false },
+    { label: 'Open round 1', kind: 'open', enabled: false, pulse: false, status: 'Waiting on setup to be locked' }],
 ];
 
 describe('raceAction', () => {
@@ -73,8 +86,10 @@ describe('raceAction', () => {
     const v = running();
     expect(raceAction({ ...v, outstanding: v.outstanding.slice(0, 1) }, NOW).status).toBe('Racing — waiting on 1 team');
     expect(raceAction({ ...v, outstanding: v.outstanding.slice(0, 2) }, NOW).status).toBe('Racing — waiting on 2 teams');
-    expect(raceAction(openWith([true, false]), NOW).status).toBe('Waiting on 1 table to be ready');
-    expect(raceAction(openWith([false, false]), NOW).status).toBe('Waiting on 2 tables to be ready');
+    expect(raceAction(openWith([true, false], 2), NOW).status).toBe('Waiting on 1 referee to be ready');
+    expect(raceAction(openWith([false, false], 2), NOW).status).toBe('Waiting on 2 referees to be ready');
+    expect(raceAction(openWith([true, false], 1), NOW).status).toBe('Waiting on 1 table to be ready');
+    expect(raceAction(openWith([false, false], 1), NOW).status).toBe('Waiting on 2 tables to be ready');
     expect(raceAction(ctlViewOf(pending(afterRound1(), 1)), NOW).status).toBe('Waiting on 1 penalty to be reviewed');
     expect(raceAction(ctlViewOf(pending(afterRound1(), 2)), NOW).status).toBe('Waiting on 2 penalties to be reviewed');
   });
@@ -94,6 +109,6 @@ describe('raceAction', () => {
     }
     // The server refuses to open a round before setup is locked.
     const unlocked = raceAction({ ...ctlViewOf(lockedFour()), setupLocked: false }, NOW);
-    expect(unlocked).toMatchObject({ label: 'Open round 1', enabled: false, pulse: false, status: 'Not started' });
+    expect(unlocked).toMatchObject({ label: 'Open round 1', enabled: false, pulse: false, status: 'Waiting on setup to be locked' });
   });
 });

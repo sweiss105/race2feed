@@ -30,7 +30,7 @@ test('screens for visual review', async ({ browser }) => {
   await shot(projector, 'projector-welcome');
 
   await admin.getByRole('link', { name: 'Race' }).click();
-  await expect(admin.locator('.race-status')).toHaveText('Not started');
+  await expect(admin.locator('.race-status')).toHaveText('Ready to open round 1');
   await shot(admin, 'console-race-not-started');
   // The same header mid-pulse (the console context otherwise asks for reduced motion; see setUpEvent).
   await admin.emulateMedia({ reducedMotion: 'no-preference' });
@@ -38,7 +38,7 @@ test('screens for visual review', async ({ browser }) => {
   await shot(admin, 'console-race-pulse');
   await admin.emulateMedia({ reducedMotion: 'reduce' });
   await admin.getByRole('button', { name: 'Open round 1' }).click();
-  await expect(admin.locator('.race-status')).toHaveText('Waiting on 2 tables to be ready');
+  await expect(admin.locator('.race-status')).toHaveText('Waiting on 2 referees to be ready');
   await shot(admin, 'console-race-open');
   await expect(ref.getByRole('button', { name: 'Ready' })).toBeVisible();
   await shot(ref, 'referee-ready-phone');

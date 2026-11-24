@@ -185,9 +185,10 @@ At the top of **Race** you'll see:
 
 | What's happening | Button | Pulses | Status line |
 |---|---|---|---|
-| Between rounds, nothing blocking | **Open round N** | yes | "Ready to open round N" ("Not started" before round 1) |
-| Round open, some stations not ready | **Start** (greyed out) | no | "Waiting on N tables to be ready" |
-| Round open, every station ready | **Start** | yes | "All tables ready" |
+| Setup not locked yet | **Open round 1** (greyed out) | no | "Waiting on setup to be locked" |
+| Between rounds, nothing blocking | **Open round N** | yes | "Ready to open round N" |
+| Round open, some stations not ready | **Start** (greyed out) | no | "Waiting on N referees to be ready" |
+| Round open, every station ready | **Start** | yes | "All referees ready" |
 | Racing, teams still out | **Finish now** (greyed out) | no | "Racing — waiting on N teams" |
 | Racing, every team has a result | **Finish now** | no | "All teams in — finishing in 23 s" (the auto-finish countdown) |
 | Racing, every team in, auto-finish off | **Finish now** | yes | "All teams in" |
@@ -196,7 +197,7 @@ At the top of **Race** you'll see:
 | Last round finished | **Show champion** | yes | "Event complete" |
 | Champion showing | **Hide champion** | no | "Champion is showing" |
 
-"N tables" counts referee stations that are not Ready yet. If both penalties and a tie are waiting, the status line names the penalties first. Before the setup is locked, the button reads **Open round 1** and stays greyed out.
+"N referees" counts referee stations that are not Ready yet. With **one referee per table** (see [Tables per referee](#tables-per-referee)) each station is a single table, so these read "Waiting on N tables to be ready" and "All tables ready" instead. If both penalties and a tie are waiting, the status line names the penalties first.
 
 On a device set to reduce motion, the button doesn't pulse.
 
@@ -226,11 +227,11 @@ The **Stations** panel shows every station as **Ready**, **Not ready** or **No t
 - **Unready:** clear a Ready. A referee can't undo their own Ready, so this is the only way.
 - **Exclude:** leave the station out of the Ready check. **Include** puts it back.
 
-While the round is open, the status line tells you how many stations are not ready yet ("Waiting on N tables to be ready").
+While the round is open, the status line tells you how many stations are not ready yet ("Waiting on N referees to be ready", or "N tables" with one referee per table).
 
 ### Start and finish
 
-- **Start** works only when every station that has teams is Ready (or overridden). Until then it's greyed out and the status line reads, for example, "Waiting on 2 tables to be ready".
+- **Start** works only when every station that has teams is Ready (or overridden). Until then it's greyed out and the status line reads, for example, "Waiting on 2 referees to be ready".
 - **Finish now** works only when every team in the round has a time, DNF or DNS. Until then it's greyed out and the status line reads "Racing — waiting on *N* teams".
 
 While a round runs, the **Waiting on *N* teams** panel lists every team without a result yet, with **DNF** and **DNS** buttons for each one.
@@ -531,7 +532,7 @@ The connection dropped. The taps are saved with their real times and will send b
 **The referee page says "The referee page is already open in another tab on this tablet".**
 Only one tab can run the referee page. Close the other tab, or press **Use this tab instead** here.
 
-**Start is greyed out: "Waiting on *N* tables to be ready".**
+**Start is greyed out: "Waiting on *N* referees to be ready" (or "*N* tables").**
 Look at the **Stations** panel. Ask those referees to press Ready, or use **Ready** or **Exclude** on their station yourself.
 
 **Finish now is greyed out: "Racing — waiting on *N* teams".**

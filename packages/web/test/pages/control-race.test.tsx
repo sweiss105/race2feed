@@ -59,7 +59,7 @@ describe('race section', () => {
     expect(within(header()).getByRole('status').textContent).toBe('Event complete');
   });
 
-  it('shows one action button in the header, pulsing Start once every table is ready', async () => {
+  it('shows one action button in the header, pulsing Start once every referee is ready', async () => {
     const send = vi.fn(async () => ({ ok: true }));
     render(<ConsolePage me={me('admin')} view={readyView()} send={send} serverNow={() => 0} status="open" />);
     const buttons = within(header()).getAllByRole('button');
@@ -67,19 +67,19 @@ describe('race section', () => {
     const startBtn = within(header()).getByRole('button', { name: 'Start' }) as HTMLButtonElement;
     expect(startBtn.disabled).toBe(false);
     expect(startBtn.classList.contains('pulse')).toBe(true);
-    expect(within(header()).getByRole('status').textContent).toBe('All tables ready');
+    expect(within(header()).getByRole('status').textContent).toBe('All referees ready');
     fireEvent.click(startBtn);
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'startRace' }));
   });
 
-  it('disables Start and says what it waits for while a table is not ready', () => {
+  it('disables Start and says what it waits for while a referee is not ready', () => {
     const e = openNext(lockedFour());
     const oneLeft = { ...e, stations: { 1: { ready: true, excluded: false }, 2: { ready: false, excluded: false } } };
     render(<ConsolePage me={me('admin')} view={ctlViewOf(oneLeft)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
     const startBtn = within(header()).getByRole('button', { name: 'Start' }) as HTMLButtonElement;
     expect(startBtn.disabled).toBe(true);
     expect(startBtn.classList.contains('pulse')).toBe(false);
-    expect(within(header()).getByRole('status').textContent).toBe('Waiting on 1 table to be ready');
+    expect(within(header()).getByRole('status').textContent).toBe('Waiting on 1 referee to be ready');
   });
 
   it('counts down to the automatic finish once every team is in', () => {

@@ -354,12 +354,13 @@ Race control and admin are one role. Everyone signed in to the console has every
   | Running, N teams outstanding | Finish now | no | no | Racing — waiting on N team(s) |
   | Running, none outstanding, auto-finish set | Finish now | yes | no | All teams in — finishing in S s (seconds left, rounded up, never below 0) |
   | Running, none outstanding, no auto-finish | Finish now | yes | yes | All teams in |
-  | Open, N stations not ready | Start | no | no | Waiting on N table(s) to be ready |
-  | Open, all ready | Start | yes | yes | All tables ready |
+  | Open, N stations not ready | Start | no | no | Waiting on N referee(s) to be ready; Waiting on N table(s) to be ready with one table per referee (§3.6) |
+  | Open, all ready | Start | yes | yes | All referees ready; All tables ready with one table per referee |
   | N penalties pending review | Open round M (Show champion after the last round) | no | no | Waiting on N penalty/penalties to be reviewed |
   | Undecided tie or other blocker | as the row above | no | no | Waiting on a tie to be decided |
   | Last round finished | Show champion | yes | yes | Event complete |
-  | Otherwise | Open round M | yes (no before setup is locked) | yes | Ready to open round M ("Not started" before round 1) |
+  | Setup not locked (only before round 1) | Open round 1 | no | no | Waiting on setup to be locked |
+  | Otherwise | Open round M | yes | yes | Ready to open round M |
 
   M is the current round plus one. Show champion opens the bag-count sheet first. Finish now does not pulse while the auto-finish countdown runs: the race finishes itself.
 - **"Waiting on N teams" list** with one-click DNF and DNS.

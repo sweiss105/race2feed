@@ -10,6 +10,8 @@ export interface Runner {
   run(cmd: Cmd, key?: string): Promise<Ack | null>;
   busy(key: string): boolean;
   error(key: string): string | null;
+  /** Clears these keys' messages, and drops any refusal still on its way for a command already sent under them. */
+  clear(keys: string[]): void;
 }
 
 const RunnerContext = createContext<Runner | null>(null);
@@ -19,6 +21,8 @@ interface Pending { cmd: Cmd; key: string; laterRounds: number[]; keptRounds: nu
 
 export function RunnerProvider({ send, children }: { send(cmd: object): Promise<Ack>; children: preact.ComponentChildren }) {
   const inFlight = useRef(new Set<string>());
+  /** Bumped per key by clear(): an answer to a command sent before the bump is stale. */
+  const epochs = useRef(new Map<string, number>());
   const [busyKeys, setBusyKeys] = useState<Set<string>>(new Set());
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pending, setPending] = useState<Pending | null>(null);
@@ -32,9 +36,11 @@ export function RunnerProvider({ send, children }: { send(cmd: object): Promise<
     if (inFlight.current.has(key)) return null;
     setBusy(key, true);
     setErrors(({ [key]: _, ...rest }) => rest);
+    const epoch = epochs.current.get(key) ?? 0;
+    const current = () => (epochs.current.get(key) ?? 0) === epoch;
     try {
       const ack = await send(cmd);
-      if (!ack.ok) {
+      if (!ack.ok && current()) {
         if (ack.code === 'unlock_required') {
           const d = (ack.detail ?? {}) as { laterRounds?: number[]; keptRounds?: number[]; bracketsKept?: boolean };
           setPending({ cmd, key, laterRounds: d.laterRounds ?? [], keptRounds: d.keptRounds ?? [], bracketsKept: d.bracketsKept ?? false });
@@ -44,14 +50,19 @@ export function RunnerProvider({ send, children }: { send(cmd: object): Promise<
       }
       return ack;
     } catch (reason) {
-      setErrors((e) => ({ ...e, [key]: reason === 'timeout' ? 'No answer from the server.' : 'Not connected.' }));
+      if (current()) setErrors((e) => ({ ...e, [key]: reason === 'timeout' ? 'No answer from the server.' : 'Not connected.' }));
       return null;
     } finally {
       setBusy(key, false);
     }
   };
 
-  const runner: Runner = { run, busy: (k) => busyKeys.has(k), error: (k) => errors[k] ?? null };
+  const clear: Runner['clear'] = (keys) => {
+    for (const k of keys) epochs.current.set(k, (epochs.current.get(k) ?? 0) + 1);
+    setErrors((e) => (keys.some((k) => k in e) ? Object.fromEntries(Object.entries(e).filter(([k]) => !keys.includes(k))) : e));
+  };
+
+  const runner: Runner = { run, busy: (k) => busyKeys.has(k), error: (k) => errors[k] ?? null, clear };
   const list = (r: number[]) => r.map((n) => `Round ${n}`).join(', ');
 
   return (

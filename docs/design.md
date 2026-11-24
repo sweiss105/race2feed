@@ -347,7 +347,7 @@ Race control and admin are one role. Everyone signed in to the console has every
 
 ### 7.2 Console: running the race
 - **Grid of every station:** each shows not ready / Ready / excluded, the teams with their times and status, and any overrides.
-- **Race page header:** round title, state, master clock, a status line (`role="status"`) and **one large action button** that always shows the next step. It is about three times a normal button (min-height 6rem, min-width 16rem, title-sized text). It **pulses** (a 2-second scale-and-glow loop, off under `prefers-reduced-motion: reduce`) only when pressing it will work and is the expected next step; it never pulses while the server would refuse. A refused command's message shows under the header. The first matching row wins:
+- **Race page header:** round title, state, master clock, a status line (`role="status"`) and **one large action button** that always shows the next step. It is about three times a normal button (min-height 6rem, min-width 16rem, title-sized text). It **pulses** (a 2-second scale-and-glow loop, off under `prefers-reduced-motion: reduce`) only when pressing it will work and is the expected next step; it never pulses while the server would refuse. A refused command's message shows under the header until the round moves on (its number or phase changes); a refusal that arrives after that, such as a Finish now that lands just after auto-finish, is not shown. The first matching row wins:
 
   | Condition | Button | Enabled | Pulses | Status line |
   |---|---|---|---|---|

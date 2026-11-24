@@ -82,6 +82,39 @@ describe('race section', () => {
     expect(within(header()).getByRole('status').textContent).toBe('Waiting on 1 referee to be ready');
   });
 
+  describe('a Finish now that lands just after auto-finish', () => {
+    const allInView = () => {
+      const v = ctlViewOf(start(openNext(lockedFour()), 1_000_000));
+      return { ...v, outstanding: [], round: { ...v.round, autoFinishAt: null } };
+    };
+    const finishedView = (v: ReturnType<typeof allInView>) => ({ ...v, round: { ...v.round, phase: 'finished' as const, autoFinishAt: null } });
+    const refused: Ack = { ok: false, code: 'round_not_running', message: 'No race is running.' };
+    const page = (view: ReturnType<typeof allInView>, send: () => Promise<Ack>) =>
+      <ConsolePage me={me('admin')} view={view} send={send} serverNow={() => 1_000_000} status="open" />;
+
+    it('clears the refusal once the round moves on', async () => {
+      const v = allInView();
+      const { rerender } = render(page(v, async () => refused));
+      fireEvent.click(within(header()).getByRole('button', { name: 'Finish now' }));
+      expect(await screen.findByText('No race is running.')).toBeTruthy();
+      rerender(page(finishedView(v), async () => refused));
+      await waitFor(() => expect(screen.queryByText('No race is running.')).toBeNull());
+    });
+
+    it('never shows a refusal that arrives after the round moved on', async () => {
+      const v = allInView();
+      let answer!: (a: Ack) => void;
+      const send = () => new Promise<Ack>((resolve) => { answer = resolve; });
+      const { rerender } = render(page(v, send));
+      fireEvent.click(within(header()).getByRole('button', { name: 'Finish now' }));
+      rerender(page(finishedView(v), send));
+      await new Promise((r) => setTimeout(r, 50));
+      answer(refused);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(screen.queryByText('No race is running.')).toBeNull();
+    });
+  });
+
   it('counts down to the automatic finish once every team is in', () => {
     const e = start(openNext(lockedFour()), 1_000_000);
     const v = ctlViewOf(e);

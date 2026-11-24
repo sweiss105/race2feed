@@ -209,7 +209,7 @@ On a device set to reduce motion, the button doesn't pulse.
 
 **Before you open the first bracket round, check the seeding results.** Brackets become final the moment that round opens: later bracket rounds are built from those brackets, and a correction to seeding won't move a team to another bracket.
 
-The button is greyed out while penalties or a tie are waiting (the status line says which). If the server still refuses, the message appears under the button:
+The button is greyed out while penalties or a tie are waiting (the status line says which). If the server still refuses, the message appears under the button. It goes away by itself once the round moves on (for example, if you press **Finish now** just as auto-finish finishes the race, you won't see an error):
 
 | Message | What to do |
 |---|---|

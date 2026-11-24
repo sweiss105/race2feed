@@ -1,4 +1,4 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { formatMs } from '@race2feed/engine';
 import type { ControlView } from '../../../lib/types';
 import { raceAction, type RaceAction } from '../../../lib/raceAction';
@@ -10,6 +10,7 @@ import { useRunner } from '../runner';
 const COMMAND: Record<Exclude<RaceAction['kind'], 'showChampion'>, string> = {
   open: 'openNextRound', start: 'startRace', finish: 'finishRace', hideChampion: 'hideChampion',
 };
+const HEADER_KEYS = Object.values(COMMAND);
 
 /** Round title, clock, a status line saying what the room waits for, and one large button for the next step. */
 export function RaceHeader({ view, serverNow }: { view: ControlView; serverNow(): number }) {
@@ -21,6 +22,15 @@ export function RaceHeader({ view, serverNow }: { view: ControlView; serverNow()
   const action = raceAction(view, now);
   const [sheet, setSheet] = useState(false);
   const command = action.kind === 'showChampion' ? 'showChampion' : COMMAND[action.kind];
+
+  // Once the round moves on (e.g. auto-finish beat a Finish now press), a refusal about the old state is stale.
+  const roundKey = `${round.current}:${round.phase}`;
+  const lastRoundKey = useRef(roundKey);
+  useEffect(() => {
+    if (lastRoundKey.current === roundKey) return;
+    lastRoundKey.current = roundKey;
+    runner.clear(HEADER_KEYS);
+  }, [roundKey]);
 
   const press = () => {
     if (action.kind === 'showChampion') setSheet(true);
@@ -41,7 +51,7 @@ export function RaceHeader({ view, serverNow }: { view: ControlView; serverNow()
         <Button kind={action.kind === 'hideChampion' ? 'secondary' : 'primary'} class={`race-action${action.pulse ? ' pulse' : ''}`}
           disabled={!action.enabled} busy={runner.busy(command)} onClick={press}>{action.label}</Button>
       </header>
-      {['openNextRound', 'startRace', 'finishRace', 'hideChampion'].map((k) => runner.error(k) && <p key={k} class="err" role="alert">{runner.error(k)}</p>)}
+      {HEADER_KEYS.map((k) => runner.error(k) && <p key={k} class="err" role="alert">{runner.error(k)}</p>)}
       {sheet && <ChampionSheet view={view} onClose={() => setSheet(false)} />}
     </>
   );

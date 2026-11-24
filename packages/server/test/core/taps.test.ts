@@ -4,16 +4,16 @@ import { applyCommand } from '../../src/core/apply';
 import { handleLifecycle } from '../../src/core/lifecycle';
 import { buildProgress, derive } from '../../src/core/results';
 import type { CommandResult, LiveEvent } from '../../src/core/model';
-import { control, ctx, lockedFour, ok, referee, runRound, teamId } from './helpers';
+import { admin, ctx, lockedFour, ok, referee, runRound, teamId } from './helpers';
 
 const START = 1_000_000;
 const code = (r: CommandResult) => (r.ok ? 'ok' : r.code);
 
 /** Round 1 running since START; station 1 = T1, T2; station 2 = T3, T4. */
 function running(): LiveEvent {
-  let e = ok(handleLifecycle(lockedFour(), { type: 'openNextRound' }, ctx(control, START)));
-  for (const station of [1, 2]) e = ok(handleLifecycle(e, { type: 'overrideStation', station, state: 'ready' }, ctx(control, START)));
-  return ok(handleLifecycle(e, { type: 'startRace' }, ctx(control, START)));
+  let e = ok(handleLifecycle(lockedFour(), { type: 'openNextRound' }, ctx(admin, START)));
+  for (const station of [1, 2]) e = ok(handleLifecycle(e, { type: 'overrideStation', station, state: 'ready' }, ctx(admin, START)));
+  return ok(handleLifecycle(e, { type: 'startRace' }, ctx(admin, START)));
 }
 const tapFinish = (e: LiveEvent, name: string, atServerMs: number, clientTapId = `c-${name}-${atServerMs}`, now = START + 300_000) =>
   handleTaps(e, { type: 'tapFinish', teamId: teamId(e, name), atServerMs, clientTapId }, ctx(referee(1), now));
@@ -48,7 +48,7 @@ describe('tapFinish', () => {
   });
 
   it('rejects taps when no race is running', () => {
-    const e = ok(handleLifecycle(lockedFour(), { type: 'openNextRound' }, ctx(control, START)));
+    const e = ok(handleLifecycle(lockedFour(), { type: 'openNextRound' }, ctx(admin, START)));
     expect(code(tapFinish(e, 'T1', START))).toBe('round_not_running');
   });
 });
@@ -65,7 +65,7 @@ describe('input validation', () => {
   });
   it('rejects malformed result overrides', () => {
     const e = running();
-    const set = (s: object) => handleTaps(e, { type: 'setResult', round: 1, teamId: teamId(e, 'T1'), set: s } as never, ctx(control));
+    const set = (s: object) => handleTaps(e, { type: 'setResult', round: 1, teamId: teamId(e, 'T1'), set: s } as never, ctx(admin));
     expect(code(set({ kind: 'finished' }))).toBe('invalid');
     expect(code(set({ kind: 'status', status: 'won' }))).toBe('invalid');
     expect(code(set({ kind: 'time', rawMs: -5 }))).toBe('invalid');
@@ -74,10 +74,10 @@ describe('input validation', () => {
     const times = { T1: 100_000, T2: 110_000, T3: 120_000, T4: 130_000 };
     let e = ok(tapFinish(running(), 'T1', START + 100_000, 'tap-1'));
     e = { ...e, overrides: ['T2', 'T3', 'T4'].map((n) => ({ round: 1, teamId: teamId(e, n), at: 1, set: { kind: 'time' as const, rawMs: 1 } })) };
-    e = ok(handleLifecycle(e, { type: 'finishRace' }, ctx(control, START + 400_000)));
-    e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(control, START + 500_000)));
-    for (const station of [1, 2]) e = ok(handleLifecycle(e, { type: 'overrideStation', station, state: 'ready' }, ctx(control)));
-    e = ok(handleLifecycle(e, { type: 'startRace' }, ctx(control, START + 600_000)));
+    e = ok(handleLifecycle(e, { type: 'finishRace' }, ctx(admin, START + 400_000)));
+    e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin, START + 500_000)));
+    for (const station of [1, 2]) e = ok(handleLifecycle(e, { type: 'overrideStation', station, state: 'ready' }, ctx(admin)));
+    e = ok(handleLifecycle(e, { type: 'startRace' }, ctx(admin, START + 600_000)));
     e = ok(handleTaps(e, { type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: START + 700_000, clientTapId: 'tap-1' }, ctx(referee(1), START + 800_000)));
     expect(result(e, 'T1', 2)?.rawMs).toBe(100_000);
     void times;
@@ -93,7 +93,7 @@ describe('penalties', () => {
   });
 
   it('add no time themselves when on, before or after the finish', () => {
-    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(control)));
+    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(admin)));
     e = ok(penalty(e, 'T1', 'p1'));
     e = ok(tapFinish(e, 'T1', START + 200_000));
     e = ok(penalty(e, 'T1', 'p2'));
@@ -102,33 +102,33 @@ describe('penalties', () => {
   });
 
   it('switching off keeps penalties already given', () => {
-    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(control)));
+    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(admin)));
     e = ok(tapFinish(ok(penalty(e, 'T1')), 'T1', START + 200_000));
-    e = ok(handleTaps(e, { type: 'setPenaltiesEnabled', enabled: false }, ctx(control)));
+    e = ok(handleTaps(e, { type: 'setPenaltiesEnabled', enabled: false }, ctx(admin)));
     expect(result(e, 'T1')?.penaltiesMs).toBe(0);
     expect(e.taps.filter((t) => t.kind === 'penalty' && t.removedAt === null).length).toBe(1);
   });
 
   it('a referee penalty adds no time until race control approves it', () => {
-    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(control)));
+    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(admin)));
     e = ok(tapFinish(e, 'T1', START + 60_000));
     e = ok(penalty(e, 'T1'));
     const tap = e.taps.find((t) => t.kind === 'penalty')!;
     expect(tap.amountMs).toBe(0);
     expect(tap.review?.status).toBe('pending');
     expect(buildProgress(e).results[1]![teamId(e, 'T1')]!.penaltiesMs).toBe(0);
-    for (const t of e.setup.teams) if (!result(e, t.name)) e = ok(applyCommand(e, { type: 'setResult', round: 1, teamId: t.id, set: { kind: 'time', rawMs: 150_000 } }, ctx(control, START + 300_000)));
-    e = ok(handleLifecycle(e, { type: 'finishRace' }, ctx(control, START + 300_000)));
-    e = ok(applyCommand(e, { type: 'decidePenalty', tapId: tap.id, decision: 'approve', reasonId: 'early' }, ctx(control, START + 301_000)));
+    for (const t of e.setup.teams) if (!result(e, t.name)) e = ok(applyCommand(e, { type: 'setResult', round: 1, teamId: t.id, set: { kind: 'time', rawMs: 150_000 } }, ctx(admin, START + 300_000)));
+    e = ok(handleLifecycle(e, { type: 'finishRace' }, ctx(admin, START + 300_000)));
+    e = ok(applyCommand(e, { type: 'decidePenalty', tapId: tap.id, decision: 'approve', reasonId: 'early' }, ctx(admin, START + 301_000)));
     expect(buildProgress(e).results[1]![teamId(e, 'T1')]!.penaltiesMs).toBe(10_000);
   });
 
   it('race control can add and remove penalties even when switched off', () => {
     let e = ok(tapFinish(running(), 'T1', START + 200_000));
-    e = ok(handleTaps(e, { type: 'addPenalty', round: 1, teamId: teamId(e, 'T1'), reasonId: 'sealed' }, ctx(control)));
+    e = ok(handleTaps(e, { type: 'addPenalty', round: 1, teamId: teamId(e, 'T1'), reasonId: 'sealed' }, ctx(admin)));
     expect(result(e, 'T1')?.penaltiesMs).toBe(5_000);
     const tapId = e.taps.find((t) => t.kind === 'penalty')!.id;
-    e = ok(handleTaps(e, { type: 'removePenalty', tapId }, ctx(control)));
+    e = ok(handleTaps(e, { type: 'removePenalty', tapId }, ctx(admin)));
     expect(result(e, 'T1')?.penaltiesMs).toBe(0);
   });
 });
@@ -150,35 +150,35 @@ describe('undoTap', () => {
 describe('race control results', () => {
   it('sets DNF, DNS and times', () => {
     let e = running();
-    e = ok(handleTaps(e, { type: 'setResult', round: 1, teamId: teamId(e, 'T3'), set: { kind: 'status', status: 'dnf' } }, ctx(control)));
-    e = ok(handleTaps(e, { type: 'setResult', round: 1, teamId: teamId(e, 'T4'), set: { kind: 'time', rawMs: 199_000 } }, ctx(control)));
+    e = ok(handleTaps(e, { type: 'setResult', round: 1, teamId: teamId(e, 'T3'), set: { kind: 'status', status: 'dnf' } }, ctx(admin)));
+    e = ok(handleTaps(e, { type: 'setResult', round: 1, teamId: teamId(e, 'T4'), set: { kind: 'time', rawMs: 199_000 } }, ctx(admin)));
     expect(result(e, 'T3')?.status).toBe('dnf');
     expect(result(e, 'T4')?.rawMs).toBe(199_000);
   });
 
   const times = { T1: 100_000, T2: 110_000, T3: 120_000, T4: 130_000 };
   /** Seeding rounds 1–2 raced; heats round 3 opened (T1 v T4, T2 v T3), nothing tapped yet. */
-  const heatsOpen = () => ok(handleLifecycle(runRound(runRound(lockedFour(), times), times), { type: 'openNextRound' }, ctx(control)));
+  const heatsOpen = () => ok(handleLifecycle(runRound(runRound(lockedFour(), times), times), { type: 'openNextRound' }, ctx(admin)));
 
   it('a correction to an earlier round needs confirmation once a later round is open', () => {
     const e = heatsOpen();
     const cmd = { type: 'setResult' as const, round: 1, teamId: teamId(e, 'T1'), set: { kind: 'time' as const, rawMs: 99_000 } };
-    const r = handleTaps(e, cmd, ctx(control));
+    const r = handleTaps(e, cmd, ctx(admin));
     expect(code(r)).toBe('unlock_required');
     if (!r.ok) expect(r.detail).toEqual({ laterRounds: [2, 3], keptRounds: [], bracketsKept: false });
-    expect(code(handleTaps(e, { ...cmd, confirmUnlock: true }, ctx(control)))).toBe('ok');
+    expect(code(handleTaps(e, { ...cmd, confirmUnlock: true }, ctx(admin)))).toBe('ok');
   });
 
   it('lists the rounds whose matchups a correction would change', () => {
     const e = heatsOpen();
-    const r = handleTaps(e, { type: 'setResult', round: 2, teamId: teamId(e, 'T4'), set: { kind: 'time', rawMs: 1_000 } }, ctx(control, 3_000_000));
+    const r = handleTaps(e, { type: 'setResult', round: 2, teamId: teamId(e, 'T4'), set: { kind: 'time', rawMs: 1_000 } }, ctx(admin, 3_000_000));
     expect(code(r)).toBe('unlock_required');
     if (!r.ok) expect(r.detail).toEqual({ laterRounds: [3], keptRounds: [3], bracketsKept: true });
   });
 
   it('never reshuffles the round that is open or running, even when confirmed', () => {
     const e = heatsOpen();
-    const r = handleTaps(e, { type: 'setResult', round: 2, teamId: teamId(e, 'T4'), set: { kind: 'time', rawMs: 1_000 }, confirmUnlock: true }, ctx(control, 3_000_000));
+    const r = handleTaps(e, { type: 'setResult', round: 2, teamId: teamId(e, 'T4'), set: { kind: 'time', rawMs: 1_000 }, confirmUnlock: true }, ctx(admin, 3_000_000));
     expect(names(ok(r), 3)).toEqual(names(e, 3));
   });
 });

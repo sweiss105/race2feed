@@ -1,23 +1,24 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/preact';
 import { Login } from '../../src/pages/control/Login';
-import { ConsolePage } from '../../src/pages/control/ConsolePage';
+import { ConsolePage, sectionsFor } from '../../src/pages/control/ConsolePage';
 import { ctlViewOf, heatsOpen, lockedFour, openNext, runRound, seedTimes, start, teamId } from '../support/state';
 import type { Ack } from '../../src/lib/types';
 
-const me = (role: 'admin' | 'control') => ({ role, label: role });
+const me = (role: 'admin') => ({ role, label: 'race control' });
 
 describe('console sign-in', () => {
   beforeEach(() => cleanup());
 
-  it('signs in with the chosen role', async () => {
+  it('signs in with the password alone', async () => {
     const login = vi.fn(async () => ({ ok: true as const }));
     const onSignedIn = vi.fn();
     render(<Login login={login} onSignedIn={onSignedIn} />);
-    fireEvent.click(screen.getByRole('radio', { name: 'Race control' }));
+    expect(screen.queryByRole('radio')).toBeNull();
+    expect(screen.queryByRole('radiogroup')).toBeNull();
     fireEvent.input(screen.getByLabelText('Password'), { target: { value: 'pw-123456' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
-    await waitFor(() => expect(login).toHaveBeenCalledWith('control', 'pw-123456'));
+    await waitFor(() => expect(login).toHaveBeenCalledWith('pw-123456'));
     expect(onSignedIn).toHaveBeenCalled();
   });
 
@@ -29,15 +30,12 @@ describe('console sign-in', () => {
   });
 });
 
-describe('console sections by role', () => {
+describe('console sections', () => {
   beforeEach(() => cleanup());
-  it('race control does not see Setup or Settings', () => {
-    render(<ConsolePage me={me('control')} view={ctlViewOf(lockedFour())} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
-    expect(screen.queryByRole('link', { name: 'Setup' })).toBeNull();
-    expect(screen.queryByRole('link', { name: 'Settings' })).toBeNull();
-    expect(screen.getByRole('link', { name: 'Race' })).toBeTruthy();
+  it('sectionsFor gives every signed-in user all seven sections', () => {
+    expect(sectionsFor('admin')).toEqual(['race', 'teams', 'setup', 'devices', 'settings', 'events', 'log']);
   });
-  it('admin sees every section', () => {
+  it('a signed-in user sees every section', () => {
     render(<ConsolePage me={me('admin')} view={ctlViewOf(lockedFour())} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
     for (const s of ['Race', 'Teams', 'Setup', 'Devices', 'Settings', 'Events', 'Log']) expect(screen.getByRole('link', { name: s })).toBeTruthy();
   });
@@ -55,7 +53,7 @@ describe('race section', () => {
   it('offers no round to open once every round has been raced', () => {
     let e = lockedFour();
     for (let i = 0; i < 4; i++) e = runRound(e, seedTimes);
-    render(<ConsolePage me={me('control')} view={ctlViewOf(e)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    render(<ConsolePage me={me('admin')} view={ctlViewOf(e)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
     expect(within(header()).getAllByRole('button').map((b) => b.textContent)).toEqual(['Show champion']);
     expect(screen.queryByRole('button', { name: /^Open round/ })).toBeNull();
     expect(within(header()).getByRole('status').textContent).toBe('Event complete');
@@ -63,7 +61,7 @@ describe('race section', () => {
 
   it('shows one action button in the header, pulsing Start once every table is ready', async () => {
     const send = vi.fn(async () => ({ ok: true }));
-    render(<ConsolePage me={me('control')} view={readyView()} send={send} serverNow={() => 0} status="open" />);
+    render(<ConsolePage me={me('admin')} view={readyView()} send={send} serverNow={() => 0} status="open" />);
     const buttons = within(header()).getAllByRole('button');
     expect(buttons).toHaveLength(1);
     const startBtn = within(header()).getByRole('button', { name: 'Start' }) as HTMLButtonElement;
@@ -77,7 +75,7 @@ describe('race section', () => {
   it('disables Start and says what it waits for while a table is not ready', () => {
     const e = openNext(lockedFour());
     const oneLeft = { ...e, stations: { 1: { ready: true, excluded: false }, 2: { ready: false, excluded: false } } };
-    render(<ConsolePage me={me('control')} view={ctlViewOf(oneLeft)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    render(<ConsolePage me={me('admin')} view={ctlViewOf(oneLeft)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
     const startBtn = within(header()).getByRole('button', { name: 'Start' }) as HTMLButtonElement;
     expect(startBtn.disabled).toBe(true);
     expect(startBtn.classList.contains('pulse')).toBe(false);
@@ -88,14 +86,14 @@ describe('race section', () => {
     const e = start(openNext(lockedFour()), 1_000_000);
     const v = ctlViewOf(e);
     const allIn = { ...v, outstanding: [], round: { ...v.round, autoFinishAt: 1_030_000 } };
-    render(<ConsolePage me={me('control')} view={allIn} send={async () => ({ ok: true })} serverNow={() => 1_007_200} status="open" />);
+    render(<ConsolePage me={me('admin')} view={allIn} send={async () => ({ ok: true })} serverNow={() => 1_007_200} status="open" />);
     expect(within(header()).getByRole('status').textContent).toBe('All teams in — finishing in 23 s');
     expect((within(header()).getByRole('button', { name: 'Finish now' }) as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('opens the next round from the one button', async () => {
     const send = vi.fn(async () => ({ ok: true }));
-    render(<ConsolePage me={me('control')} view={ctlViewOf(runRound(lockedFour(), seedTimes))} send={send} serverNow={() => 0} status="open" />);
+    render(<ConsolePage me={me('admin')} view={ctlViewOf(runRound(lockedFour(), seedTimes))} send={send} serverNow={() => 0} status="open" />);
     expect(within(header()).getByRole('status').textContent).toBe('Ready to open round 2');
     fireEvent.click(within(header()).getByRole('button', { name: 'Open round 2' }));
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'openNextRound' }));
@@ -103,7 +101,7 @@ describe('race section', () => {
 
   it('shows a refused command under the header', async () => {
     const send = vi.fn(async () => ({ ok: false, code: 'stations_not_ready', message: '1 station(s) not ready.' }));
-    render(<ConsolePage me={me('control')} view={readyView()} send={send} serverNow={() => 0} status="open" />);
+    render(<ConsolePage me={me('admin')} view={readyView()} send={send} serverNow={() => 0} status="open" />);
     fireEvent.click(within(header()).getByRole('button', { name: 'Start' }));
     expect((await screen.findByRole('alert')).textContent).toBe('1 station(s) not ready.');
   });
@@ -113,7 +111,7 @@ describe('race section', () => {
     const send = vi.fn(() => new Promise<Ack>((r) => { resolve = r; }));
     const e = openNext(lockedFour());
     const ready = { ...e, stations: { 1: { ready: true, excluded: false }, 2: { ready: true, excluded: false } } };
-    render(<ConsolePage me={me('control')} view={ctlViewOf(ready)} send={send} serverNow={() => 0} status="open" />);
+    render(<ConsolePage me={me('admin')} view={ctlViewOf(ready)} send={send} serverNow={() => 0} status="open" />);
     const startBtn = screen.getByRole('button', { name: 'Start' });
     fireEvent.click(startBtn);
     fireEvent.click(startBtn);
@@ -130,7 +128,7 @@ describe('race section', () => {
       return cmd.confirmUnlock ? { ok: true } : { ok: false, code: 'unlock_required', message: 'confirm', detail: { laterRounds: [2, 3], keptRounds, bracketsKept } };
     });
     const e = heatsOpen();
-    render(<ConsolePage me={me('control')} view={ctlViewOf(e)} send={send} serverNow={() => 0} status="open" />);
+    render(<ConsolePage me={me('admin')} view={ctlViewOf(e)} send={send} serverNow={() => 0} status="open" />);
     fireEvent.change(screen.getByLabelText('Round'), { target: { value: '1' } });
     const row = await screen.findByTestId(`team-${teamId(e, 'T1')}`);
     fireEvent.click(row.querySelector('button[data-action="dnf"]')!);
@@ -164,14 +162,14 @@ describe('race section', () => {
   });
 
   it('has no penalties switch on the Race page any more', () => {
-    render(<ConsolePage me={me('control')} view={ctlViewOf(openNext(lockedFour()))} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    render(<ConsolePage me={me('admin')} view={ctlViewOf(openNext(lockedFour()))} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
     expect(screen.queryByRole('switch')).toBeNull();
   });
 
   it('marks an outstanding team DNF', async () => {
     const send = vi.fn(async () => ({ ok: true }));
     const e = start(openNext(lockedFour()));
-    render(<ConsolePage me={me('control')} view={ctlViewOf(e)} send={send} serverNow={() => 0} status="open" />);
+    render(<ConsolePage me={me('admin')} view={ctlViewOf(e)} send={send} serverNow={() => 0} status="open" />);
     const outstanding = screen.getByRole('region', { name: 'Outstanding' });
     fireEvent.click(outstanding.querySelector(`[data-team="${teamId(e, 'T3')}"] button[data-action="dnf"]`)!);
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setResult', round: 1, teamId: teamId(e, 'T3'), set: { kind: 'status', status: 'dnf' } }));

@@ -23,7 +23,7 @@ export function App() {
   useEffect(refresh, []);
   if (me === 'loading') return <div class="center-page"><p class="secondary">Loading…</p></div>;
   if (me === 'unreachable') return <div class="center-page"><p class="secondary">Can’t reach the server — retrying…</p></div>;
-  if (!me || (me.role !== 'admin' && me.role !== 'control')) return <Login login={login} onSignedIn={refresh} />;
+  if (!me || me.role !== 'admin') return <Login login={login} onSignedIn={refresh} />;
   return <LiveConsole me={me} onSignOut={() => void logout().then(() => setMe(null))} onSignedOut={() => setMe(null)} />;
 }
 

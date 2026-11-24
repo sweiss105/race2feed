@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { applyCommand } from '../../src/core/apply';
 import { handleLifecycle } from '../../src/core/lifecycle';
-import { admin, blank, companion, control, ctx, lockedFour, ok, referee } from './helpers';
+import { admin, blank, companion, ctx, lockedFour, ok, referee } from './helpers';
 
 const code = (r: ReturnType<typeof applyCommand>) => (r.ok ? 'ok' : r.code);
 
@@ -12,23 +12,21 @@ describe('applyCommand permissions', () => {
   it('companion may start races (gates still apply)', () => {
     expect(code(applyCommand(lockedFour(), { type: 'startRace' }, ctx(companion)))).toBe('round_not_open');
   });
-  it('race control cannot change setup; admin can', () => {
-    expect(code(applyCommand(lockedFour(), { type: 'setBagTotal', text: '1' }, ctx(control)))).toBe('forbidden');
+  it('the console role can change setup', () => {
     expect(code(applyCommand(lockedFour(), { type: 'setBagTotal', text: '1' }, ctx(admin)))).toBe('ok');
   });
-  it('race control can rename a team during the event, but not change other setup', () => {
+  it('the console role can rename a team during the event', () => {
     const e = lockedFour();
-    const r = applyCommand(e, { type: 'renameTeam', teamId: e.setup.teams[0]!.id, name: 'Renamed' }, ctx(control));
+    const r = applyCommand(e, { type: 'renameTeam', teamId: e.setup.teams[0]!.id, name: 'Renamed' }, ctx(admin));
     expect(r.ok && r.event.setup.teams[0]!.name).toBe('Renamed');
-    expect(code(applyCommand(e, { type: 'addTeam', name: 'Z', category: 'T' }, ctx(control)))).toBe('forbidden');
   });
 
-  it('admin can do anything race control can', () => {
+  it('the console role can run the race', () => {
     expect(code(applyCommand(lockedFour(), { type: 'openNextRound' }, ctx(admin)))).toBe('ok');
   });
   it('fills the audit entry', () => {
-    const r = applyCommand(lockedFour(), { type: 'openNextRound' }, ctx(control));
-    expect(r.ok && r.audit).toEqual({ action: 'openNextRound', actor: 'control', detail: { type: 'openNextRound' } });
+    const r = applyCommand(lockedFour(), { type: 'openNextRound' }, ctx(admin));
+    expect(r.ok && r.audit).toEqual({ action: 'openNextRound', actor: 'admin', detail: { type: 'openNextRound' } });
   });
   it('rejects unknown commands', () => {
     expect(code(applyCommand(lockedFour(), { type: 'nope' } as never, ctx(admin)))).toBe('unknown_command');
@@ -50,9 +48,9 @@ describe('applyCommand malformed commands', () => {
 
   it('reports a fault inside a tap handler as a retryable server error', () => {
     const error = vi.spyOn(console, 'error').mockImplementation(() => {});
-    let e = ok(applyCommand(lockedFour(), { type: 'openNextRound' }, ctx(control)));
-    for (const station of [1, 2]) e = ok(handleLifecycle(e, { type: 'overrideStation', station, state: 'ready' }, ctx(control)));
-    e = ok(applyCommand(e, { type: 'startRace' }, ctx(control)));
+    let e = ok(applyCommand(lockedFour(), { type: 'openNextRound' }, ctx(admin)));
+    for (const station of [1, 2]) e = ok(handleLifecycle(e, { type: 'overrideStation', station, state: 'ready' }, ctx(admin)));
+    e = ok(applyCommand(e, { type: 'startRace' }, ctx(admin)));
     const broken = { ...e, lineups: { 1: {} as never } };
     const tap = { type: 'tapFinish' as const, teamId: e.setup.teams[0]!.id, atServerMs: 1_000_500, clientTapId: 'c1' };
     expect(code(applyCommand(broken, tap, ctx(referee(1), 1_000_600)))).toBe('server_error');

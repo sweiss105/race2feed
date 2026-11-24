@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { runInDurableObject } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
-import { call, command, connect, controlAndReferee, loginAdmin, lockedEvent } from './client';
+import { call, command, connect, pairReferee, loginAdmin, lockedEvent } from './client';
 
 const hub = () => env.HUB.getByName('hub');
 
@@ -9,7 +9,7 @@ describe('/api/me', () => {
   it('describes the signed-in role', async () => {
     const admin = await lockedEvent();
     expect((await call('/api/me', undefined, { cookie: admin })).body).toMatchObject({ role: 'admin' });
-    const { device } = await controlAndReferee(admin);
+    const { device } = await pairReferee(admin);
     expect((await call('/api/me', undefined, { cookie: device })).body).toMatchObject({ role: 'referee', station: 1 });
     expect((await call('/api/me')).status).toBe(401);
   });
@@ -47,7 +47,7 @@ describe('closing live connections', () => {
 
   it('closes referee sockets when another event is activated', async () => {
     const admin = await lockedEvent();
-    const { device } = await controlAndReferee(admin);
+    const { device } = await pairReferee(admin);
     const ref = await connect({ cookie: device });
     await ref.next('view', 0);
     const other = (await command({ type: 'createEvent', name: 'Other', date: '2026-12-02', tableCount: 4 }, { cookie: admin })).body.reply.eventId;

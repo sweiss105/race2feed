@@ -8,8 +8,8 @@ import { ctlViewOf, lockedFour, runRound, seedTimes, teamId } from '../support/s
 import type { LiveEvent } from '../../../server/src/core/model';
 import type { Ack } from '../../src/lib/types';
 
-const me = (role: 'admin' | 'control') => ({ role, label: role });
-const console_ = (e: LiveEvent, send: (cmd: any) => Promise<Ack>, role: 'admin' | 'control' = 'control') =>
+const me = (role: 'admin') => ({ role, label: 'race control' });
+const console_ = (e: LiveEvent, send: (cmd: any) => Promise<Ack>, role: 'admin' = 'admin') =>
   render(<ConsolePage me={me(role)} view={ctlViewOf(e)} send={send} serverNow={() => 0} status="open" />);
 
 function withPending(): LiveEvent {
@@ -44,7 +44,7 @@ describe('penalty review', () => {
     const e = withPending();
     const noNote = { ...e, taps: e.taps.map((t) => (t.id === 'pen-1' ? { ...t, review: { status: 'pending' as const } } : t)) };
     const { rerender } = console_(noNote, async () => ({ ok: true }));
-    rerender(<ConsolePage me={me('control')} view={ctlViewOf(e)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    rerender(<ConsolePage me={me('admin')} view={ctlViewOf(e)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
     expect((within(screen.getByRole('region', { name: 'Penalties to review' })).getByLabelText('Penalty') as HTMLSelectElement).value).toBe('early');
   });
 
@@ -71,7 +71,7 @@ describe('penalty review', () => {
     const { rerender } = console_(e, send);
     fireEvent.change(within(screen.getByTestId(`team-${teamId(e, 'T1')}`)).getByLabelText('Penalty reason'), { target: { value: 'early' } });
     const trimmed = { ...e, penaltyReasons: [{ id: 'sealed', name: 'Bag not sealed', kind: 'time' as const, amountMs: 5000 }] };
-    rerender(<ConsolePage me={me('control')} view={ctlViewOf(trimmed)} send={send} serverNow={() => 0} status="open" />);
+    rerender(<ConsolePage me={me('admin')} view={ctlViewOf(trimmed)} send={send} serverNow={() => 0} status="open" />);
     fireEvent.click(screen.getByTestId(`team-${teamId(e, 'T1')}`).querySelector('button[data-action="add-penalty"]')!);
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'addPenalty', round: 1, teamId: teamId(e, 'T1'), reasonId: 'sealed' }));
   });

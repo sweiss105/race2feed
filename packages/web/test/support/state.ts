@@ -2,7 +2,7 @@ import { publicView } from '../../../server/src/core/views';
 import { derive } from '../../../server/src/core/results';
 import { handleLifecycle } from '../../../server/src/core/lifecycle';
 import type { LiveEvent } from '../../../server/src/core/model';
-import { control, ctx, lockedFour, ok, runRound, teamId } from '../../../server/test/core/helpers';
+import { admin, ctx, lockedFour, ok, runRound, teamId } from '../../../server/test/core/helpers';
 import { fixture, previousEvent } from '../../../server/test/core/fixture';
 import type { PublicView } from '../../src/lib/types';
 
@@ -11,14 +11,14 @@ export { lockedFour, runRound, teamId, fixture, previousEvent };
 export const viewOf = (e: LiveEvent): PublicView => publicView(e, derive(e));
 
 export function openNext(e: LiveEvent): LiveEvent {
-  return ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(control)));
+  return ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin)));
 }
 
 export function start(e: LiveEvent, now = 1_000_000): LiveEvent {
   for (const [s, st] of Object.entries(e.stations)) {
-    if (!st.excluded) e = ok(handleLifecycle(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, ctx(control, now)));
+    if (!st.excluded) e = ok(handleLifecycle(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, ctx(admin, now)));
   }
-  return ok(handleLifecycle(e, { type: 'startRace' }, ctx(control, now)));
+  return ok(handleLifecycle(e, { type: 'startRace' }, ctx(admin, now)));
 }
 
 export const seedTimes = { T1: 100_000, T2: 110_000, T3: 120_000, T4: 130_000 };

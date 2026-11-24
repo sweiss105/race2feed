@@ -21,18 +21,28 @@ describe('admin sections', () => {
     const send = vi.fn(async (cmd: any) => (cmd.type === 'importTeams'
       ? { ok: false, code: 'csv_invalid', message: 'The CSV has problems.', detail: ['line 3: team and category are both required'] }
       : { ok: true }));
-    withRunner(<Teams view={ctlViewOf(blank(4))} role="admin" />, send);
+    withRunner(<Teams view={ctlViewOf(blank(4))} />, send);
     fireEvent.input(screen.getByLabelText('Paste CSV'), { target: { value: 'team,category\nA,X\n,Y' } });
     fireEvent.click(screen.getByRole('button', { name: 'Import' }));
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'importTeams', csv: 'team,category\nA,X\n,Y' }));
     expect(await screen.findByText('line 3: team and category are both required')).toBeTruthy();
   });
 
-  it('race control can only rename teams', () => {
-    withRunner(<Teams view={ctlViewOf(lockedFour())} role="control" />, async () => ({ ok: true }));
+  it('once setup is locked, teams can only be renamed', () => {
+    withRunner(<Teams view={ctlViewOf(lockedFour())} />, async () => ({ ok: true }));
     expect(screen.queryByLabelText('Paste CSV')).toBeNull();
     expect(screen.queryByRole('button', { name: /Remove/ })).toBeNull();
     expect(screen.getAllByRole('button', { name: /Rename/ }).length).toBe(4);
+  });
+
+  it('settings has one console password and sends it without a role', async () => {
+    const send = vi.fn(async () => ({ ok: true }));
+    withRunner(<Settings view={null} />, send);
+    expect(screen.queryByLabelText('Password for')).toBeNull();
+    expect(screen.getByText('Console password')).toBeTruthy();
+    fireEvent.input(screen.getByLabelText('New password'), { target: { value: 'a-new-password' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save password' }));
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setPassword', password: 'a-new-password' }));
   });
 
   it('shows every problem when locking fails', async () => {

@@ -1,4 +1,5 @@
-import { exports } from 'cloudflare:workers';
+import { env, exports } from 'cloudflare:workers';
+import { runInDurableObject } from 'cloudflare:test';
 
 export const BASE = 'https://r2f.test';
 
@@ -27,7 +28,7 @@ export async function call(path: string, body?: unknown, opts: { cookie?: string
 }
 
 export async function loginAdmin(ip = '10.0.0.1'): Promise<string> {
-  const r = await call('/api/login', { role: 'admin', password: 'test-admin' }, { ip });
+  const r = await call('/api/login', { password: 'test-admin' }, { ip });
   if (!r.cookie) throw new Error(`admin login failed: ${r.status}`);
   return r.cookie;
 }
@@ -97,11 +98,14 @@ export async function wsCommand(s: Socket, cmd: unknown): Promise<any> {
 
 export const settle = () => new Promise((r) => setTimeout(r, 50));
 
-/** Sets the race control password, logs in, pairs a tablet for `station`. */
-export async function controlAndReferee(admin: string, station = 1): Promise<{ control: string; device: string }> {
-  await command({ type: 'setPassword', role: 'control', password: 'race-control-pw' }, { cookie: admin });
-  const control = (await call('/api/login', { role: 'control', password: 'race-control-pw' }, { ip: '10.9.0.1' })).cookie!;
-  const code = (await command({ type: 'createPairingCode', station }, { cookie: control })).body.reply.code;
+/** Pairs a tablet for `station` and returns its device cookie. */
+export async function pairReferee(admin: string, station = 1): Promise<{ device: string }> {
+  const code = (await command({ type: 'createPairingCode', station }, { cookie: admin })).body.reply.code;
   const device = (await call('/api/pair', { code, name: 'Ref' })).cookie!;
-  return { control, device };
+  return { device };
+}
+
+/** Forgets a console password set during a test, so the next test signs in with the ADMIN_PASSWORD secret again. */
+export async function resetConsolePassword(): Promise<void> {
+  await runInDurableObject(env.HUB.getByName('hub'), (_i, state) => { state.storage.sql.exec("DELETE FROM credentials WHERE role = 'admin'"); });
 }

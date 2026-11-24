@@ -11,7 +11,7 @@ export function Settings({ view }: { view: ControlView | null }) {
   return (
     <>
       <h2 class="title-1">Settings</h2>
-      <Passwords />
+      <ConsolePassword />
       {view && <EventSettings view={view} />}
       {view && <PenaltyList key={view.event.id} view={view} />}
       <CompanionKeys />
@@ -19,29 +19,24 @@ export function Settings({ view }: { view: ControlView | null }) {
   );
 }
 
-function Passwords() {
+function ConsolePassword() {
   const runner = useRunner();
-  const [role, setRole] = useState<'admin' | 'control'>('control');
   const [password, setPassword] = useState('');
   const [saved, setSaved] = useState(false);
   return (
     <form class="panel card stack" onSubmit={async (e) => {
       e.preventDefault();
       setSaved(false);
-      const ack = await runner.run({ type: 'setPassword', role, password }, 'setPassword');
+      const ack = await runner.run({ type: 'setPassword', password }, 'setPassword');
       if (ack?.ok) { setPassword(''); setSaved(true); }
     }}>
-      <h3 class="headline">Passwords</h3>
+      <h3 class="headline">Console password</h3>
       <div class="race-actions">
-        <select class="input" style={{ width: 'auto' }} aria-label="Password for" value={role} onChange={(e) => setRole((e.target as HTMLSelectElement).value as 'admin' | 'control')}>
-          <option value="control">Race control</option>
-          <option value="admin">Admin</option>
-        </select>
         <input class="input" style={{ flex: 1 }} type="password" autocomplete="new-password" aria-label="New password" placeholder="At least 8 characters"
           value={password} onInput={(e) => setPassword((e.target as HTMLInputElement).value)} />
         <Button type="submit" busy={runner.busy('setPassword')} disabled={password.length < 8}>Save password</Button>
       </div>
-      <p class="footnote secondary" style={{ margin: 0 }}>Changing a password signs out everyone using it.</p>
+      <p class="footnote secondary" style={{ margin: 0 }}>Changing the password signs out everyone using the console.</p>
       {saved && <p class="callout" style={{ color: 'var(--success)', margin: 0 }}>Saved.</p>}
       {runner.error('setPassword') && <p class="err">{runner.error('setPassword')}</p>}
     </form>

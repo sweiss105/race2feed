@@ -93,7 +93,7 @@ Weaknesses this design fixes:
    - Admin can change bracket sizes (4–7) and rename tiers.
    - A category with fewer than 4 teams gets one bracket of that size. A size of 2–3 skips the heats and races once, ranked by time.
 5. **Grand Championship:** by default the winner of each category's top bracket. Admin can turn this on or off. Locking setup is refused when there are more category winners than tables.
-6. **Credentials:** set the admin and race-control passwords, pair referee tablets (§9) and create a Companion API key.
+6. **Credentials:** set the console password, pair referee tablets (§9) and create a Companion API key.
 
 ### 3.3 Round structure
 
@@ -325,22 +325,25 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 | `/` | Participants |
 | `/projector` | Projector |
 | `/ref` | Referees (race control's pairing QR code opens `/ref?code=…`) |
-| `/control` | One race control and admin console; setup sections appear only for admin |
+| `/control` | The race control console: one role, all seven sections (Race, Teams, Setup, Devices, Settings, Events, Log) |
 
 - **Look:** clean Apple style with automatic light/dark mode and one accent colour, the spreadsheet's display red `#D71920`. The projector uses a dark theme, and the Gold/Silver/Bronze/Copper/Tin tier colours are kept.
 - **Referee page:** adapts to phones (team buttons stacked) and tablets (side by side).
 - **Brackets on phones:** a card list per bracket, with a toggle to the classic bracket diagram.
 - **Finding the site:** a QR code on the projector's welcome and table screens.
 
-### 7.1 Admin (password)
+### 7.1 Console: setup and event management (password)
+
+Race control and admin are one role. Everyone signed in to the console has every section and every command. The console's session label in the log is `race control`; `admin` survives only as the role value in code.
+
 - Manage events, import and edit teams, set the venue table count.
 - Edit seeding groups and table assignments.
 - Set the referee undo window and the auto-finish delay.
 - Edit the bracket plan and set Grand Championship eligibility.
-- Manage credentials and the Companion API key.
+- Manage the console password and the Companion API key.
 - Type the **bag total** shown on the champion screen.
 
-### 7.2 Race control (password)
+### 7.2 Console: running the race
 - **Grid of every station:** each shows not ready / Ready / excluded, the teams with their times and status, and any overrides.
 - **Race page header:** round title, state, master clock, a status line (`role="status"`) and **one large action button** that always shows the next step. It is about three times a normal button (min-height 6rem, min-width 16rem, title-sized text). It **pulses** (a 2-second scale-and-glow loop, off under `prefers-reduced-motion: reduce`) only when pressing it will work and is the expected next step; it never pulses while the server would refuse. A refused command's message shows under the header. The first matching row wins:
 
@@ -362,7 +365,7 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 - **Time penalties on/off switch** in Settings, in the event's panel (event-wide, takes effect immediately, §5.1).
 - **Penalties per team:** each team shows `raw + penalties = official`, with buttons to add or remove a penalty.
 - **Tie resolution**, time edits and clears, and the audit log.
-- **Rename a team** at any time during the event (e.g. a misspelling spotted on the projector). Other setup changes stay with admin.
+- **Rename a team** at any time during the event (e.g. a misspelling spotted on the projector). Other setup changes stay locked once setup is locked.
 - **Open round N** (the action button), with a results review first.
 - **Referee pairing:** a QR code per station, a paired-device list, and revoke.
 - **Projector override:** pin any screen (e.g. the champion reveal) or return to automatic.
@@ -432,10 +435,9 @@ The server is reachable from the internet, so:
 
 | Role | How they authenticate |
 |---|---|
-| Admin | Password |
-| Race control | Password (separate from admin) |
+| Race control (the console; role `admin` in code) | One password. Stored hashes for the old separate race-control password, and its sessions, are deleted when the hub starts. |
 | Referee | Device token, paired by scanning a station's QR code in race control and entering their name (`POST /api/pair {code, name}`). Bound to one station and revocable; the name appears in the log. |
-| Companion | API key created in admin. Can be rotated. |
+| Companion | API key created in the console. Can be rotated. |
 | Participant, projector | Public, read-only |
 
 - HTTPS and certificates are handled by Cloudflare on the custom domain `r2f.weiss-audio.com`.

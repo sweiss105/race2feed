@@ -38,12 +38,12 @@ export default {
     if (path === '/api/ws') return hub.fetch(request);
 
     if (path === '/api/login' && post) {
-      const { role, password } = await body(request);
-      if ((role !== 'admin' && role !== 'control') || typeof password !== 'string') return json({ error: 'invalid' }, 400);
+      const { password } = await body(request);
+      if (typeof password !== 'string') return json({ error: 'invalid' }, 400);
       const ip = request.headers.get('cf-connecting-ip') ?? 'local';
-      const r = await hub.login(role, password, ip);
+      const r = await hub.login(password, ip);
       if (!r.ok) return json({ error: r.status === 429 ? 'too_many_attempts' : 'invalid_login' }, r.status);
-      return json({ ok: true, role }, 200, { 'set-cookie': setCookie(SESSION_COOKIE, r.token, 12 * 60 * 60) });
+      return json({ ok: true, role: 'admin' }, 200, { 'set-cookie': setCookie(SESSION_COOKIE, r.token, 12 * 60 * 60) });
     }
 
     if (path === '/api/logout' && post) {

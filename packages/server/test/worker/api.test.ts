@@ -1,7 +1,8 @@
 import { env } from 'cloudflare:workers';
 import { evictDurableObject, runInDurableObject } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
-import { call, command, connect, loginAdmin, lockedEvent } from './client';
+import { call, command, connect, loginAdmin, lockedEvent, resetConsolePassword } from './client';
+import { sha256Hex } from '../../src/auth/crypto';
 
 async function consoleView(admin: string) {
   const ctl = await connect({ cookie: admin });
@@ -12,14 +13,14 @@ async function consoleView(admin: string) {
 
 describe('login', () => {
   it('sets a secure session cookie for the admin password', async () => {
-    const r = await call('/api/login', { role: 'admin', password: 'test-admin' }, { ip: '10.1.0.1' });
+    const r = await call('/api/login', { password: 'test-admin' }, { ip: '10.1.0.1' });
     expect(r.status).toBe(200);
     expect(r.cookie).toMatch(/^r2f_session=/);
     const raw = await (async () => {
       const { exports } = await import('cloudflare:workers');
       const res = await exports.default.fetch('https://r2f.test/api/login', {
         method: 'POST', headers: { 'content-type': 'application/json', 'cf-connecting-ip': '10.1.0.2' },
-        body: JSON.stringify({ role: 'admin', password: 'test-admin' }),
+        body: JSON.stringify({ password: 'test-admin' }),
       });
       return res.headers.get('set-cookie') ?? '';
     })();
@@ -27,16 +28,45 @@ describe('login', () => {
   });
 
   it('rejects a wrong password', async () => {
-    expect((await call('/api/login', { role: 'admin', password: 'nope' }, { ip: '10.1.0.3' })).status).toBe(401);
+    expect((await call('/api/login', { password: 'nope' }, { ip: '10.1.0.3' })).status).toBe(401);
   });
 
   it('locks an IP out after five failures', async () => {
-    for (let i = 0; i < 5; i++) await call('/api/login', { role: 'admin', password: 'nope' }, { ip: '10.1.0.4' });
-    expect((await call('/api/login', { role: 'admin', password: 'test-admin' }, { ip: '10.1.0.4' })).status).toBe(429);
+    for (let i = 0; i < 5; i++) await call('/api/login', { password: 'nope' }, { ip: '10.1.0.4' });
+    expect((await call('/api/login', { password: 'test-admin' }, { ip: '10.1.0.4' })).status).toBe(429);
   });
 
-  it('race control cannot log in until its password is set', async () => {
-    expect((await call('/api/login', { role: 'control', password: 'anything' }, { ip: '10.1.0.5' })).status).toBe(401);
+  it('signs in with the password alone', async () => {
+    expect((await call('/api/login', {}, { ip: '10.1.0.5' })).status).toBe(400);
+    const r = await call('/api/login', { password: 'test-admin' }, { ip: '10.1.0.6' });
+    expect(r.body).toEqual({ ok: true, role: 'admin' });
+    expect((await call('/api/me', undefined, { cookie: r.cookie! })).body).toMatchObject({ role: 'admin', label: 'race control' });
+  });
+
+  it('drops the separate race control password and sessions when the hub restarts', async () => {
+    const stub = env.HUB.getByName('hub');
+    const token = 'old-control-session';
+    await runInDurableObject(stub, async (_i, state) => {
+      state.storage.sql.exec("INSERT INTO credentials (role, hash, salt, iterations) VALUES ('control', 'h', 's', 1)");
+      state.storage.sql.exec("INSERT INTO sessions (token_hash, role, expires_at) VALUES (?, 'control', ?)", await sha256Hex(token), Date.now() + 60_000);
+    });
+    await evictDurableObject(stub);
+    const left = await runInDurableObject(stub, (_i, state) => ({
+      credentials: state.storage.sql.exec("SELECT 1 FROM credentials WHERE role = 'control'").toArray().length,
+      sessions: state.storage.sql.exec("SELECT 1 FROM sessions WHERE role = 'control'").toArray().length,
+    }));
+    expect(left).toEqual({ credentials: 0, sessions: 0 });
+    expect((await call('/api/me', undefined, { cookie: `r2f_session=${token}` })).status).toBe(401);
+  });
+
+  it('a new console password replaces the old one and ends existing sessions', async () => {
+    const admin = await loginAdmin();
+    expect((await command({ type: 'setPassword', password: 'short' }, { cookie: admin })).body.code).toBe('invalid');
+    expect((await command({ type: 'setPassword', password: 'brand-new-pw' }, { cookie: admin })).status).toBe(200);
+    expect((await call('/api/me', undefined, { cookie: admin })).status).toBe(401);
+    expect((await call('/api/login', { password: 'test-admin' }, { ip: '10.1.0.7' })).status).toBe(401);
+    expect((await call('/api/login', { password: 'brand-new-pw' }, { ip: '10.1.0.8' })).status).toBe(200);
+    await resetConsolePassword();
   });
 });
 
@@ -75,23 +105,19 @@ describe('commands', () => {
 describe('referee pairing', () => {
   it('pairs a tablet once, accepts its commands, and stops after revoke', async () => {
     const admin = await lockedEvent();
-    await command({ type: 'setPassword', role: 'control', password: 'race-control-pw' }, { cookie: admin });
-    const control = (await call('/api/login', { role: 'control', password: 'race-control-pw' }, { ip: '10.2.0.1' })).cookie!;
-    expect(control).toMatch(/^r2f_session=/);
-
-    const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: control })).body.reply.code;
+    const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;
     const paired = await call('/api/pair', { code, name: 'Ref' });
     expect(paired.status).toBe(200);
     expect(paired.body.station).toBe(1);
     expect(paired.cookie).toMatch(/^r2f_device=/);
     expect((await call('/api/pair', { code, name: 'Ref' })).status).toBe(400);
 
-    await command({ type: 'openNextRound' }, { cookie: control });
+    await command({ type: 'openNextRound' }, { cookie: admin });
     expect((await command({ type: 'stationReady' }, { cookie: paired.cookie! })).status).toBe(200);
 
     const deviceId = (await runInDurableObject(env.HUB.getByName('hub'), (_i, state) =>
       state.storage.sql.exec<{ id: string }>('SELECT id FROM devices ORDER BY created_at DESC LIMIT 1').one())).id;
-    await command({ type: 'revokeDevice', deviceId }, { cookie: control });
+    await command({ type: 'revokeDevice', deviceId }, { cookie: admin });
     expect((await command({ type: 'stationReady' }, { cookie: paired.cookie! })).status).toBe(401);
   });
 });

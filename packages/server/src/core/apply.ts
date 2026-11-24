@@ -12,15 +12,13 @@ const TAPS = ['tapFinish', 'tapPenalty', 'undoTap', 'setResult', 'addPenalty', '
 const CONTROL = ['openNextRound', 'overrideStation', 'startRace', 'finishRace', 'decideTie', 'pinProjector',
   'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled', 'decidePenalty', 'showChampion', 'hideChampion'];
 
-/** Roles allowed to send each command. Admin may do everything race control can, plus setup. */
+/** Roles allowed to send each command. The console role (admin) may send every console command, setup included. */
 export const PERMISSIONS: Record<Command['type'], Role[]> = Object.fromEntries([
   ...SETUP.map((t) => [t, ['admin']]),
-  ...CONTROL.map((t) => [t, ['admin', 'control']]),
+  ...CONTROL.map((t) => [t, ['admin']]),
   ...['stationReady', 'tapFinish', 'tapPenalty', 'undoTap', 'notePenalty'].map((t) => [t, ['referee']]),
 ]) as Record<Command['type'], Role[]>;
 for (const t of ['startRace', 'finishRace', 'pinProjector'] as const) PERMISSIONS[t] = [...PERMISSIONS[t], 'companion'];
-// Race control can fix a misspelled team name on the day (setup otherwise stays admin-only).
-PERMISSIONS.renameTeam = ['admin', 'control'];
 
 const isOneOf = <T extends string>(list: readonly T[], type: string): type is T => (list as readonly string[]).includes(type);
 

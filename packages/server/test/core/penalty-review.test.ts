@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { applyCommand } from '../../src/core/apply';
 import { buildProgress, derive } from '../../src/core/results';
 import type { Command, LiveEvent } from '../../src/core/model';
-import { control, ctx, lockedFour, ok, referee, runRound, teamId } from './helpers';
+import { admin, ctx, lockedFour, ok, referee, runRound, teamId } from './helpers';
 
 const NOW = 2_000_000;
 const seed = { T1: 100_000, T2: 110_000, T3: 120_000, T4: 130_000 };
-const run = (e: LiveEvent, cmd: Command, actor = control, now = NOW) => applyCommand(e, cmd, ctx(actor, now));
+const run = (e: LiveEvent, cmd: Command, actor = admin, now = NOW) => applyCommand(e, cmd, ctx(actor, now));
 const code = (r: ReturnType<typeof applyCommand>) => (r.ok ? 'ok' : r.code);
 
 /** Opens the next round with penalties on, readies all stations and starts it. */
@@ -23,7 +23,7 @@ function finish(e: LiveEvent, times: Record<string, number>): LiveEvent {
     const name = e.setup.teams.find((t) => t.id === id)!.name;
     e = ok(run(e, { type: 'setResult', round: e.round.current, teamId: id, set: { kind: 'time', rawMs: times[name] ?? 150_000 } }));
   }
-  return ok(run(e, { type: 'finishRace' }, control, NOW + 1));
+  return ok(run(e, { type: 'finishRace' }, admin, NOW + 1));
 }
 function refPenalty(e: LiveEvent, name: string, clientTapId = `p-${name}`) {
   const r = run(e, { type: 'tapPenalty', teamId: teamId(e, name), clientTapId }, referee(1));

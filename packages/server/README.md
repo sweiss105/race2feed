@@ -11,7 +11,7 @@ It's served at **https://r2f.weiss-audio.com**.
 | `/` | Participants: find your team, next table, brackets, results |
 | `/projector` | Projector screens |
 | `/ref` | Referees (open it by scanning a station QR code from the console) |
-| `/control` | Race control and admin console |
+| `/control` | Race control console |
 
 ## How deploys work
 
@@ -32,7 +32,7 @@ Nothing goes live unless every test passes. Pull requests run the same tests wit
 2. **Add two secrets** in GitHub, under the repository's **Settings → Secrets and variables → Actions → New repository secret**:
    - `CLOUDFLARE_API_TOKEN`: the token from step 1.
    - `CLOUDFLARE_ACCOUNT_ID`: your account ID, shown in the Cloudflare dashboard on the right of any domain's **Overview** page.
-3. **Set the first admin password,** if it isn't set yet. In Cloudflare, go to **Workers & Pages → race2feed → Settings → Variables and Secrets → Add**. Choose type **Secret**, name it `ADMIN_PASSWORD`, enter the value and deploy.
+3. **Set the first console password,** if it isn't set yet. In Cloudflare, go to **Workers & Pages → race2feed → Settings → Variables and Secrets → Add**. Choose type **Secret**, name it `ADMIN_PASSWORD`, enter the value and deploy.
 
    After that, change passwords in the console under **Settings**.
 

@@ -5,7 +5,7 @@ import { handleTaps } from '../../src/core/taps';
 import { applyCommand } from '../../src/core/apply';
 import { refereeView } from '../../src/core/views';
 import { derive } from '../../src/core/results';
-import { admin, blank, control, csvFor, ctx, ok, referee } from './helpers';
+import { admin, blank, csvFor, ctx, ok, referee } from './helpers';
 import type { LiveEvent } from '../../src/core/model';
 
 function lockedFourSingles(): LiveEvent {
@@ -23,18 +23,17 @@ describe('tables per referee', () => {
     expect(bad.ok ? 'ok' : bad.code).toBe('invalid');
   });
 
-  it('is admin only and refused once setup is locked', () => {
-    expect((applyCommand(blank(), { type: 'setTablesPerReferee', count: 1 }, ctx(control)) as { code: string }).code).toBe('forbidden');
+  it('is refused once setup is locked', () => {
     const locked = lockedFourSingles();
     const r = handleSetup(locked, { type: 'setTablesPerReferee', count: 2 }, ctx(admin));
     expect(r.ok ? 'ok' : r.code).toBe('setup_locked');
   });
 
   it('opens a station per table and limits each referee to its own table', () => {
-    let e = ok(handleLifecycle(lockedFourSingles(), { type: 'openNextRound' }, ctx(control)));
+    let e = ok(handleLifecycle(lockedFourSingles(), { type: 'openNextRound' }, ctx(admin)));
     expect(Object.keys(e.stations).length).toBe(4);
-    for (const s of Object.keys(e.stations)) e = ok(handleLifecycle(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, ctx(control)));
-    e = ok(handleLifecycle(e, { type: 'startRace' }, ctx(control, 1_000_000)));
+    for (const s of Object.keys(e.stations)) e = ok(handleLifecycle(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, ctx(admin)));
+    e = ok(handleLifecycle(e, { type: 'startRace' }, ctx(admin, 1_000_000)));
     const view = refereeView(e, derive(e), 3);
     expect(view.station.tables).toEqual([3]);
     expect(view.teams.map((t) => t.table)).toEqual([3]);

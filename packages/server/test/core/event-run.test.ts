@@ -3,7 +3,7 @@ import { parseClockTime, stationOfTable } from '@race2feed/engine';
 import { applyCommand } from '../../src/core/apply';
 import { derive } from '../../src/core/results';
 import type { Command, LiveEvent } from '../../src/core/model';
-import { admin, blank, control, ctx, ok, referee } from './helpers';
+import { admin, blank, ctx, ok, referee } from './helpers';
 import { fixture } from './fixture';
 
 const quote = (s: string) => (/[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s);
@@ -39,11 +39,11 @@ describe('the previous event, driven through commands', () => {
     };
 
     for (let round = 1; round <= 9; round++) {
-      e = run(e, { type: 'openNextRound' }, control);
+      e = run(e, { type: 'openNextRound' }, admin);
       for (const [s, st] of Object.entries(e.stations)) {
-        if (!st.excluded) e = run(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, control);
+        if (!st.excluded) e = run(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, admin);
       }
-      e = run(e, { type: 'startRace' }, control);
+      e = run(e, { type: 'startRace' }, admin);
       const startedAt = e.round.startedAt!;
       now = startedAt + 900_000;
       for (const race of derive(e).rounds[round - 1]!.races) {
@@ -52,7 +52,7 @@ describe('the previous event, driven through commands', () => {
           e = run(e, { type: 'tapFinish', teamId, atServerMs, clientTapId: `${round}-${teamId}` }, referee(stationOfTable(table)));
         }
       }
-      e = run(e, { type: 'finishRace' }, control);
+      e = run(e, { type: 'finishRace' }, admin);
       now += 60_000;
     }
 
@@ -61,7 +61,7 @@ describe('the previous event, driven through commands', () => {
     for (const c of e.setup.categories) {
       expect(d.standings[c.id]!.map(nameOf)).toEqual(fixture.expectedStandings[c.name as keyof typeof fixture.expectedStandings]);
     }
-    const r = applyCommand(e, { type: 'openNextRound' }, ctx(control, now));
+    const r = applyCommand(e, { type: 'openNextRound' }, ctx(admin, now));
     expect(r.ok ? 'ok' : r.code).toBe('event_complete');
   });
 });

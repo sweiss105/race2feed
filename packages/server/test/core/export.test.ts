@@ -2,9 +2,9 @@ import { describe, it, expect } from 'vitest';
 import { applyCommand } from '../../src/core/apply';
 import { eventCsv } from '../../src/core/export';
 import type { Command, LiveEvent } from '../../src/core/model';
-import { control, ctx, lockedFour, ok, referee, teamId } from './helpers';
+import { admin, ctx, lockedFour, ok, referee, teamId } from './helpers';
 
-const run = (e: LiveEvent, cmd: Command, actor = control, now = 2_000_000) => applyCommand(e, cmd, ctx(actor, now));
+const run = (e: LiveEvent, cmd: Command, actor = admin, now = 2_000_000) => applyCommand(e, cmd, ctx(actor, now));
 
 describe('eventCsv', () => {
   it('neutralises text that a spreadsheet would read as a formula', () => {
@@ -17,7 +17,7 @@ describe('eventCsv', () => {
     e = ok(run(e, { type: 'tapPenalty', teamId: teamId(e, 'T1'), clientTapId: 'p1' }, referee(1)));
     const tapId = e.taps.at(-1)!.id;
     for (const t of e.setup.teams) e = ok(run(e, { type: 'setResult', round: 1, teamId: t.id, set: { kind: 'time', rawMs: 150_000 } }));
-    e = ok(run(e, { type: 'finishRace' }, control, 2_000_001));
+    e = ok(run(e, { type: 'finishRace' }, admin, 2_000_001));
     e = ok(run(e, { type: 'notePenalty', tapId, reasonId: 'early', note: '=HYPERLINK("http://x","y")' }, referee(1)));
 
     const csv = eventCsv(e);
@@ -36,7 +36,7 @@ describe('eventCsv', () => {
     e = ok(run(e, { type: 'startRace' }));
     e = ok(run(e, { type: 'tapPenalty', teamId: teamId(e, '@At'), clientTapId: 'p1' }, referee(1)));
     for (const t of e.setup.teams) e = ok(run(e, { type: 'setResult', round: 1, teamId: t.id, set: { kind: 'time', rawMs: 150_000 } }));
-    e = ok(run(e, { type: 'finishRace' }, control, 2_000_001));
+    e = ok(run(e, { type: 'finishRace' }, admin, 2_000_001));
     e = ok(run(e, { type: 'decidePenalty', tapId: e.taps.at(-1)!.id, decision: 'approve', reasonId: 'early' }));
 
     const rows = eventCsv(e).split('\n').map((l) => l.split(','));

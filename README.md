@@ -19,7 +19,7 @@ It covers the whole day: setup, seeding rounds, brackets, the Grand Championship
 ### Architecture
 
 ```
- phones, projector        referee tablets        race control / admin       Bitfocus Companion
+ phones, projector        referee tablets        race control               Bitfocus Companion
    (public, read-only)      (device cookie)        (password session)         (API key)
           │                        │                       │                        │
           └──────────── HTTPS + WebSocket (/api/*) ────────┴────────────────────────┘
@@ -49,7 +49,7 @@ It covers the whole day: setup, seeding rounds, brackets, the Grand Championship
 | `/` | Participants: team search, next table, schedule, brackets, results | Public | None (read-only) |
 | `/projector` | Full-screen projector that follows the round state | Public | None (read-only) |
 | `/ref` | Referee tablet: Ready, finish taps, penalties, undo | Referees | Device cookie from a pairing QR code (`/ref?code=…`) |
-| `/control` | Race control and admin console | Race control, admin | Password. Admin also sees the Setup, Settings and Events sections |
+| `/control` | Race control console (all sections) | Race control | One console password |
 
 Bitfocus Companion has no page. It sends commands with an API key (see [Companion API](#companion-api)).
 
@@ -73,7 +73,7 @@ Every page opens a WebSocket at `/api/ws`. The hub accepts it with the Durable O
 |---|---|
 | `GET /api/health` | Liveness check |
 | `GET /api/ws` | WebSocket upgrade (public, or authenticated by cookie or `Authorization: Bearer <key>`; `?role=public` forces public, `?role=referee` authenticates with the device cookie only) |
-| `POST /api/login` | `{role: 'admin' \| 'control', password}`. Sets the `r2f_session` cookie (12 hours). Rate-limited: 5 failures per IP in 5 minutes. |
+| `POST /api/login` | `{password}`. Sets the `r2f_session` cookie (12 hours). Rate-limited: 5 failures per IP in 5 minutes. |
 | `POST /api/logout` | Ends the session and closes its sockets |
 | `POST /api/pair` | `{code, name}`. Pairs a referee device, stores the name (1–40 chars, else `400 name_required` with the code unspent) and sets the `r2f_device` cookie |
 | `POST /api/command` | `{cmd}`. Runs one command as the authenticated caller |
@@ -81,7 +81,7 @@ Every page opens a WebSocket at `/api/ws`. The hub accepts it with the Durable O
 | `GET /api/events`, `GET /api/apikeys` | Admin lists |
 | `GET /api/export?event=<id>&format=csv\|json` | Admin export of one event |
 
-Passwords are stored as salted hashes. Session, device and API-key tokens are stored only as SHA-256 hashes. The first admin login uses the `ADMIN_PASSWORD` Worker secret until an admin password is saved in the console.
+Passwords are stored as salted hashes. Session, device and API-key tokens are stored only as SHA-256 hashes. The first console login uses the `ADMIN_PASSWORD` Worker secret until a console password is saved in the console. There is one console role (`admin` in code); a hub start deletes any stored `control` password and sessions left by older versions.
 
 ### Companion API
 
@@ -126,7 +126,7 @@ npm run build            # builds the pages into packages/web/dist
 npm run dev              # wrangler dev: Worker + Hub + built pages at http://localhost:8787
 ```
 
-- **Set a local admin password.** Put `ADMIN_PASSWORD=...` in `packages/server/.dev.vars` (git-ignored), then sign in at `http://localhost:8787/control`.
+- **Set a local console password.** Put `ADMIN_PASSWORD=...` in `packages/server/.dev.vars` (git-ignored), then sign in at `http://localhost:8787/control`.
 - **Rebuild after page changes.** `npm run dev` serves the *built* pages, so run `npm run build` again after changing anything in `packages/web`.
 - **The Vite dev server is for the pages alone.** `npm run dev -w @race2feed/web` starts it, but `vite.config.ts` has no proxy to the API, so use the build plus `npm run dev` to run the whole app.
 - **Local data** is kept by wrangler under `.wrangler/` (git-ignored).
@@ -154,7 +154,7 @@ npm run deploy           # wrangler deploy (normally done by GitHub Actions; see
 - **Run one project:** for example `npx vitest run --project server-core`.
 - **The web tests read the built pages.** Use `npm test` (which builds first), or run `npm run build` before running the `web` project on its own.
 
-**End-to-end:** `npm run e2e` builds the pages and starts `wrangler dev` on port 8787. It uses a throwaway store in `.wrangler/e2e` and a test admin password. Then it drives real browser windows: console, referee tablet, phone and projector.
+**End-to-end:** `npm run e2e` builds the pages and starts `wrangler dev` on port 8787. It uses a throwaway store in `.wrangler/e2e` and a test console password. Then it drives real browser windows: console, referee tablet, phone and projector.
 - The first time, install the browser with `npx playwright install --with-deps chromium` (as CI does).
 - Screenshots of every screen are saved to `test-results/screens/`.
 
@@ -182,13 +182,13 @@ The app is deployed to Cloudflare Workers on the custom domain **r2f.weiss-audio
 |---|---|---|
 | `CLOUDFLARE_API_TOKEN` | GitHub Actions secret | `wrangler deploy` |
 | `CLOUDFLARE_ACCOUNT_ID` | GitHub Actions secret | `wrangler deploy` |
-| `ADMIN_PASSWORD` | Cloudflare Worker secret | First admin sign-in, until an admin password is saved in the console |
+| `ADMIN_PASSWORD` | Cloudflare Worker secret | First console sign-in, until a console password is saved in the console |
 
-Step-by-step setup for the token, the secrets and the first admin password is in [`packages/server/README.md`](packages/server/README.md), along with notes on the Workers plan and limits.
+Step-by-step setup for the token, the secrets and the first console password is in [`packages/server/README.md`](packages/server/README.md), along with notes on the Workers plan and limits.
 
 **Backups:** the hub's SQLite storage has Cloudflare's point-in-time recovery. Admin can also export any event as CSV or JSON from the console's **Events** section.
 
 ## Documentation
 
-- [`docs/user-guide.md`](docs/user-guide.md): how to run an event, by role (admin, race control, referees, participants, projector, Companion). Written for event staff.
+- [`docs/user-guide.md`](docs/user-guide.md): how to run an event, by role (race control, referees, participants, projector, Companion). Written for event staff.
 - [`docs/design.md`](docs/design.md): the agreed design and rules (event model, round lifecycle, timing, penalties, pages, security, architecture).

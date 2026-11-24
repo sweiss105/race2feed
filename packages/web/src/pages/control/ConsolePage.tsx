@@ -19,8 +19,8 @@ const LABELS: Record<Section, string> = {
   race: 'Race', teams: 'Teams', setup: 'Setup', devices: 'Devices', settings: 'Settings', events: 'Events', log: 'Log',
 };
 
-export function sectionsFor(role: Me['role']): Section[] {
-  return role === 'admin' ? ['race', 'teams', 'setup', 'devices', 'settings', 'events', 'log'] : ['race', 'teams', 'devices', 'log'];
+export function sectionsFor(_role: Me['role']): Section[] {
+  return ['race', 'teams', 'setup', 'devices', 'settings', 'events', 'log'];
 }
 
 export interface ConsoleProps {
@@ -59,7 +59,7 @@ export function ConsolePage(props: ConsoleProps) {
         <main class="content">
           <div class="page">
             {!props.view && section !== 'events' && section !== 'settings'
-              ? <p class="secondary callout">No event is active. {props.me.role === 'admin' ? 'Create or activate one under Events.' : 'Ask the admin to activate the event.'}</p>
+              ? <p class="secondary callout">No event is active. Create or activate one under Events.</p>
               : <SectionView section={section} {...props} />}
           </div>
         </main>
@@ -71,7 +71,7 @@ export function ConsolePage(props: ConsoleProps) {
 function SectionView({ section, ...p }: ConsoleProps & { section: Section }) {
   switch (section) {
     case 'race': return <Race view={p.view!} serverNow={p.serverNow} />;
-    case 'teams': return <Teams view={p.view!} role={p.me.role} />;
+    case 'teams': return <Teams view={p.view!} />;
     case 'setup': return <Setup view={p.view!} />;
     case 'devices': return <Devices view={p.view!} />;
     case 'settings': return <Settings view={p.view} />;

@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:workers';
 import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
-import { call, command, connect, controlAndReferee, lockedEvent, settle, wsCommand } from './client';
+import { call, command, connect, pairReferee, lockedEvent, resetConsolePassword, settle, wsCommand } from './client';
 
 const hub = () => env.HUB.getByName('hub');
 
@@ -25,8 +25,7 @@ describe('live connections', () => {
 
   it('commands over a socket are acked and broadcast', async () => {
     const admin = await lockedEvent();
-    const { control } = await controlAndReferee(admin);
-    const ctl = await connect({ cookie: control });
+    const ctl = await connect({ cookie: admin });
     const pub = await connect({ role: 'public' });
     await ctl.next('view', 0);
     await pub.next('snapshot', 0);
@@ -40,7 +39,7 @@ describe('live connections', () => {
 
   it('refuses a referee tap when no race is running', async () => {
     const admin = await lockedEvent();
-    const { device } = await controlAndReferee(admin);
+    const { device } = await pairReferee(admin);
     const ref = await connect({ cookie: device });
     const view = await ref.next('view', 0);
     const teamId = view.view?.teams?.[0]?.teamId ?? 'x';
@@ -50,8 +49,7 @@ describe('live connections', () => {
 
   it('coalesces public round updates to one per second', async () => {
     const admin = await lockedEvent(6);
-    const { control } = await controlAndReferee(admin);
-    const ctl = await connect({ cookie: control });
+    const ctl = await connect({ cookie: admin });
     const pub = await connect({ role: 'public' });
     await wsCommand(ctl, { type: 'openNextRound' });
     for (const station of [1, 2, 3]) await wsCommand(ctl, { type: 'overrideStation', station, state: 'ready' });
@@ -77,8 +75,7 @@ describe('live connections', () => {
 
   it('sends phones a fresh snapshot for corrections made while reviewing a finished round', async () => {
     const admin = await lockedEvent();
-    const { control } = await controlAndReferee(admin);
-    const ctl = await connect({ cookie: control });
+    const ctl = await connect({ cookie: admin });
     const pub = await connect({ role: 'public' });
     await wsCommand(ctl, { type: 'openNextRound' });
     for (const station of [1, 2]) await wsCommand(ctl, { type: 'overrideStation', station, state: 'ready' });
@@ -112,8 +109,8 @@ describe('live connections', () => {
 
   it('keeps the race and socket roles across eviction', async () => {
     const admin = await lockedEvent();
-    const { control, device } = await controlAndReferee(admin);
-    const ctl = await connect({ cookie: control });
+    const { device } = await pairReferee(admin);
+    const ctl = await connect({ cookie: admin });
     const ref = await connect({ cookie: device });
     await wsCommand(ctl, { type: 'openNextRound' });
     expect((await wsCommand(ref, { type: 'stationReady' })).ok).toBe(true);
@@ -137,25 +134,25 @@ describe('live connections', () => {
 
   it('closes a revoked tablet with code 4401', async () => {
     const admin = await lockedEvent();
-    const { control, device } = await controlAndReferee(admin);
+    const { device } = await pairReferee(admin);
     const ref = await connect({ cookie: device });
     await ref.next('view', 0);
     const deviceId = (await runInDurableObject(hub(), (_i, state) =>
       state.storage.sql.exec<{ id: string }>('SELECT id FROM devices ORDER BY created_at DESC LIMIT 1').one())).id;
-    await command({ type: 'revokeDevice', deviceId }, { cookie: control });
+    await command({ type: 'revokeDevice', deviceId }, { cookie: admin });
     const closed = await ref.closed; // closed as soon as the device is revoked
     expect(closed.code).toBe(4401);
   });
 
   it('closes a socket whose session ended, on its next message', async () => {
     const admin = await lockedEvent();
-    const { control } = await controlAndReferee(admin);
-    const ctl = await connect({ cookie: control });
+    const ctl = await connect({ cookie: admin });
     await ctl.next('view', 0);
-    // Changing the race control password ends existing race control sessions.
-    await command({ type: 'setPassword', role: 'control', password: 'another-password' }, { cookie: admin });
+    // Changing the console password ends existing console sessions.
+    await command({ type: 'setPassword', password: 'another-password' }, { cookie: admin });
     ctl.send({ type: 'ping', t0: 1 });
     expect((await ctl.closed).code).toBe(4401);
+    await resetConsolePassword();
   });
 
   it('rejects socket credentials that are no longer valid', async () => {

@@ -3,10 +3,10 @@ import { applyCommand } from '../../src/core/apply';
 import { nextAlarm } from '../../src/core/autofinish';
 import { derive, teamsInRound } from '../../src/core/results';
 import type { Command, LiveEvent } from '../../src/core/model';
-import { admin, control, ctx, lockedFour, ok, referee, teamId } from './helpers';
+import { admin, ctx, lockedFour, ok, referee, teamId } from './helpers';
 
 const START = 2_000_000;
-const run = (e: LiveEvent, cmd: Command, now: number, actor = control) => ok(applyCommand(e, cmd, ctx(actor, now)));
+const run = (e: LiveEvent, cmd: Command, now: number, actor = admin) => ok(applyCommand(e, cmd, ctx(actor, now)));
 const time = (e: LiveEvent, name: string, now: number) =>
   run(e, { type: 'setResult', round: e.round.current, teamId: teamId(e, name), set: { kind: 'time', rawMs: 100_000 } }, now);
 

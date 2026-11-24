@@ -1,9 +1,9 @@
-export interface Me { role: 'admin' | 'control' | 'referee' | 'companion'; label: string; station?: number }
+export interface Me { role: 'admin' | 'referee' | 'companion'; label: string; station?: number }
 
 const json = { 'content-type': 'application/json' };
 
-export async function login(role: 'admin' | 'control', password: string): Promise<{ ok: true } | { ok: false; status: number }> {
-  const res = await fetch('/api/login', { method: 'POST', headers: json, body: JSON.stringify({ role, password }) });
+export async function login(password: string): Promise<{ ok: true } | { ok: false; status: number }> {
+  const res = await fetch('/api/login', { method: 'POST', headers: json, body: JSON.stringify({ password }) });
   return res.ok ? { ok: true } : { ok: false, status: res.status };
 }
 

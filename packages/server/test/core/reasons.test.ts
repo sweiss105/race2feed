@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { applyCommand } from '../../src/core/apply';
 import { STARTER_REASONS, reasonsOf, reviewOf } from '../../src/core/reasons';
 import type { Tap } from '../../src/core/model';
-import { admin, blank, control, ctx, lockedFour } from './helpers';
+import { admin, blank, ctx, lockedFour } from './helpers';
 
 const code = (r: ReturnType<typeof applyCommand>) => (r.ok ? 'ok' : r.code);
 
@@ -29,10 +29,6 @@ describe('penalty reasons', () => {
     const noAmount = [{ id: 'a', name: 'Spill', kind: 'time' as const }];
     expect(code(applyCommand(blank(), { type: 'setPenaltyReasons', reasons: noAmount as never }, ctx(admin)))).toBe('invalid');
     expect(code(applyCommand(blank(), { type: 'setPenaltyReasons', reasons: [] }, ctx(admin)))).toBe('invalid');
-  });
-
-  it('is admin only', () => {
-    expect(code(applyCommand(blank(), { type: 'setPenaltyReasons', reasons: STARTER_REASONS }, ctx(control)))).toBe('forbidden');
   });
 
   it('treats penalty taps from before reviews existed as approved', () => {

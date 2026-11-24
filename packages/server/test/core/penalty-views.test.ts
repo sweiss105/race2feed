@@ -4,9 +4,9 @@ import { derive } from '../../src/core/results';
 import { controlView, publicView, refereeView } from '../../src/core/views';
 import { eventCsv } from '../../src/core/export';
 import type { Command, LiveEvent } from '../../src/core/model';
-import { control, ctx, lockedFour, ok, referee, teamId } from './helpers';
+import { admin, ctx, lockedFour, ok, referee, teamId } from './helpers';
 
-const run = (e: LiveEvent, cmd: Command, actor = control) => ok(applyCommand(e, cmd, ctx(actor, 2_000_000)));
+const run = (e: LiveEvent, cmd: Command, actor = admin) => ok(applyCommand(e, cmd, ctx(actor, 2_000_000)));
 
 /** Round 1 finished; referee gave T1 and T2 a penalty each, with a note on T1's. */
 function reviewed() {

@@ -1,7 +1,7 @@
 import type { BracketSpec, EventInput, SavedRace, SeedingGroup } from '@race2feed/engine';
 import { STARTER_REASONS } from './starter';
 
-export type Role = 'admin' | 'control' | 'referee' | 'companion' | 'public';
+export type Role = 'admin' | 'referee' | 'companion' | 'public';
 export interface Actor { role: Role; label: string; deviceId?: string; station?: number }
 
 export type Phase = 'idle' | 'open' | 'running' | 'finished';

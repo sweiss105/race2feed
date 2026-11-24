@@ -4,23 +4,22 @@ import { Button } from '../../../ui/Button';
 import { useRunner } from '../runner';
 import { Problems } from './Problems';
 
-export function Teams({ view, role }: { view: ControlView; role: string }) {
+export function Teams({ view }: { view: ControlView }) {
   const runner = useRunner();
-  const admin = role === 'admin';
   const locked = view.setupLocked;
   const category = (id: string) => view.categories.find((c) => c.id === id)?.name ?? id;
   return (
     <>
       <h2 class="title-1">Teams</h2>
       <p class="secondary callout">{view.teams.length} teams in {view.categories.length} categories.{locked ? ' Setup is locked: names can still be fixed.' : ''}</p>
-      {admin && !locked && <Import />}
-      {admin && !locked && <AddTeam categories={view.categories.map((c) => c.name)} />}
+      {!locked && <Import />}
+      {!locked && <AddTeam categories={view.categories.map((c) => c.name)} />}
       <section class="panel">
         <table class="table">
           <thead><tr><th>Team</th><th>Category</th><th /></tr></thead>
           <tbody>
             {view.teams.map((t) => (
-              <TeamRow key={t.id} id={t.id} name={t.name} category={category(t.categoryId)} canRemove={admin && !locked} busy={runner.busy(`team-${t.id}`)} />
+              <TeamRow key={t.id} id={t.id} name={t.name} category={category(t.categoryId)} canRemove={!locked} busy={runner.busy(`team-${t.id}`)} />
             ))}
           </tbody>
         </table>

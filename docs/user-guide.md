@@ -5,7 +5,7 @@
 This guide explains how to run a Race to Feed event with the app. It's organised by job, so you can skip to your part:
 
 - [The big picture](#the-big-picture)
-- [Admin](#admin): set up the event before the day
+- [Setup before the day](#setup-before-the-day): create the event, teams and settings
 - [Race control](#race-control): run the rounds on the day
 - [Referees](#referees): time the teams at the tables
 - [Participants](#participants): follow along on a phone
@@ -25,12 +25,12 @@ Everything happens at **https://r2f.weiss-audio.com**:
 | `r2f.weiss-audio.com` | Participants and the public, on their phones |
 | `r2f.weiss-audio.com/projector` | The computer connected to the projector |
 | `r2f.weiss-audio.com/ref` | Referee tablets (opened by scanning a QR code) |
-| `r2f.weiss-audio.com/control` | Race control and admin |
+| `r2f.weiss-audio.com/control` | Race control (setup, settings and events too) |
 
 **A few words we use:**
 
 - **Table:** one numbered race spot. Each team races at one table per round.
-- **Station:** the table or tables one referee looks after. By default a referee covers **two tables** (1 & 2, 3 & 4, …). Admin can switch the event to **one referee per table** (see [Tables per referee](#tables-per-referee)).
+- **Station:** the table or tables one referee looks after. By default a referee covers **two tables** (1 & 2, 3 & 4, …). Race control can switch the event to **one referee per table** (see [Tables per referee](#tables-per-referee)).
 - **Round:** all the races that start together on one master clock.
 - **Seeding rounds:** each team races twice against the clock. Their total time ranks them within their category.
 - **Brackets:** after seeding, teams are placed in brackets (Gold, Silver, Bronze, Copper, Tin, …) and race head-to-head.
@@ -49,13 +49,13 @@ Everything happens at **https://r2f.weiss-audio.com**:
 
 ---
 
-## Admin
+## Setup before the day
 
-Admin sets up the event and has every race control power too. Sign in at `/control`: choose **Admin**, enter the admin password, then press **Sign in**.
+Race control sets up the event before the day, then runs it. There is one console password for everyone. Sign in at `/control`: enter the password, then press **Sign in**.
 
-The console's menu on the left has these sections for admin: **Race, Teams, Setup, Devices, Settings, Events, Log**. (Race control sees only Race, Teams, Devices and Log.)
+The console's menu on the left has these sections: **Race, Teams, Setup, Devices, Settings, Events, Log**. Everyone who signs in sees all of them.
 
-> **First sign-in:** the very first admin password is set by whoever deployed the app. After you sign in, save your own under **Settings → Passwords**.
+> **First sign-in:** the very first console password is set by whoever deployed the app. After you sign in, save your own under **Settings → Console password**.
 
 ### 1. Create the event
 
@@ -118,15 +118,14 @@ When teams, groups and brackets look right, press **Lock setup** in **Setup**.
 - **Unlock setup** is available only before the first round is opened.
 - **Some changes still work while locked:** renaming teams, settings, the penalty list and the bag total.
 
-### 5. Passwords
+### 5. Console password
 
-Under **Settings → Passwords**:
+Under **Settings → Console password**:
 
-1. Choose **Race control** or **Admin**.
-2. Type the new password (at least 8 characters).
-3. Press **Save password**.
+1. Type the new password (at least 8 characters).
+2. Press **Save password**.
 
-Race control can't sign in until you've set their password. Changing a password signs out everyone who was using it.
+Changing the password signs out everyone using the console. Give them the new one.
 
 ### 6. Companion keys
 
@@ -140,7 +139,7 @@ To stop a key working, press **Revoke** next to it. See [Bitfocus Companion](#bi
 
 ### 7. Pair the referee tablets
 
-Admin and race control can both do this. Go to **Devices**. There's one row per station.
+Go to **Devices**. There's one row per station.
 
 1. Press **Pair tablet** on a station's row. A QR code and a short code appear.
 2. On the referee's tablet or phone, scan the QR code with the camera. It opens the referee page, which asks for the referee's name; once they press **Start** the tablet is paired to that station.
@@ -175,7 +174,7 @@ Under **Settings**, for the active event:
 
 ## Race control
 
-Sign in at `/control`: choose **Race control**, enter the race control password, then press **Sign in**. Most of your work happens in the **Race** section.
+Sign in at `/control` with the console password, then press **Sign in**. Most of your work happens in the **Race** section.
 
 At the top of **Race** you'll see:
 - the round number and its state: **idle**, **open**, **running** or **finished**
@@ -196,7 +195,7 @@ At the top of **Race** you'll see:
 | Last round finished | **Show champion** | yes | "Event complete" |
 | Champion showing | **Hide champion** | no | "Champion is showing" |
 
-"N tables" counts referee stations that are not Ready yet. If both penalties and a tie are waiting, the status line names the penalties first. Before admin locks the setup, the button reads **Open round 1** and stays greyed out.
+"N tables" counts referee stations that are not Ready yet. If both penalties and a tie are waiting, the status line names the penalties first. Before the setup is locked, the button reads **Open round 1** and stays greyed out.
 
 On a device set to reduce motion, the button doesn't pulse.
 
@@ -212,7 +211,7 @@ The button is greyed out while penalties or a tie are waiting (the status line s
 
 | Message | What to do |
 |---|---|
-| "Lock the setup before opening a round." | Ask admin to lock the setup. |
+| "Lock the setup before opening a round." | Lock the setup under **Setup**. |
 | "Finish the current round first." | Finish the round that's open or running. |
 | "*N* penalties need a decision first." | Decide the pending penalties (see [Penalty review](#penalty-review)). |
 | "The next round is waiting on a decision." | Usually a tie that needs deciding (see [Ties](#ties)). |
@@ -269,7 +268,7 @@ The newest change always wins, so you can correct a referee's tap by entering th
 
 ### Time penalties
 
-Penalties are switched **off** for a new event. The **Time penalties** switch in **Settings**, in the event's panel, turns them on or off for the whole event. Settings is in admin's menu, so race control asks admin to flip it.
+Penalties are switched **off** for a new event. The **Time penalties** switch in **Settings**, in the event's panel, turns them on or off for the whole event.
 - **It takes effect at once**, even mid-race: the penalty buttons appear or disappear on every referee tablet.
 - **Turning it off doesn't remove** penalties already given.
 - **You can still add or remove penalties** in Results while it's off.
@@ -329,7 +328,7 @@ While the champion is showing, the big button reads **Hide champion**. Pressing 
 
 ### Devices and Log
 
-- **Devices:** pair or revoke referee tablets, the same as admin does (see [Pair the referee tablets](#7-pair-the-referee-tablets)).
+- **Devices:** pair or revoke referee tablets (see [Pair the referee tablets](#7-pair-the-referee-tablets)).
 - **Log:** the latest 50 changes, newest first, with who made each one. Every tap, penalty, undo, correction, override, tie decision and round change is recorded.
 
 ---
@@ -456,7 +455,7 @@ Race control can pin any screen, including **standings**, from the console (see 
 Race control can start and finish races from Stream Deck buttons through Bitfocus Companion. The buttons follow exactly the same rules as the console's **Start** and **Finish now**: a refused press changes nothing.
 
 **What you need:**
-- A Companion key, made by admin in **Settings → Companion keys** (see [Companion keys](#6-companion-keys)).
+- A Companion key, made in **Settings → Companion keys** (see [Companion keys](#6-companion-keys)).
 - The computer running Companion must have internet access.
 
 ### For whoever sets up the buttons
@@ -490,7 +489,7 @@ A Companion key can do only these things. It can't change results or setup.
 
 ## Ending and reopening an event
 
-### End the event (admin)
+### End the event
 
 When the event is over:
 
@@ -502,7 +501,7 @@ When an event ends:
 - It's marked **Ended** and is no longer active.
 - Its results are locked: no further changes are accepted.
 - All referee tablets are signed out and their pairings cancelled.
-- **Phones and the projector keep showing the champion and final results** until admin activates another event.
+- **Phones and the projector keep showing the champion and final results** until someone activates another event.
 - The **CSV** and **JSON** downloads keep working.
 
 ### Reopen an event
@@ -544,7 +543,7 @@ Read the status line or the message under the button: lock the setup, finish the
 Within the undo window, the referee presses **Undo**. After that, race control fixes it in **Results**: enter the right time, or press **Clear**.
 
 **A team's name is misspelled on the projector.**
-Race control or admin: **Teams → Rename**.
+**Teams → Rename**.
 
 **The projector is stuck on one screen.**
 It's probably pinned. On the **Race** page, set the projector menu back to **Projector: automatic**.
@@ -552,8 +551,8 @@ It's probably pinned. On the **Race** page, set the projector menu back to **Pro
 **"Too many attempts. Wait five minutes and try again."**
 After 5 wrong passwords in 5 minutes, sign-in pauses for that network. Wait, then try again with the right password.
 
-**I changed a password and people got signed out.**
-That's expected: changing a password signs out everyone using it. Give them the new one.
+**I changed the password and people got signed out.**
+That's expected: changing the password signs out everyone using the console. Give them the new one.
 
 **"Setup is locked; unlock it before changing teams, groups or brackets."**
 **Unlock setup** works only before the first round is opened. After that, only renaming teams, settings, the penalty list and the bag total can change.

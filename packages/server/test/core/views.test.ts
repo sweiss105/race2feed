@@ -4,17 +4,17 @@ import { handleLifecycle } from '../../src/core/lifecycle';
 import { derive } from '../../src/core/results';
 import type { LiveEvent } from '../../src/core/model';
 import type { DerivedEvent } from '@race2feed/engine';
-import { control, ctx, lockedFour, ok, referee, runRound, teamId } from './helpers';
+import { admin, ctx, lockedFour, ok, referee, runRound, teamId } from './helpers';
 import { fixture, previousEvent } from './fixture';
 
-const open = (e: LiveEvent) => ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(control)));
+const open = (e: LiveEvent) => ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin)));
 const readyAll = (e: LiveEvent) => {
   for (const [s, st] of Object.entries(e.stations)) {
-    if (!st.excluded) e = ok(handleLifecycle(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, ctx(control)));
+    if (!st.excluded) e = ok(handleLifecycle(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, ctx(admin)));
   }
   return e;
 };
-const start = (e: LiveEvent) => ok(handleLifecycle(readyAll(e), { type: 'startRace' }, ctx(control)));
+const start = (e: LiveEvent) => ok(handleLifecycle(readyAll(e), { type: 'startRace' }, ctx(admin)));
 const times = { T1: 100_000, T2: 110_000, T3: 120_000, T4: 130_000 };
 
 function keysDeep(v: unknown, out = new Set<string>()): Set<string> {

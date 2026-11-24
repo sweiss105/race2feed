@@ -1,13 +1,10 @@
 import { useState } from 'preact/hooks';
 import { Button } from '../../ui/Button';
 
-type Role = 'admin' | 'control';
-
 export function Login({ login, onSignedIn }: {
-  login(role: Role, password: string): Promise<{ ok: true } | { ok: false; status: number }>;
+  login(password: string): Promise<{ ok: true } | { ok: false; status: number }>;
   onSignedIn(): void;
 }) {
-  const [role, setRole] = useState<Role>('admin');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,7 +14,7 @@ export function Login({ login, onSignedIn }: {
     setBusy(true);
     setError(null);
     try {
-      const r = await login(role, password);
+      const r = await login(password);
       if (r.ok) onSignedIn();
       else setError(r.status === 429 ? 'Too many attempts. Wait five minutes and try again.' : 'Wrong password');
     } catch {
@@ -31,13 +28,6 @@ export function Login({ login, onSignedIn }: {
     <div class="center-page">
       <form class="card login" onSubmit={submit}>
         <h1 class="title-1">Race control</h1>
-        <div class="segmented" role="radiogroup" aria-label="Sign in as">
-          {(['admin', 'control'] as const).map((r) => (
-            <button key={r} type="button" role="radio" aria-checked={role === r ? 'true' : 'false'} aria-selected={role === r ? 'true' : 'false'} onClick={() => setRole(r)}>
-              {r === 'admin' ? 'Admin' : 'Race control'}
-            </button>
-          ))}
-        </div>
         <label class="field">
           <span class="footnote secondary">Password</span>
           <input class="input" type="password" autocomplete="current-password" value={password}

@@ -2,7 +2,6 @@ import type { Actor, Ctx, LiveEvent, CommandResult } from '../../src/core/model'
 import { newEvent } from '../../src/core/model';
 
 export const admin: Actor = { role: 'admin', label: 'admin' };
-export const control: Actor = { role: 'control', label: 'control' };
 export const companion: Actor = { role: 'companion', label: 'companion' };
 export const referee = (station: number, deviceId = `dev${station}`): Actor =>
   ({ role: 'referee', label: `ref ${station}`, station, deviceId });
@@ -41,16 +40,16 @@ export const teamId = (e: LiveEvent, name: string) => e.setup.teams.find((t) => 
 
 /** Opens the next round, readies every station, starts at `now`, records times by team name, finishes. */
 export function runRound(e: LiveEvent, timesByName: Record<string, number>, now = 2_000_000): LiveEvent {
-  e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(control, now)));
+  e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin, now)));
   for (const s of Object.keys(e.stations)) {
-    e = ok(handleLifecycle(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, ctx(control, now)));
+    e = ok(handleLifecycle(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, ctx(admin, now)));
   }
-  e = ok(handleLifecycle(e, { type: 'startRace' }, ctx(control, now)));
+  e = ok(handleLifecycle(e, { type: 'startRace' }, ctx(admin, now)));
   const inRound = new Set(teamsInRound(derive(e), e.round.current).map((t) => t.teamId));
   const overrides = Object.entries(timesByName)
     .map(([name, rawMs]) => ({ teamId: teamId(e, name), rawMs }))
     .filter((o) => inRound.has(o.teamId))
     .map((o) => ({ round: e.round.current, teamId: o.teamId, at: now, set: { kind: 'time' as const, rawMs: o.rawMs } }));
   e = { ...e, overrides: [...e.overrides, ...overrides] };
-  return ok(handleLifecycle(e, { type: 'finishRace' }, ctx(control, now + 1)));
+  return ok(handleLifecycle(e, { type: 'finishRace' }, ctx(admin, now + 1)));
 }

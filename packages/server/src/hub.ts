@@ -16,7 +16,7 @@ export type HubCommand =
   | { type: 'createEvent'; name: string; date: string; tableCount: number }
   | { type: 'activateEvent'; eventId: string }
   | { type: 'endEvent'; eventId: string }
-  | { type: 'setPassword'; role: 'admin' | 'control'; password: string }
+  | { type: 'setPassword'; password: string }
   | { type: 'createApiKey'; label: string }
   | { type: 'revokeApiKey'; id: string }
   | { type: 'createPairingCode'; station: number }
@@ -41,7 +41,7 @@ const PUBLIC_INTERVAL_MS = 1000;
 const AUTO_FINISH: Actor = { role: 'admin', label: 'auto-finish' };
 
 const tagFor = (a: Actor) =>
-  a.role === 'admin' || a.role === 'control' ? 'control' : a.role === 'referee' ? `referee:${a.station}` : a.role;
+  a.role === 'admin' ? 'control' : a.role === 'referee' ? `referee:${a.station}` : a.role;
 
 const SESSION_MS = 12 * 60 * 60 * 1000;
 /** `{name} (station n)`; a device stored before names existed (label `Station n`) keeps `referee station n`. */
@@ -59,8 +59,8 @@ const HUB_COMMANDS: Record<HubCommand['type'], Actor['role'][]> = {
   setPassword: ['admin'],
   createApiKey: ['admin'],
   revokeApiKey: ['admin'],
-  createPairingCode: ['admin', 'control'],
-  revokeDevice: ['admin', 'control'],
+  createPairingCode: ['admin'],
+  revokeDevice: ['admin'],
 };
 
 const SCHEMA = `
@@ -88,6 +88,9 @@ export class Hub extends DurableObject<Env> {
     this.sql = ctx.storage.sql;
     ctx.blockConcurrencyWhile(async () => {
       this.sql.exec(SCHEMA);
+      // Race control and admin used to have separate passwords; there is one console role now.
+      this.sql.exec("DELETE FROM credentials WHERE role = 'control'");
+      this.sql.exec("DELETE FROM sessions WHERE role = 'control'");
       this.active = this.loadActive();
       this.ended = this.loadEnded();
     });
@@ -126,17 +129,17 @@ export class Hub extends DurableObject<Env> {
 
   // ---------- authentication ----------
 
-  async login(role: 'admin' | 'control', password: string, ip: string):
+  async login(password: string, ip: string):
     Promise<{ ok: true; token: string } | { ok: false; status: 401 | 429 }> {
     const now = Date.now();
     this.sql.exec('DELETE FROM login_failures WHERE at <= ?', now - LOCKOUT_WINDOW_MS);
     const failures = this.sql.exec<{ at: number }>('SELECT at FROM login_failures WHERE ip = ?', ip).toArray().map((r) => r.at);
     if (!loginAllowed(failures, now)) return { ok: false, status: 429 };
 
-    const stored: StoredPassword | undefined = this.sql.exec<{ hash: string; salt: string; iterations: number }>('SELECT hash, salt, iterations FROM credentials WHERE role = ?', role).toArray()[0];
+    const stored: StoredPassword | undefined = this.sql.exec<{ hash: string; salt: string; iterations: number }>("SELECT hash, salt, iterations FROM credentials WHERE role = 'admin'").toArray()[0];
     let valid = false;
     if (stored) valid = await verifyPassword(password, stored);
-    else if (role === 'admin' && this.env.ADMIN_PASSWORD) {
+    else if (this.env.ADMIN_PASSWORD) {
       valid = (await sha256Hex(password)) === (await sha256Hex(this.env.ADMIN_PASSWORD));
     }
     if (!valid) {
@@ -145,7 +148,7 @@ export class Hub extends DurableObject<Env> {
     }
     const token = randomToken();
     this.sql.exec('DELETE FROM sessions WHERE expires_at <= ?', now);
-    this.sql.exec('INSERT INTO sessions (token_hash, role, expires_at) VALUES (?, ?, ?)', await sha256Hex(token), role, now + SESSION_MS);
+    this.sql.exec("INSERT INTO sessions (token_hash, role, expires_at) VALUES (?, 'admin', ?)", await sha256Hex(token), now + SESSION_MS);
     return { ok: true, token };
   }
 
@@ -164,7 +167,7 @@ export class Hub extends DurableObject<Env> {
     if (cred.session) {
       const row = this.sql.exec<{ role: Actor['role'] }>('SELECT role FROM sessions WHERE token_hash = ? AND expires_at > ?',
         cred.session, now).toArray()[0];
-      if (row) return { role: row.role, label: row.role === 'admin' ? 'admin' : 'race control' };
+      if (row) return { role: row.role, label: 'race control' };
     }
     if (cred.device && this.active) {
       const row = this.sql.exec<{ id: string; station: number; label: string | null; last_seen: number | null }>(
@@ -287,13 +290,12 @@ export class Hub extends DurableObject<Env> {
         return reply({ eventId: event.id }, { eventId: event.id }, event.id);
       }
       case 'setPassword': {
-        if (cmd.role !== 'admin' && cmd.role !== 'control') return fail('invalid', 'Role must be admin or control.');
         if (typeof cmd.password !== 'string' || cmd.password.length < 8) return fail('invalid', 'Use at least 8 characters.');
         const stored = await hashPassword(cmd.password);
-        this.sql.exec('INSERT OR REPLACE INTO credentials (role, hash, salt, iterations) VALUES (?, ?, ?, ?)',
-          cmd.role, stored.hash, stored.salt, stored.iterations);
-        this.sql.exec('DELETE FROM sessions WHERE role = ?', cmd.role);
-        return reply(null, { role: cmd.role });
+        this.sql.exec("INSERT OR REPLACE INTO credentials (role, hash, salt, iterations) VALUES ('admin', ?, ?, ?)",
+          stored.hash, stored.salt, stored.iterations);
+        this.sql.exec("DELETE FROM sessions WHERE role = 'admin'");
+        return reply(null);
       }
       case 'createApiKey': {
         const id = crypto.randomUUID();

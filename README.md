@@ -75,7 +75,7 @@ Every page opens a WebSocket at `/api/ws`. The hub accepts it with the Durable O
 | `GET /api/ws` | WebSocket upgrade (public, or authenticated by cookie or `Authorization: Bearer <key>`; `?role=public` forces public, `?role=referee` authenticates with the device cookie only) |
 | `POST /api/login` | `{role: 'admin' \| 'control', password}`. Sets the `r2f_session` cookie (12 hours). Rate-limited: 5 failures per IP in 5 minutes. |
 | `POST /api/logout` | Ends the session and closes its sockets |
-| `POST /api/pair` | `{code}`. Pairs a referee device and sets the `r2f_device` cookie |
+| `POST /api/pair` | `{code, name}`. Pairs a referee device, stores the name (1–40 chars, else `400 name_required` with the code unspent) and sets the `r2f_device` cookie |
 | `POST /api/command` | `{cmd}`. Runs one command as the authenticated caller |
 | `GET /api/me` | Who the caller is (role, label, station); `?as=referee` answers from the device cookie only |
 | `GET /api/events`, `GET /api/apikeys` | Admin lists |

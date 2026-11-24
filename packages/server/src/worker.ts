@@ -53,9 +53,12 @@ export default {
     }
 
     if (path === '/api/pair' && post) {
-      const { code } = await body(request);
+      const { code, name } = await body(request);
       if (typeof code !== 'string') return json({ error: 'invalid' }, 400);
-      const r = await hub.pair(code);
+      // Checked before the code is looked up, so a missing name never spends the code.
+      const refName = typeof name === 'string' ? name.trim() : '';
+      if (refName.length === 0 || refName.length > 40) return json({ error: 'name_required' }, 400);
+      const r = await hub.pair(code, refName);
       if (!r.ok) return json({ error: 'invalid_code' }, 400);
       return json({ ok: true, station: r.station }, 200, { 'set-cookie': setCookie(DEVICE_COOKIE, r.deviceToken, 30 * 24 * 60 * 60) });
     }

@@ -56,6 +56,13 @@ describe('admin sections', () => {
     expect(screen.getByText('ABC234')).toBeTruthy();
   });
 
+  it('lists a paired referee by name and station', () => {
+    const view = ctlViewOf(lockedFour());
+    view.devices = [{ id: 'd1', station: 1, label: 'Dana', created_at: 1, revoked_at: null, last_seen: null }] as typeof view.devices;
+    withRunner(<Devices view={view} />, vi.fn(async () => ({ ok: true })));
+    expect(screen.getByText('Dana — Tables 1 & 2')).toBeTruthy();
+  });
+
   it('shows a new Companion key once', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
     const send = vi.fn(async (cmd: any) => (cmd.type === 'createApiKey' ? { ok: true, reply: { id: 'k1', key: 'secret-key-value' } } : { ok: true }));

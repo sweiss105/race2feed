@@ -369,6 +369,8 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 - **Backup controls:** Start and Finish now (the action button) follow the same gates as Companion.
 
 ### 7.3 Referee (paired tablet, QR)
+- **Pairing asks for a name.** Opening a station's QR link shows one field, **Your name**, and a **Start** button; submitting pairs the tablet. The name is trimmed and must be 1–40 characters. It is checked before the code is used, so a missing name never spends the code.
+- The name labels the device in race control's Devices list ("{name} — {station tables}") and the log's actor ("{name} (station {n})"). Devices paired before names existed keep "referee station {n}".
 - Shows the station's table numbers and the current round's teams.
 - **Ready** button. Once pressed it stays locked; only race control can clear it.
 - While running, one large button per team. A tap shows that team's time and an **Undo** countdown.
@@ -432,7 +434,7 @@ The server is reachable from the internet, so:
 |---|---|
 | Admin | Password |
 | Race control | Password (separate from admin) |
-| Referee | Device token, paired by scanning a station's QR code in race control. Bound to one station and revocable. |
+| Referee | Device token, paired by scanning a station's QR code in race control and entering their name (`POST /api/pair {code, name}`). Bound to one station and revocable; the name appears in the log. |
 | Companion | API key created in admin. Can be rotated. |
 | Participant, projector | Public, read-only |
 

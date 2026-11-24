@@ -143,13 +143,13 @@ To stop a key working, press **Revoke** next to it. See [Bitfocus Companion](#bi
 Admin and race control can both do this. Go to **Devices**. There's one row per station.
 
 1. Press **Pair tablet** on a station's row. A QR code and a short code appear.
-2. On the referee's tablet or phone, scan the QR code with the camera. It opens the referee page already paired to that station.
+2. On the referee's tablet or phone, scan the QR code with the camera. It opens the referee page, which asks for the referee's name; once they press **Start** the tablet is paired to that station.
 3. Press **Done** to close the code.
 
 About pairing:
 - **Codes are single-use and expire after 10 minutes.** Make a new one if needed.
 - **One station can have more than one device**, for example a spare tablet.
-- **Paired devices are listed per station** with when they were last seen. **Revoke** disconnects a device immediately (for a lost tablet, say).
+- **Paired devices are listed per station** by the referee's name, with when they were last seen. **Revoke** disconnects a device immediately (for a lost tablet, say).
 - **Pairing belongs to one event.** If a different event is made active, or the event is ended, tablets must be paired again.
 
 ### 8. Settings
@@ -341,7 +341,8 @@ You'll use a tablet or phone paired to your station. The top of the screen shows
 ### Pairing
 
 1. Race control shows a QR code for your station (in **Devices**).
-2. Scan it with your device's camera. The referee page opens, showing your tables.
+2. Scan it with your device's camera. The referee page asks for **Your name**.
+3. Type your name (up to 40 characters) and press **Start**. Your tables appear. Your name shows in race control's Devices list and in the log next to what you do.
 
 If you see **"Scan the station QR code"**, your device isn't paired (or was disconnected). Ask race control for a new code.
 

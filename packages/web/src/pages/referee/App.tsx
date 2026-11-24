@@ -9,24 +9,25 @@ import { TapQueue } from '../../lib/queue';
 import { authState } from '../../lib/api';
 import type { RefereeView } from '../../lib/types';
 import { RefereePage } from './RefereePage';
-import { pairFromUrl } from './pairing';
+import { codeFromUrl, pair } from './pairing';
 import { claimTab } from '../../lib/singleTab';
 
-type Gate = { kind: 'checking'; retrying?: boolean } | { kind: 'unpaired'; error?: string } | { kind: 'paired' };
+type Gate = { kind: 'checking'; retrying?: boolean } | { kind: 'name'; code: string } | { kind: 'unpaired'; error?: string } | { kind: 'paired' };
 
 export function App() {
   const [gate, setGate] = useState<Gate>({ kind: 'checking' });
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const pairing = await pairFromUrl(location.href, fetch, (path) => history.replaceState(null, '', path));
-      if (pairing.paired) return setGate({ kind: 'paired' });
+      // A station QR code asks for the referee's name before pairing.
+      const code = codeFromUrl(location.href);
+      if (code) return setGate({ kind: 'name', code });
       // A server error is not "unpaired": keep checking until the server answers.
       for (;;) {
         const state = await authState(() => fetch('/api/me?as=referee'));
         if (cancelled) return;
         if (state === 'in') return setGate({ kind: 'paired' });
-        if (state === 'out') return setGate({ kind: 'unpaired', ...('error' in pairing && pairing.error ? { error: pairing.error } : {}) });
+        if (state === 'out') return setGate({ kind: 'unpaired' });
         setGate({ kind: 'checking', retrying: true });
         await new Promise((r) => setTimeout(r, 3000));
       }
@@ -34,9 +35,17 @@ export function App() {
     return () => { cancelled = true; };
   }, []);
 
+  const submitName = async (code: string, name: string) => {
+    // The code is single-use: take it out of the address whatever the answer.
+    history.replaceState(null, '', location.pathname);
+    const result = await pair(code, name, fetch);
+    setGate(result.paired ? { kind: 'paired' } : { kind: 'unpaired', error: result.error });
+  };
+
   if (gate.kind === 'checking') {
     return <div class="center-page"><p class="secondary">{gate.retrying ? 'Can’t reach the server — retrying…' : 'Checking this device…'}</p></div>;
   }
+  if (gate.kind === 'name') return <NameForm onSubmit={(name) => submitName(gate.code, name)} />;
   if (gate.kind === 'unpaired') {
     return (
       <div class="ref">
@@ -50,6 +59,31 @@ export function App() {
     );
   }
   return <OneTab><Live onSignedOut={() => setGate({ kind: 'unpaired', error: 'This device was disconnected. Scan a new station QR code.' })} /></OneTab>;
+}
+
+function NameForm({ onSubmit }: { onSubmit(name: string): Promise<void> }) {
+  const [name, setName] = useState('');
+  const [busy, setBusy] = useState(false);
+  const submit = (e: Event) => {
+    e.preventDefault();
+    setBusy(true);
+    void onSubmit(name.trim());
+  };
+  return (
+    <div class="ref">
+      <Header title="Referee" />
+      <div class="center-page">
+        <form class="card login" onSubmit={submit}>
+          <label class="field">
+            <span class="footnote secondary">Your name</span>
+            <input class="input" type="text" maxLength={40} autocomplete="name" value={name}
+              onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+          </label>
+          <Button type="submit" busy={busy} disabled={!name.trim()}>Start</Button>
+        </form>
+      </div>
+    </div>
+  );
 }
 
 /** Renders its children only in the one live referee tab; other tabs offer to take over. */

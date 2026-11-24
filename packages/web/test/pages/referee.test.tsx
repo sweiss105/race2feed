@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/preact';
 import { RefereePage } from '../../src/pages/referee/RefereePage';
-import { pairFromUrl } from '../../src/pages/referee/pairing';
+import { codeFromUrl, pair } from '../../src/pages/referee/pairing';
 import { TapQueue } from '../../src/lib/queue';
 import { MemoryStorage } from '../lib/fakes';
 import { lockedFour, openNext, refViewOf, start, teamId } from '../support/state';
@@ -295,24 +295,24 @@ describe('referee page', () => {
 });
 
 describe('pairing', () => {
-  it('pairs with the code from the URL and removes it', async () => {
-    const fetchFn = vi.fn(async () => new Response(JSON.stringify({ ok: true, station: 4 }), { status: 200 }));
-    const replace = vi.fn();
-    const result = await pairFromUrl('https://r2f.test/ref?code=ABC123', fetchFn as unknown as typeof fetch, replace);
-    expect(fetchFn).toHaveBeenCalledWith('/api/pair', expect.objectContaining({ method: 'POST', body: JSON.stringify({ code: 'ABC123' }) }));
-    expect(replace).toHaveBeenCalledWith('/ref');
-    expect(result).toEqual({ paired: true, station: 4 });
+  it('reads the code from the URL', () => {
+    expect(codeFromUrl('https://r2f.test/ref?code=ABC123')).toBe('ABC123');
   });
 
-  it('does nothing without a code', async () => {
-    const fetchFn = vi.fn();
-    expect(await pairFromUrl('https://r2f.test/ref', fetchFn as unknown as typeof fetch, vi.fn())).toEqual({ paired: false });
-    expect(fetchFn).not.toHaveBeenCalled();
+  it('has no code when the URL carries none', () => {
+    expect(codeFromUrl('https://r2f.test/ref')).toBeNull();
+  });
+
+  it('pairs with the code and the name', async () => {
+    const fetchFn = vi.fn(async () => new Response(JSON.stringify({ ok: true, station: 4 }), { status: 200 }));
+    const result = await pair('ABC123', 'Dana', fetchFn as unknown as typeof fetch);
+    expect(fetchFn).toHaveBeenCalledWith('/api/pair', expect.objectContaining({ method: 'POST', body: JSON.stringify({ code: 'ABC123', name: 'Dana' }) }));
+    expect(result).toEqual({ paired: true, station: 4 });
   });
 
   it('reports a bad or used code', async () => {
     const fetchFn = vi.fn(async () => new Response('{}', { status: 400 }));
-    expect(await pairFromUrl('https://r2f.test/ref?code=NOPE', fetchFn as unknown as typeof fetch, vi.fn())).toEqual({ paired: false, error: 'This pairing code is invalid or already used. Ask race control for a new one.' });
+    expect(await pair('NOPE', 'Dana', fetchFn as unknown as typeof fetch)).toEqual({ paired: false, error: 'This pairing code is invalid or already used. Ask race control for a new one.' });
   });
 
   describe('penalty notes', () => {

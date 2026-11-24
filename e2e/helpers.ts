@@ -47,6 +47,8 @@ export async function pairReferee(browser: Browser, admin: Page, viewport?: { wi
   const code = (await admin.locator('[data-qr]').getAttribute('data-qr'))!.split('code=')[1]!;
   const ref = await (await browser.newContext(viewport ? { viewport } : {})).newPage();
   await ref.goto(`/ref?code=${code}`);
+  await ref.getByLabel('Your name').fill('Ref');
+  await ref.getByRole('button', { name: 'Start' }).click();
   await expect(ref.getByText('Tables 1 & 2')).toBeVisible();
   return ref;
 }

@@ -99,7 +99,7 @@ describe('live connections', () => {
     await control.next('view');
     const code = (await command({ type: 'createPairingCode', station: 2 }, { cookie: admin })).body.reply.code;
     const since = control.messages.length;
-    await call('/api/pair', { code });
+    await call('/api/pair', { code, name: 'Ref' });
     const v = (await control.next('view', since)).view;
     expect(v.devices.filter((d: any) => d.station === 2 && d.revoked_at === null)).toHaveLength(1);
   });
@@ -166,7 +166,7 @@ describe('live connections', () => {
   it('a browser with both a session and a pairing is a referee on the referee socket', async () => {
     const admin = await lockedEvent();
     const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;
-    const device = (await call('/api/pair', { code })).cookie!;
+    const device = (await call('/api/pair', { code, name: 'Ref' })).cookie!;
     const both = `${admin}; ${device}`;
     expect((await call('/api/me?as=referee', undefined, { cookie: both })).body).toMatchObject({ role: 'referee', station: 1 });
     expect((await call('/api/me?as=referee', undefined, { cookie: admin })).status).toBe(401);
@@ -190,7 +190,7 @@ describe('live connections', () => {
     await pub.next('snapshot', 0);
     const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;
     const since = pub.messages.length;
-    await call('/api/pair', { code });
+    await call('/api/pair', { code, name: 'Ref' });
     await settle();
     expect(pub.messages.slice(since).filter((m) => m.type === 'snapshot')).toEqual([]);
   });

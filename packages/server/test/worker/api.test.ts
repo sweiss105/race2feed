@@ -1,7 +1,14 @@
 import { env } from 'cloudflare:workers';
 import { evictDurableObject, runInDurableObject } from 'cloudflare:test';
 import { describe, it, expect } from 'vitest';
-import { call, command, loginAdmin, lockedEvent } from './client';
+import { call, command, connect, loginAdmin, lockedEvent } from './client';
+
+async function consoleView(admin: string) {
+  const ctl = await connect({ cookie: admin });
+  const view = (await ctl.next('view', 0)).view;
+  ctl.ws.close();
+  return view;
+}
 
 describe('login', () => {
   it('sets a secure session cookie for the admin password', async () => {
@@ -73,11 +80,11 @@ describe('referee pairing', () => {
     expect(control).toMatch(/^r2f_session=/);
 
     const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: control })).body.reply.code;
-    const paired = await call('/api/pair', { code });
+    const paired = await call('/api/pair', { code, name: 'Ref' });
     expect(paired.status).toBe(200);
     expect(paired.body.station).toBe(1);
     expect(paired.cookie).toMatch(/^r2f_device=/);
-    expect((await call('/api/pair', { code })).status).toBe(400);
+    expect((await call('/api/pair', { code, name: 'Ref' })).status).toBe(400);
 
     await command({ type: 'openNextRound' }, { cookie: control });
     expect((await command({ type: 'stationReady' }, { cookie: paired.cookie! })).status).toBe(200);
@@ -86,6 +93,40 @@ describe('referee pairing', () => {
       state.storage.sql.exec<{ id: string }>('SELECT id FROM devices ORDER BY created_at DESC LIMIT 1').one())).id;
     await command({ type: 'revokeDevice', deviceId }, { cookie: control });
     expect((await command({ type: 'stationReady' }, { cookie: paired.cookie! })).status).toBe(401);
+  });
+});
+
+describe('referee name at pairing', () => {
+  it('refuses a missing or overlong name without spending the code, then audits the trimmed name', async () => {
+    const admin = await lockedEvent();
+    const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;
+    for (const body of [{ code }, { code, name: '   ' }, { code, name: 'x'.repeat(41) }, { code, name: 7 }]) {
+      const r = await call('/api/pair', body);
+      expect(r.status).toBe(400);
+      expect(r.body).toEqual({ error: 'name_required' });
+      expect(r.cookie).toBeNull();
+    }
+    const paired = await call('/api/pair', { code, name: ' Dana ' });
+    expect(paired.status).toBe(200);
+    expect(paired.body.station).toBe(1);
+
+    await command({ type: 'openNextRound' }, { cookie: admin });
+    expect((await command({ type: 'stationReady' }, { cookie: paired.cookie! })).status).toBe(200);
+    const view = await consoleView(admin);
+    expect(view.audit[0]).toMatchObject({ actor: 'Dana (station 1)', action: 'stationReady' });
+    expect(view.audit.find((a: any) => a.action === 'pairDevice')).toMatchObject({ actor: 'Dana (station 1)' });
+    expect(view.devices.find((d: any) => d.station === 1).label).toBe('Dana');
+  });
+
+  it('keeps the plain label for a device stored before names existed', async () => {
+    const admin = await lockedEvent();
+    const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;
+    const paired = await call('/api/pair', { code, name: 'Dana' });
+    await runInDurableObject(env.HUB.getByName('hub'), (_i, state) => { state.storage.sql.exec("UPDATE devices SET label = 'Station 1'"); });
+    await command({ type: 'openNextRound' }, { cookie: admin });
+    await command({ type: 'stationReady' }, { cookie: paired.cookie! });
+    const view = await consoleView(admin);
+    expect(view.audit[0]).toMatchObject({ actor: 'referee station 1', action: 'stationReady' });
   });
 });
 

@@ -38,7 +38,7 @@ export function Devices({ view }: { view: ControlView }) {
                   <td>
                     {mine.length === 0 ? <span class="secondary">None</span> : mine.map((d) => (
                       <div key={d.id} class="race-actions">
-                        <span class="callout">{d.label}</span>
+                        <span class="callout">{d.label} — {tables}</span>
                         <span class="footnote secondary">{d.last_seen ? `seen ${new Date(d.last_seen).toLocaleTimeString()}` : 'not seen yet'}</span>
                         <Button kind="destructive" busy={runner.busy(`revoke-${d.id}`)} onClick={() => void runner.run({ type: 'revokeDevice', deviceId: d.id }, `revoke-${d.id}`)}>Revoke</Button>
                       </div>

@@ -102,6 +102,6 @@ export async function controlAndReferee(admin: string, station = 1): Promise<{ c
   await command({ type: 'setPassword', role: 'control', password: 'race-control-pw' }, { cookie: admin });
   const control = (await call('/api/login', { role: 'control', password: 'race-control-pw' }, { ip: '10.9.0.1' })).cookie!;
   const code = (await command({ type: 'createPairingCode', station }, { cookie: control })).body.reply.code;
-  const device = (await call('/api/pair', { code })).cookie!;
+  const device = (await call('/api/pair', { code, name: 'Ref' })).cookie!;
   return { control, device };
 }

@@ -44,6 +44,11 @@ const tagFor = (a: Actor) =>
   a.role === 'admin' || a.role === 'control' ? 'control' : a.role === 'referee' ? `referee:${a.station}` : a.role;
 
 const SESSION_MS = 12 * 60 * 60 * 1000;
+/** `{name} (station n)`; a device stored before names existed (label `Station n`) keeps `referee station n`. */
+function refereeLabel(name: string | null, station: number): string {
+  return !name || name === `Station ${station}` ? `referee station ${station}` : `${name} (station ${station})`;
+}
+
 const PAIRING_MS = 10 * 60 * 1000;
 const PAIRING_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
@@ -162,12 +167,12 @@ export class Hub extends DurableObject<Env> {
       if (row) return { role: row.role, label: row.role === 'admin' ? 'admin' : 'race control' };
     }
     if (cred.device && this.active) {
-      const row = this.sql.exec<{ id: string; station: number; last_seen: number | null }>(
-        'SELECT id, station, last_seen FROM devices WHERE token_hash = ? AND event_id = ? AND revoked_at IS NULL',
+      const row = this.sql.exec<{ id: string; station: number; label: string | null; last_seen: number | null }>(
+        'SELECT id, station, label, last_seen FROM devices WHERE token_hash = ? AND event_id = ? AND revoked_at IS NULL',
         cred.device, this.active.id).toArray()[0];
       if (row) {
         if (shouldTouch(row.last_seen, now)) this.sql.exec('UPDATE devices SET last_seen = ? WHERE id = ?', now, row.id);
-        return { role: 'referee', label: `referee station ${row.station}`, deviceId: row.id, station: row.station };
+        return { role: 'referee', label: refereeLabel(row.label, row.station), deviceId: row.id, station: row.station };
       }
     }
     if (cred.apiKey) {
@@ -178,7 +183,7 @@ export class Hub extends DurableObject<Env> {
     return null;
   }
 
-  async pair(code: string): Promise<{ ok: true; deviceToken: string; station: number } | { ok: false }> {
+  async pair(code: string, name: string): Promise<{ ok: true; deviceToken: string; station: number } | { ok: false }> {
     const now = Date.now();
     const key = code.trim().toUpperCase();
     const row = this.sql.exec<{ event_id: string; station: number; expires_at: number }>(
@@ -188,8 +193,8 @@ export class Hub extends DurableObject<Env> {
     const token = randomToken();
     const id = crypto.randomUUID();
     this.sql.exec('INSERT INTO devices (id, event_id, station, token_hash, label, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      id, row.event_id, row.station, await sha256Hex(token), `Station ${row.station}`, now);
-    this.audit(row.event_id, { role: 'referee', label: `referee station ${row.station}` }, 'pairDevice', { deviceId: id });
+      id, row.event_id, row.station, await sha256Hex(token), name, now);
+    this.audit(row.event_id, { role: 'referee', label: refereeLabel(name, row.station) }, 'pairDevice', { deviceId: id });
     try {
       await this.afterChange({ type: 'pairDevice' });
     } catch (err) {

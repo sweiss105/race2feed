@@ -31,8 +31,12 @@ function roundTimes(round: number): Record<string, string> {
   return Object.fromEntries(TEAMS.map((t, i) => [t, `3:${pad(10 + ((i * 7 + round * 3) % 40))}.${pad((i * 13 + round * 29) % 100)}`]));
 }
 
-async function context(browser: Browser, viewport: { width: number; height: number }) {
-  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2 });
+/**
+ * A page in its own browser window. The console asks for reduced motion: Playwright never clicks the
+ * Race page's pulsing button while it moves (see e2e/helpers.ts).
+ */
+async function context(browser: Browser, viewport: { width: number; height: number }, reducedMotion: 'reduce' | 'no-preference' = 'no-preference') {
+  const ctx = await browser.newContext({ viewport, deviceScaleFactor: 2, reducedMotion });
   return ctx.newPage();
 }
 
@@ -98,15 +102,15 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
 
-  // ── Console sign-in ───────────────────────────────────────────────────────
+  // ── Emergency sign-in (the normal sign-in is Cloudflare's own page, which can't be shown locally) ──
   const login = await context(browser, CONSOLE);
-  await login.goto('/control');
-  await login.getByRole('radio', { name: 'Admin' }).click();
+  await login.goto('/emergency');
   await login.getByLabel('Password').fill('example-password');
-  await region(login, login.locator('form.login'), 'console-sign-in.png', 40);
+  await region(login, login.locator('form.login'), 'console-emergency-sign-in.png', 40);
   await login.context().close();
 
-  const admin = await context(browser, CONSOLE);
+  // Locally DEV_CONSOLE_USER (see guide.config.ts) signs the console in, in place of Cloudflare Access.
+  const admin = await context(browser, CONSOLE, 'reduce');
   await signInAdmin(admin);
 
   // ── Events: last year's event (ended), then this year's ───────────────────
@@ -155,9 +159,11 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await admin.getByRole('button', { name: 'Lock setup' }).click();
   await expect(admin.getByText('Locked')).toBeVisible();
 
-  // ── Settings ──────────────────────────────────────────────────────────────
+  // ── Settings: time penalties on ───────────────────────────────────────────
   await admin.getByRole('link', { name: 'Settings' }).click();
   await expect(admin.getByRole('region', { name: 'Penalty list' })).toBeVisible();
+  await admin.getByRole('switch', { name: 'Time penalties' }).check();
+  await expect(admin.getByRole('switch', { name: 'Time penalties' })).toBeChecked();
   await admin.evaluate(() => window.scrollTo(0, 0));
   await shot(admin, 'console-settings.jpg');
   await region(admin, admin.getByRole('region', { name: 'Penalty list' }), 'console-penalty-list.jpg');
@@ -184,6 +190,9 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   const code = (await qr.getAttribute('data-qr'))!.split('code=')[1]!;
   const ref = await context(browser, TABLET);
   await ref.goto(`/ref?code=${code}`);
+  await ref.getByLabel('Your name').fill('Sam');
+  await region(ref, ref.locator('form.login'), 'referee-name.jpg', 48);
+  await ref.getByRole('button', { name: 'Start' }).click();
   await expect(ref.getByText('Tables 1 & 2')).toBeVisible();
   await admin.getByRole('button', { name: 'Done' }).click();
 
@@ -201,11 +210,16 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await expect(projector.getByRole('heading', { name: 'Race to Feed 2026' })).toBeVisible();
   await shot(projector, 'projector-welcome.jpg');
 
-  // ── Round 1: open, with time penalties on ─────────────────────────────────
+  // ── Round 1: the big button, then open ────────────────────────────────────
   await admin.getByRole('link', { name: 'Race' }).click();
-  await admin.getByRole('switch').click();
-  await expect(admin.getByRole('switch')).toBeChecked();
-  await admin.getByRole('button', { name: 'Open next round' }).click();
+  const status = admin.locator('.race-status');
+  await expect(status).toHaveText('Ready to open round 1');
+  // The button mid-pulse: 1 s into its 2 s loop is the largest glow (region() waits 600 ms more).
+  await admin.emulateMedia({ reducedMotion: 'no-preference' });
+  await admin.waitForTimeout(400);
+  await region(admin, admin.locator('header.race-head'), 'console-race-button.jpg', 40, 10);
+  await admin.emulateMedia({ reducedMotion: 'reduce' });
+  await admin.getByRole('button', { name: 'Open round 1' }).click();
   await expect(admin.locator('.pill')).toHaveText('open');
 
   await expect(ref.getByRole('button', { name: 'Ready' })).toBeVisible();
@@ -217,7 +231,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
 
   await ref.getByRole('button', { name: 'Ready' }).click();
   await expect(ref.getByText('Ready ✓')).toBeVisible();
-  await expect(admin.getByText('3 stations not ready yet.')).toBeVisible();
+  await expect(status).toHaveText('Waiting on 3 referees to be ready');
   await shot(admin, 'console-race-open.jpg');
 
   // ── Round 1: running ──────────────────────────────────────────────────────
@@ -226,7 +240,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await expect(alpha).toBeEnabled();
   await ref.waitForTimeout(4000);
   await shot(ref, 'referee-tap-buttons.jpg');
-  await ref.getByRole('button', { name: '+5s penalty for Alpha' }).click();
+  await ref.getByRole('button', { name: 'Penalty for Alpha' }).click();
   await expect(ref.getByRole('status').filter({ hasText: 'Penalty for Alpha' })).toBeVisible();
   await ref.waitForTimeout(1500);
   await alpha.click();
@@ -234,6 +248,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await expect(alpha).toContainText(/\d:\d\d\.\d\d/);
   await shot(ref, 'referee-undo.jpg');
   await expect(admin.getByRole('heading', { name: 'Waiting on 7 teams' })).toBeVisible();
+  await expect(status).toHaveText('Racing — waiting on 7 teams');
   await shot(admin, 'console-race-running.jpg');
   await ref.waitForTimeout(2000);
   const bravo = ref.getByRole('button', { name: /^Bravo/ });
@@ -245,7 +260,10 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
 
   const r1 = roundTimes(1);
   await timeEveryone(admin, Object.fromEntries(TEAMS.filter((t) => t !== 'Alpha' && t !== 'Bravo').map((t) => [t, r1[t]!])));
-  await admin.getByRole('button', { name: 'Finish' }).click();
+  // Every team is in: the auto-finish countdown runs (30 s by default).
+  await expect(status).toHaveText(/^All teams in — finishing in \d+ s$/);
+  await region(admin, admin.locator('header.race-head'), 'console-race-all-in.jpg', 40, 10);
+  await admin.getByRole('button', { name: 'Finish now' }).click();
   await expect(admin.locator('.pill')).toHaveText('finished');
 
   // ── Round 1: the referee explains the penalty ─────────────────────────────
@@ -258,21 +276,29 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await note.getByRole('button', { name: 'Send to race control' }).click();
   await expect(note.getByText(/Sent ✓/)).toBeVisible();
 
-  // ── Round 1: race control corrects results and reviews the penalty ────────
+  // ── Round 1: the penalty is pending on phones until race control decides ──
+  await expect(phone.getByText(/pending: under review/).first()).toBeVisible();
+  await shot(phone, 'phone-results-pending.png');
+
+  // ── Round 1: race control reviews the penalty, then corrects results ──────
+  const review = admin.getByRole('region', { name: 'Penalties to review' });
+  await expect(review.getByText(/Went before the horn/)).toBeVisible();
+  await expect(review.getByLabel('Penalty')).toHaveValue('early');
+  await expect(status).toHaveText('Waiting on 1 penalty to be reviewed');
+  await expect(admin.getByRole('button', { name: 'Open round 2' })).toBeDisabled();
+  await admin.evaluate(() => window.scrollTo(0, 0));
+  await region(admin, admin.locator('header.race-head'), 'console-race-penalty-waiting.jpg', 40, 10);
+  await region(admin, [review.getByRole('heading'), review.locator('.review-card')], 'console-penalty-review.jpg');
+  await review.getByRole('button', { name: 'Approve' }).click();
+  await expect(review.getByText('All penalties decided.')).toBeVisible();
+
   const results = admin.getByRole('region', { name: 'Results' });
   const rowOf = (name: string) => results.locator('tr', { has: admin.getByRole('cell', { name, exact: true }) });
   await timeEveryone(admin, { Bravo: '3:18.75' });
   await rowOf('Alpha').getByLabel('Time (m:ss.hh)').fill('3:21.40');
   await region(admin, [results.locator('.race-head'), rowOf('Charlie')], 'console-results.jpg', 20, 1);
   await rowOf('Alpha').getByRole('button', { name: 'Set' }).click();
-  await expect(rowOf('Alpha')).toContainText('3:26.40');
-
-  const review = admin.getByRole('region', { name: 'Penalties to review' });
-  await expect(review.getByText(/Went before the horn/)).toBeVisible();
-  await expect(review.getByLabel('Penalty')).toHaveValue('early');
-  await region(admin, [review.getByRole('heading'), review.locator('.review-card')], 'console-penalty-review.jpg');
-  await review.getByRole('button', { name: 'Approve' }).click();
-  await expect(review.getByText('All penalties decided.')).toBeVisible();
+  await expect(rowOf('Alpha')).toContainText('3:31.40');
 
   await expect(phone.getByText(/\(incl\. \+10s · Started early\)/).first()).toBeVisible();
   await shot(phone, 'phone-results-penalty.png');
@@ -281,13 +307,13 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   let round = 1;
   let shownBrackets = false;
   for (;;) {
-    const open = admin.getByRole('button', { name: 'Open next round' });
+    const open = admin.getByRole('button', { name: /^Open round \d+$/ });
     if (!(await open.isVisible())) break;
     await open.click();
     round += 1;
     await readyAndStart(admin);
     await timeEveryone(admin, roundTimes(round));
-    await admin.getByRole('button', { name: 'Finish' }).click();
+    await admin.getByRole('button', { name: 'Finish now' }).click();
     await expect(admin.locator('.pill')).toHaveText('finished');
 
     if (round === 2) {
@@ -303,7 +329,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
       await phone.getByRole('tab', { name: 'My team' }).click();
     }
   }
-  await expect(admin.getByRole('button', { name: 'No rounds left' })).toBeDisabled();
+  await expect(status).toHaveText('Event complete');
 
   // ── Show the champion ─────────────────────────────────────────────────────
   await admin.getByRole('button', { name: 'Show champion' }).click();

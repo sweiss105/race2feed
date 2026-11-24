@@ -3,6 +3,9 @@ import { defineConfig, devices } from '@playwright/test';
 /**
  * Screenshots for the staff user guide (`npm run guide:shots`).
  * Kept apart from the e2e suite: its own port, its own throwaway store, and it writes into docs/guide/images.
+ * `wrangler dev` has no Cloudflare Access in front of it: DEV_CONSOLE_USER signs the console in (it needs
+ * `--local-upstream`, or wrangler reports requests on the production hostname, where it is refused).
+ * EMERGENCY_PASSWORD turns on the emergency sign-in page, so the guide can show it.
  */
 export default defineConfig({
   testDir: '.',
@@ -19,7 +22,7 @@ export default defineConfig({
     ...devices['Desktop Chrome'],
   },
   webServer: {
-    command: 'rm -rf .wrangler/guide && npm run build && npx wrangler dev -c packages/server/wrangler.jsonc --port 8788 --ip 127.0.0.1 --persist-to .wrangler/guide --var ADMIN_PASSWORD:e2e-admin --show-interactive-dev-session=false',
+    command: 'rm -rf .wrangler/guide && npm run build && npx wrangler dev -c packages/server/wrangler.jsonc --port 8788 --ip 127.0.0.1 --local-upstream localhost:8788 --persist-to .wrangler/guide --var DEV_CONSOLE_USER:race.control@example.com --var EMERGENCY_PASSWORD:guide-emergency --show-interactive-dev-session=false',
     cwd: '..',
     url: 'http://localhost:8788/api/health',
     reuseExistingServer: false,

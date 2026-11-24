@@ -165,7 +165,7 @@ export class Hub extends DurableObject<Env> {
   private authenticateHashed(cred: CredentialHashes): Actor | null {
     const now = Date.now();
     if (cred.session) {
-      const row = this.sql.exec<{ role: Actor['role'] }>('SELECT role FROM sessions WHERE token_hash = ? AND expires_at > ?',
+      const row = this.sql.exec<{ role: Actor['role'] }>("SELECT role FROM sessions WHERE token_hash = ? AND expires_at > ? AND role = 'admin'",
         cred.session, now).toArray()[0];
       if (row) return { role: row.role, label: 'race control' };
     }

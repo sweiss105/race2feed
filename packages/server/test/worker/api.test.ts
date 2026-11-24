@@ -173,6 +173,22 @@ describe('referee name at pairing', () => {
   });
 });
 
+describe('hub commands by role', () => {
+  it('are refused for referees and Companion, and need credentials', async () => {
+    const admin = await lockedEvent();
+    const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;
+    const device = (await call('/api/pair', { code, name: 'Ref' })).cookie!;
+    const key = (await command({ type: 'createApiKey', label: 'Deck' }, { cookie: admin })).body.reply.key;
+    const cmds = [{ type: 'endEvent', eventId: 'x' }, { type: 'setPassword', password: 'whatever-pw' }, { type: 'createPairingCode', station: 1 },
+      { type: 'revokeDevice', deviceId: 'x' }, { type: 'createApiKey', label: 'x' }];
+    for (const cmd of cmds) {
+      expect((await command(cmd, { cookie: device })).body.code, `referee ${cmd.type}`).toBe('forbidden');
+      expect((await command(cmd, { bearer: key })).body.code, `companion ${cmd.type}`).toBe('forbidden');
+      expect((await command(cmd)).status, `anonymous ${cmd.type}`).toBe(401);
+    }
+  });
+});
+
 describe('companion API key', () => {
   it('authorizes companion commands', async () => {
     const admin = await lockedEvent();

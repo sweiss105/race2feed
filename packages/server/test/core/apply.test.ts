@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { applyCommand } from '../../src/core/apply';
+import { applyCommand, PERMISSIONS } from '../../src/core/apply';
 import { handleLifecycle } from '../../src/core/lifecycle';
 import { admin, blank, companion, ctx, lockedFour, ok, referee } from './helpers';
 
@@ -11,6 +11,25 @@ describe('applyCommand permissions', () => {
   });
   it('companion may start races (gates still apply)', () => {
     expect(code(applyCommand(lockedFour(), { type: 'startRace' }, ctx(companion)))).toBe('round_not_open');
+  });
+  it('referees and Companion are refused setup, round and champion commands', () => {
+    const cmds = [
+      { type: 'setBagTotal', text: '1' }, { type: 'addTeam', name: 'Z', category: 'T' },
+      { type: 'setPenaltyReasons', reasons: [] }, { type: 'setTablesPerReferee', count: 1 },
+      { type: 'openNextRound' }, { type: 'showChampion', bagTotal: 1 },
+    ];
+    for (const actor of [referee(1), companion]) {
+      for (const cmd of cmds) expect(code(applyCommand(lockedFour(), cmd as never, ctx(actor))), `${actor.role} ${cmd.type}`).toBe('forbidden');
+    }
+    for (const type of ['startRace', 'finishRace', 'pinProjector'] as const) {
+      expect(PERMISSIONS[type]).toContain('companion');
+    }
+    expect(PERMISSIONS.openNextRound).toEqual(['admin']);
+  });
+  it('every setup command is admin only', () => {
+    const setup = ['importTeams', 'addTeam', 'renameTeam', 'removeTeam', 'setTableCount', 'setTablesPerReferee', 'suggestSetup', 'setGroups',
+      'setBrackets', 'setGrandChampionship', 'lockSetup', 'unlockSetup', 'setSettings', 'setBagTotal', 'setPenaltyReasons'] as const;
+    for (const t of setup) expect(PERMISSIONS[t], t).toEqual(['admin']);
   });
   it('the console role can change setup', () => {
     expect(code(applyCommand(lockedFour(), { type: 'setBagTotal', text: '1' }, ctx(admin)))).toBe('ok');

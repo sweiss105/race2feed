@@ -310,9 +310,21 @@ describe('pairing', () => {
     expect(result).toEqual({ paired: true, station: 4 });
   });
 
-  it('reports a bad or used code', async () => {
+  it('reports a bad or used code as final', async () => {
     const fetchFn = vi.fn(async () => new Response('{}', { status: 400 }));
-    expect(await pair('NOPE', 'Dana', fetchFn as unknown as typeof fetch)).toEqual({ paired: false, error: 'This pairing code is invalid or already used. Ask race control for a new one.' });
+    expect(await pair('NOPE', 'Dana', fetchFn as unknown as typeof fetch)).toEqual({ paired: false, retry: false, error: 'This pairing code is invalid or already used. Ask race control for a new one.' });
+  });
+
+  it('asks to retry when the request throws', async () => {
+    const fetchFn = vi.fn(async () => { throw new TypeError('offline'); });
+    expect(await pair('ABC', 'Dana', fetchFn as unknown as typeof fetch)).toEqual({ paired: false, retry: true, error: "Can't reach the server. Check the connection and press Start again." });
+  });
+
+  it('asks to retry on a 503 and on a 429', async () => {
+    for (const status of [503, 429]) {
+      const fetchFn = vi.fn(async () => new Response('{}', { status }));
+      expect(await pair('ABC', 'Dana', fetchFn as unknown as typeof fetch)).toMatchObject({ paired: false, retry: true });
+    }
   });
 
   describe('penalty notes', () => {

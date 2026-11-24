@@ -342,7 +342,7 @@ You'll use a tablet or phone paired to your station. The top of the screen shows
 
 1. Race control shows a QR code for your station (in **Devices**).
 2. Scan it with your device's camera. The referee page asks for **Your name**.
-3. Type your name (up to 40 characters) and press **Start**. Your tables appear. Your name shows in race control's Devices list and in the log next to what you do.
+3. Type your name (up to 40 characters) and press **Start**. If the connection drops, the form stays: check the connection and press **Start** again. Your tables appear. Your name shows in race control's Devices list and in the log next to what you do.
 
 If you see **"Scan the station QR code"**, your device isn't paired (or was disconnected). Ask race control for a new code.
 

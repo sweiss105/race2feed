@@ -35,11 +35,21 @@ export function App() {
     return () => { cancelled = true; };
   }, []);
 
-  const submitName = async (code: string, name: string) => {
-    // The code is single-use: take it out of the address whatever the answer.
-    history.replaceState(null, '', location.pathname);
+  /** Resolves to a message when the form should stay (the code is still unspent). */
+  const submitName = async (code: string, name: string): Promise<string | null> => {
     const result = await pair(code, name, fetch);
-    setGate(result.paired ? { kind: 'paired' } : { kind: 'unpaired', error: result.error });
+    if (result.paired) {
+      history.replaceState(null, '', location.pathname);
+      setGate({ kind: 'paired' });
+      return null;
+    }
+    if (result.retry) return result.error;
+    // The server has answered, so the single-use code is gone from the address either way.
+    history.replaceState(null, '', location.pathname);
+    // A device that is still paired from before stays paired.
+    const state = await authState(() => fetch('/api/me?as=referee'));
+    setGate(state === 'in' ? { kind: 'paired' } : { kind: 'unpaired', error: result.error });
+    return null;
   };
 
   if (gate.kind === 'checking') {
@@ -61,13 +71,15 @@ export function App() {
   return <OneTab><Live onSignedOut={() => setGate({ kind: 'unpaired', error: 'This device was disconnected. Scan a new station QR code.' })} /></OneTab>;
 }
 
-function NameForm({ onSubmit }: { onSubmit(name: string): Promise<void> }) {
+function NameForm({ onSubmit }: { onSubmit(name: string): Promise<string | null> }) {
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const submit = (e: Event) => {
     e.preventDefault();
     setBusy(true);
-    void onSubmit(name.trim());
+    setError(null);
+    void onSubmit(name.trim()).then((retry) => { setError(retry); setBusy(false); });
   };
   return (
     <div class="ref">
@@ -79,6 +91,7 @@ function NameForm({ onSubmit }: { onSubmit(name: string): Promise<void> }) {
             <input class="input" type="text" maxLength={40} autocomplete="name" value={name}
               onInput={(e) => setName((e.target as HTMLInputElement).value)} />
           </label>
+          {error && <p class="callout" role="alert" style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>}
           <Button type="submit" busy={busy} disabled={!name.trim()}>Start</Button>
         </form>
       </div>

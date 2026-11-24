@@ -56,8 +56,9 @@ export default {
       const { code, name } = await body(request);
       if (typeof code !== 'string') return json({ error: 'invalid' }, 400);
       // Checked before the code is looked up, so a missing name never spends the code.
-      const refName = typeof name === 'string' ? name.trim() : '';
-      if (refName.length === 0 || refName.length > 40) return json({ error: 'name_required' }, 400);
+      // The name is shown to staff: one-space runs, no control or format characters.
+      const refName = typeof name === 'string' ? name.replace(/\s+/gu, ' ').trim() : '';
+      if (refName.length === 0 || refName.length > 40 || /[\p{Cc}\p{Cf}]/u.test(refName)) return json({ error: 'name_required' }, 400);
       const r = await hub.pair(code, refName);
       if (!r.ok) return json({ error: 'invalid_code' }, 400);
       return json({ ok: true, station: r.station }, 200, { 'set-cookie': setCookie(DEVICE_COOKIE, r.deviceToken, 30 * 24 * 60 * 60) });

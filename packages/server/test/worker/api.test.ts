@@ -118,6 +118,23 @@ describe('referee name at pairing', () => {
     expect(view.devices.find((d: any) => d.station === 1).label).toBe('Dana');
   });
 
+  it('refuses control and format characters without spending the code, and collapses spaces', async () => {
+    const admin = await lockedEvent();
+    const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;
+    for (const name of ['Da\u0000na', 'Dana\u202E', 'Da\u200Bna']) {
+      const r = await call('/api/pair', { code, name });
+      expect(r.status).toBe(400);
+      expect(r.body).toEqual({ error: 'name_required' });
+    }
+    const paired = await call('/api/pair', { code, name: '  Dana   Lee ' });
+    expect(paired.status).toBe(200);
+    await command({ type: 'openNextRound' }, { cookie: admin });
+    await command({ type: 'stationReady' }, { cookie: paired.cookie! });
+    const view = await consoleView(admin);
+    expect(view.audit[0]).toMatchObject({ actor: 'Dana Lee (station 1)', action: 'stationReady' });
+    expect(view.devices.find((d: any) => d.station === 1).label).toBe('Dana Lee');
+  });
+
   it('keeps the plain label for a device stored before names existed', async () => {
     const admin = await lockedEvent();
     const code = (await command({ type: 'createPairingCode', station: 1 }, { cookie: admin })).body.reply.code;

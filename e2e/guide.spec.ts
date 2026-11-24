@@ -258,6 +258,21 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await expect(projector.getByLabel('Finished')).toContainText('Bravo');
   await shot(projector, 'projector-clock.jpg');
 
+  // ── Round 1: the referee explains the penalty while the race is still running ──
+  const note = ref.getByRole('region', { name: 'Penalty for Alpha' });
+  await note.getByRole('button', { name: 'Started early' }).click();
+  await note.getByLabel('Note (optional)').fill('Went before the horn');
+  await note.getByLabel('Note (optional)').blur();
+  await expect(ref.locator('.undo-bar')).toHaveCount(0, { timeout: 15_000 });
+  // A taller screen for this one shot, so the whole card shows under the team buttons without scrolling.
+  const tablet = ref.viewportSize()!;
+  await ref.setViewportSize({ width: tablet.width, height: 1240 });
+  await ref.locator('.ref-below').evaluate((el) => { el.scrollTop = 0; });
+  await shot(ref, 'referee-penalty-notes.jpg');
+  await ref.setViewportSize(tablet);
+  await note.getByRole('button', { name: 'Send to race control' }).click();
+  await expect(note.getByText(/Sent ✓/)).toBeVisible();
+
   const r1 = roundTimes(1);
   await timeEveryone(admin, Object.fromEntries(TEAMS.filter((t) => t !== 'Alpha' && t !== 'Bravo').map((t) => [t, r1[t]!])));
   // Every team is in: the auto-finish countdown runs (30 s by default).
@@ -265,16 +280,6 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await region(admin, admin.locator('header.race-head'), 'console-race-all-in.jpg', 40, 10);
   await admin.getByRole('button', { name: 'Finish now' }).click();
   await expect(admin.locator('.pill')).toHaveText('finished');
-
-  // ── Round 1: the referee explains the penalty ─────────────────────────────
-  const note = ref.getByRole('region', { name: 'Penalty for Alpha' });
-  await note.getByRole('button', { name: 'Started early' }).click();
-  await note.getByLabel('Note (optional)').fill('Went before the horn');
-  await note.getByLabel('Note (optional)').blur();
-  await expect(ref.locator('.undo-bar')).toHaveCount(0, { timeout: 15_000 });
-  await region(ref, [ref.getByText('Round 1 finished'), ref.locator('.ref-notes')], 'referee-penalty-notes.jpg', 20);
-  await note.getByRole('button', { name: 'Send to race control' }).click();
-  await expect(note.getByText(/Sent ✓/)).toBeVisible();
 
   // ── Round 1: the penalty is pending on phones until race control decides ──
   await expect(phone.getByText(/pending: under review/).first()).toBeVisible();

@@ -449,7 +449,7 @@ If the round finishes while you're filling in a card, what you've picked and typ
 
 Your note goes only to race control, who makes the final decision.
 
-![After the race: the Penalty notes card with Started early picked and a short note](guide/images/referee-penalty-notes.jpg)
+![During the race: Alpha and Bravo have finished, and the Penalty notes card for Alpha sits below the team buttons with Started early picked and a short note, ready to send](guide/images/referee-penalty-notes.jpg)
 
 ### If the Wi-Fi drops
 

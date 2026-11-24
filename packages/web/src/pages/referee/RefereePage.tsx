@@ -115,6 +115,8 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
       && x.createdAt + settings.undoWindowMs > serverNow && (x.kind === 'finish' || x.review.status === 'pending'))
     .map((x) => ({ tap: x, team })))
     .sort((a, b) => b.tap.createdAt - a.tap.createdAt);
+  // While running, a penalty's note card shows once its team has a result (finish, DNF, DNS or DQ).
+  const noteReady = (team: Team) => round.phase === 'finished' || team.result !== null;
 
   const meta = (
     <div class="ref-meta">
@@ -189,7 +191,6 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
             <li key={t.teamId}><span class="headline">{t.name}</span><span class="tabular">{t.result ? timeText({ status: t.result.status, officialMs: t.result.rawMs === null ? null : t.result.rawMs + t.result.penaltiesMs, penaltiesMs: t.result.penaltiesMs, dq: t.dq, penaltyPending: t.penaltyPending }) : '—'}</span></li>
           ))}
         </ul>
-        <PenaltyNotes view={view} send={send} />
       </div>
     );
   }
@@ -199,6 +200,8 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
       {meta}
       {error && <p class="ref-notice callout" role="alert" style={{ color: 'var(--danger)' }}>{error}</p>}
       {body}
+      {/* One place for both phases, so a half-written note survives the round finishing. */}
+      {(round.phase === 'running' || round.phase === 'finished') && <PenaltyNotes key="notes" view={view} send={send} ready={noteReady} />}
       {undoRows.length > 0 && (
         <div class="undo-stack">
           {undoRows.map(({ tap: x, team }) => (
@@ -248,10 +251,10 @@ function UndoRow({ kind, name, leftMs, windowMs, onUndo }: { kind: 'finish' | 'p
   );
 }
 
-/** After a round, the referee says why each penalty they gave was given; race control then decides. */
-function PenaltyNotes({ view, send }: { view: RefereeView; send(cmd: object): Promise<Ack> }) {
+/** Once a penalised team has finished (or the round has), the referee says why each penalty they gave was given; race control then decides. */
+function PenaltyNotes({ view, send, ready }: { view: RefereeView; send(cmd: object): Promise<Ack>; ready(team: Team): boolean }) {
   const items = view.teams.flatMap((t) => t.taps
-    .filter((x) => x.kind === 'penalty' && x.source === 'referee' && x.removedAt === null && x.review.status === 'pending')
+    .filter((x) => x.kind === 'penalty' && x.source === 'referee' && x.removedAt === null && x.review.status === 'pending' && ready(t))
     .map((x) => ({ tap: x, team: t })));
   if (!items.length) return null;
   return (

@@ -121,7 +121,12 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       if (!tap || tap.removedAt !== null) return fail('not_found', 'That penalty no longer exists.');
       if (!ctx.actor.deviceId || tap.deviceId !== ctx.actor.deviceId) return fail('not_your_tap', 'Only the tablet that gave the penalty can add its note.');
       if (reviewOf(tap).status !== 'pending') return fail('already_decided', 'Race control has already decided this penalty.');
-      if (tap.round === current && e.round.phase !== 'finished') return fail('round_not_finished', 'Add notes once race control finishes the round.');
+      if (tap.round === current && e.round.phase === 'running' && !buildProgress(e).results[current]?.[tap.teamId]) {
+        return fail('team_not_finished', 'Add the note once this team has finished.');
+      }
+      if (tap.round === current && e.round.phase !== 'finished' && e.round.phase !== 'running') {
+        return fail('round_not_finished', 'Add notes once race control finishes the round.');
+      }
       if (!reasonsOf(e).some((r) => r.id === cmd.reasonId)) return fail('invalid', 'Choose a reason from the list.');
       const note = typeof cmd.note === 'string' ? cmd.note.trim().slice(0, 200) : '';
       const review = { ...reviewOf(tap), refereeReasonId: cmd.reasonId, ...(note ? { refereeNote: note } : {}) };

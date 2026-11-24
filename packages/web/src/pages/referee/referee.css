@@ -49,7 +49,9 @@
 .undo-bar .progress { position: absolute; left: 0; bottom: 0; height: 3px; background: var(--accent); transform-origin: left; }
 @keyframes undo-in { from { transform: translateY(120%); } to { transform: translateY(0); } }
 
-.ref-notes { display: grid; gap: var(--space-3); text-align: left; width: min(100%, 36rem); margin-top: var(--space-4); }
+.ref-notes { display: grid; gap: var(--space-3); text-align: left; width: min(100%, 36rem); margin-top: var(--space-4); align-self: center; }
+/* After the round the notes follow the results list instead of being pushed to the bottom. */
+.ref-center:has(+ .ref-notes) { flex: 0 0 auto; }
 .ref-notes h2, .ref-notes p { margin: 0; }
 .ref-note { display: grid; gap: var(--space-3); }
 .ref-note form { display: grid; gap: var(--space-2); }

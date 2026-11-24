@@ -278,9 +278,12 @@ All times in this section are **official times**: the raw time plus any penaltie
 *Added after the first live test, at the user's request.*
 
 - **A referee's penalty tap adds no time.** It flags the team as **pending: under review** (shown beside its time on the participant page, console results and referee tablet, and as "under review" on the projector's finish ticker). Times, places and brackets change only when race control approves a reason. Penalties stored by earlier versions keep the amounts they have.
-- **After the race (once race control presses Finish),** a referee who tapped penalties sees a **Penalty notes** card for each one:
+- **As soon as the penalised team has finished,** a referee who tapped penalties sees a **Penalty notes** card for each one, without waiting for the round to finish:
+  - While the race is running, a penalty's card appears as soon as its team has a result (the referee taps the team's finish button, or race control records DNF, DNS or DQ). It does not wait for the **Undo** countdowns, which keep working alongside the card. A penalty tapped after the team finished gets its card straight away. If the finish is undone, the team has no result and the card goes away until the team finishes again (anything typed into it is lost); undoing the penalty removes its card. The cards sit below the team buttons, so the finish buttons don't move.
+  - Once the round is finished, every pending penalty the tablet gave has a card. A card the referee is filling in when the round finishes keeps its reason and note.
   - They pick the closest reason from the penalty list and may add a short note, then **Send**.
-  - The referee's pick and note go to race control only.
+  - The referee's pick and note go to race control only. Race control's review panel lists the penalty as soon as it is given and shows the referee's reason when it arrives.
+  - The server accepts a note for a penalty in the running round only once its team has a result (otherwise `team_not_finished`, "Add the note once this team has finished."). A note changes the round's taps, so it restarts the auto-finish countdown, which gives the referee time for the next note.
 - **Race control reviews each pending penalty** with the referee's pick pre-selected, and chooses the official reason from the list:
   - **Approve with a timed reason:** the penalty becomes that reason's time (for example +15s).
   - **Approve with a DQ reason:** the team is disqualified from that race. It ranks like a DNF and shows as **DQ**.
@@ -384,6 +387,7 @@ Race control and admin are one role. Everyone signed in to the console has every
   - It is placed and coloured so it can't be mistaken for the finish button.
   - It's available from START until RACE FINISHED, before or after the team's finish tap.
   - It shows the number of penalties flagged (e.g. **×2**). Each penalty tap has its own **Undo** countdown.
+- **Penalty notes** (§5.2): during the race, a card for each pending penalty this tablet gave appears below the team buttons as soon as that team has a result (its finish button is tapped, or race control marks it DNF, DNS or DQ). After the round, every pending penalty has a card. A half-written card survives the round finishing.
 - Shows connection status and any taps queued offline.
 - A saved tap the server refuses for good is always reported ("The saved tap for {team} in round {round} was refused: {reason}"), even if the round or connection changed while the answer was in flight.
 - **One live tab per tablet.** The page holds the Web Lock `r2f-referee`. A second tab shows "The referee page is already open in another tab on this tablet" and a **Use this tab instead** button, and creates neither the live connection nor the tap queue. The button posts `takeover` on `BroadcastChannel('r2f-referee')`; the holder releases the lock and shows the same message, and the new tab acquires it. Without Web Locks or BroadcastChannel the page behaves as before.

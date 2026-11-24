@@ -48,6 +48,16 @@ describe('auto-finish', () => {
     expect(e.round.autoFinishAt).toBeNull();
   });
 
+  it("restarts when a referee adds a penalty note during the countdown", () => {
+    let { e } = allIn(running());
+    const station1 = teamsInRound(derive(e), 1).find((t) => t.table <= 2)!.teamId;
+    e = run(e, { type: 'tapPenalty', teamId: station1, clientTapId: 'pen-1' }, 2_070_000, referee(1));
+    const tapId = e.taps.at(-1)!.id;
+    e = run(e, { type: 'notePenalty', tapId, reasonId: 'early' }, 2_085_000, referee(1));
+    expect(e.round.phase).toBe('running');
+    expect(e.round.autoFinishAt).toBe(2_085_000 + 30_000);
+  });
+
   it('keeps the countdown when nothing about the results changes', () => {
     let { e } = allIn(running());
     e = run(e, { type: 'pinProjector', screen: 'clock' }, 2_080_000);

@@ -42,15 +42,38 @@ describe('penalty review', () => {
     expect(result(done, 'T1')).toMatchObject({ status: 'finished', penaltiesMs: 0 });
   });
 
-  it('notes are sent after the race, not during it', () => {
+  it('notes can be sent after the race', () => {
     const { e, tap } = refPenalty(startNext(lockedFour()), 'T1');
     const note = { type: 'notePenalty' as const, tapId: tap.id, reasonId: 'early', note: ' jumped the start ' };
-    expect(code(run(e, note, referee(1)))).toBe('round_not_finished');
+    expect(code(run(e, note, referee(1)))).toBe('team_not_finished');
     const done = finish(e, seed);
     const noted = ok(run(done, note, referee(1)));
     expect(noted.taps.find((t) => t.id === tap.id)!.review).toMatchObject({ status: 'pending', refereeReasonId: 'early', refereeNote: 'jumped the start' });
     expect(code(run(done, note, referee(1, 'someone-else')))).toBe('not_your_tap');
     expect(code(run(done, { ...note, reasonId: 'nope' }, referee(1)))).toBe('invalid');
+  });
+
+  it('a note during the race waits until the team has a result', () => {
+    const { e, tap } = refPenalty(startNext(lockedFour()), 'T1');
+    const note = { type: 'notePenalty' as const, tapId: tap.id, reasonId: 'early', note: 'went at 3' };
+    const refused = run(e, note, referee(1));
+    expect(code(refused)).toBe('team_not_finished');
+    if (!refused.ok) expect(refused.message).toBe('Add the note once this team has finished.');
+
+    const timed = ok(run(e, { type: 'setResult', round: 1, teamId: teamId(e, 'T1'), set: { kind: 'time', rawMs: 100_000 } }));
+    expect(timed.round.phase).toBe('running');
+    const noted = ok(run(timed, note, referee(1)));
+    expect(noted.taps.find((t) => t.id === tap.id)!.review).toMatchObject({ status: 'pending', refereeReasonId: 'early', refereeNote: 'went at 3' });
+    expect(code(run(timed, note, referee(1, 'someone-else')))).toBe('not_your_tap');
+    expect(code(run(timed, { ...note, reasonId: 'nope' }, referee(1)))).toBe('invalid');
+  });
+
+  it('a note during the race is accepted for a team race control marked DNF', () => {
+    const { e, tap } = refPenalty(startNext(lockedFour()), 'T1');
+    const dnf = ok(run(e, { type: 'setResult', round: 1, teamId: teamId(e, 'T1'), set: { kind: 'status', status: 'dnf' } }));
+    expect(dnf.round.phase).toBe('running');
+    const noted = ok(run(dnf, { type: 'notePenalty', tapId: tap.id, reasonId: 'sealed' }, referee(1)));
+    expect(noted.taps.find((t) => t.id === tap.id)!.review).toMatchObject({ status: 'pending', refereeReasonId: 'sealed' });
   });
 
   it('approving with a timed reason sets its time; a later note is refused', () => {

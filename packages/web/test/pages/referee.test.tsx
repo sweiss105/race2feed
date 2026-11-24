@@ -338,11 +338,97 @@ describe('pairing', () => {
       };
     };
 
-    it('does not appear while the race is running', async () => {
-      const e = finishedWith({ status: 'pending' });
-      setup({ ...e, round: { ...e.round, phase: 'running' } });
-      await screen.findAllByRole('button', { name: /^T1/ });
-      expect(screen.queryByRole('region', { name: /Penalty for T1/ })).toBeNull();
+    describe('while the race is running', () => {
+      /** Round 1 running with penalties on; this tablet gave T1 a pending penalty (tap `pen-mine`) at `penAt`. */
+      const runningWith = (penAt: number, extra: (e: LiveEvent) => Partial<LiveEvent> = () => ({})): LiveEvent => {
+        const e = start(openNext(lockedFour()));
+        const base: LiveEvent = {
+          ...e,
+          settings: { ...e.settings, penaltiesEnabled: true, undoWindowMs: 10_000 },
+          taps: [{ id: 'pen-1', clientTapId: 'pen-mine', kind: 'penalty' as const, round: 1, teamId: teamId(e, 'T1'), amountMs: 0, source: 'referee' as const, deviceId: 'dev1', createdAt: penAt, removedAt: null, review: { status: 'pending' as const } }],
+        };
+        return { ...base, ...extra(base) };
+      };
+      const finishTap = (e: LiveEvent, createdAt: number) => ({
+        id: 'fin-1', clientTapId: 'fin-mine', kind: 'finish' as const, round: 1, teamId: teamId(e, 'T1'), elapsedMs: 150_000,
+        source: 'referee' as const, deviceId: 'dev1', createdAt, removedAt: null,
+      });
+      /** Mounts the page as the tablet that made `pen-mine` and `fin-mine`; `show(e)` sends a new view. */
+      async function mount(e: LiveEvent) {
+        const storage = new MemoryStorage();
+        const q = new TapQueue(storage);
+        q.add({ clientTapId: 'pen-mine', round: 1, cmd: { type: 'tapPenalty', teamId: teamId(e, 'T1'), clientTapId: 'pen-mine' } });
+        q.add({ clientTapId: 'fin-mine', round: 1, cmd: { type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: 1, clientTapId: 'fin-mine' } });
+        const queue = new TapQueue(storage);
+        const sent: any[] = [];
+        const clock = { synced: () => true, serverNow: () => NOW };
+        const send = async (c: any) => { sent.push(c); return { ok: true }; };
+        let view = e;
+        const page = () => <RefereePage view={refViewOf(view)} status="open" clock={clock} queue={queue} send={send} newId={() => 'x'} />;
+        const { rerender } = render(page());
+        await waitFor(() => expect(queue.all()).toEqual([]));
+        return {
+          sent,
+          show: (next: LiveEvent) => { view = next; rerender(page()); },
+        };
+      }
+      const card = () => screen.queryByRole('region', { name: /Penalty for T1/ });
+
+      it('shows no card for a team that has not finished', async () => {
+        await mount(runningWith(NOW - 60_000));
+        await screen.findAllByRole('button', { name: /^T1/ });
+        expect(card()).toBeNull();
+      });
+
+      it("shows the card as soon as the view shows the team's finish, while its Undo is still on offer", async () => {
+        const e = runningWith(NOW - 60_000);
+        const { show, sent } = await mount(e);
+        await screen.findAllByRole('button', { name: /^T1/ });
+        expect(card()).toBeNull();
+        show({ ...e, taps: [...e.taps, finishTap(e, NOW - 1_000)] });
+        expect(await screen.findByRole('button', { name: 'Undo T1 finished' })).toBeTruthy();
+        expect(card()).not.toBeNull();
+        // The card sits below the team buttons.
+        const t1 = screen.getAllByRole('button', { name: /^T1/ })[0]!;
+        expect(t1.compareDocumentPosition(card()!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+        fireEvent.click(screen.getByRole('button', { name: 'Started early' }));
+        fireEvent.click(card()!.querySelector('button[type="submit"]')!);
+        await waitFor(() => expect(sent).toContainEqual({ type: 'notePenalty', tapId: 'pen-1', reasonId: 'early' }));
+      });
+
+      it('shows the card straight away for a penalty given after the team finished', async () => {
+        const e = runningWith(NOW - 1_000, (b) => ({ taps: [...b.taps, finishTap(b, NOW - 60_000)] }));
+        await mount(e);
+        expect(await screen.findByRole('button', { name: 'Undo penalty for T1' })).toBeTruthy();
+        expect(card()).not.toBeNull();
+      });
+
+      it('removes the card when the finish is undone', async () => {
+        const e = runningWith(NOW - 60_000, (b) => ({ taps: [...b.taps, finishTap(b, NOW - 1_000)] }));
+        const { show } = await mount(e);
+        await waitFor(() => expect(card()).not.toBeNull());
+        show({ ...e, taps: e.taps.map((t) => (t.id === 'fin-1' ? { ...t, removedAt: NOW } : t)) });
+        await waitFor(() => expect(card()).toBeNull());
+      });
+
+      it('shows the card for a team race control marked DNF', async () => {
+        const e = runningWith(NOW - 1_000, (b) => ({ overrides: [{ round: 1, teamId: teamId(b, 'T1'), at: NOW - 500, set: { kind: 'status' as const, status: 'dnf' as const } }] }));
+        await mount(e);
+        await screen.findAllByRole('button', { name: /^T1/ });
+        expect(card()).not.toBeNull();
+      });
+
+      it('keeps a half-written note when the round finishes', async () => {
+        const e = runningWith(NOW - 60_000, (b) => ({ taps: [...b.taps, finishTap(b, NOW - 60_000)] }));
+        const { show } = await mount(e);
+        await waitFor(() => expect(card()).not.toBeNull());
+        fireEvent.click(screen.getByRole('button', { name: 'Started early' }));
+        fireEvent.input(screen.getByRole('textbox', { name: /Note/ }), { target: { value: 'went at 3' } });
+        show({ ...e, round: { ...e.round, phase: 'finished' as const } });
+        expect(await screen.findByText(/Round 1 finished/)).toBeTruthy();
+        expect(screen.getByRole('button', { name: 'Started early' }).getAttribute('aria-pressed')).toBe('true');
+        expect((screen.getByRole('textbox', { name: /Note/ }) as HTMLTextAreaElement).value).toBe('went at 3');
+      });
     });
 
     it('asks for a reason after the round and sends it to race control', async () => {

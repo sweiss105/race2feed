@@ -310,9 +310,9 @@ How penalties count:
 
 ### Penalty review
 
-A referee's penalty **adds no time**; it flags the team as **pending: under review** (that label appears beside the team's time for everyone, and as "under review" on the projector) until you decide it. After the round finishes, the referee can send a note for each penalty: the closest reason from the list, plus a short comment.
+A referee's penalty **adds no time**; it flags the team as **pending: under review** (that label appears beside the team's time for everyone, and as "under review" on the projector) until you decide it. The referee can send a note for each penalty: the closest reason from the list, plus a short comment. They can do this as soon as they tap that team's finish button, so a note often arrives while the race is still running.
 
-Pending penalties appear in the **Penalties to review** panel on the Race page ("Round N · flagged by the referee"). For each one:
+Pending penalties appear in the **Penalties to review** panel on the Race page ("Round N · flagged by the referee") as soon as the referee taps them. The referee's pick and note show up there when they send it. For each one:
 
 1. Read the referee's pick and note. A note isn't required, so you can decide without one.
 2. Choose the official reason from the penalty list. The referee's pick is pre-selected.
@@ -419,7 +419,7 @@ Every tap gets its own bar at the bottom, newest on top, for example "**Alpha fi
 - **If the server refuses a tap that was waiting to send** (for example the team already has a result), a red message says "The saved tap for Alpha in round 3 was refused", with the reason. You see it even if the round changed while the tap was being sent. Tell race control if the time looks wrong.
 - **If a red message says "The server could not process that. Try again."**, the tap is not lost: it stays saved on the tablet and is sent again automatically within a few seconds. Tell race control if the message keeps coming back.
 
-![After a penalty tap and a finish tap for Alpha: its button shows its time marked "pending: under review", the Penalty button shows ×1, and each tap has its own Undo bar counting down](guide/images/referee-undo.jpg)
+![After a penalty tap and a finish tap for Alpha: its button shows its time marked "pending: under review", the Penalty button shows ×1, the Penalty notes card for Alpha is already below the buttons, and each tap has its own Undo bar counting down](guide/images/referee-undo.jpg)
 
 ### Only one referee tab
 
@@ -429,18 +429,23 @@ The referee page runs in one browser tab per tablet, so two tabs never keep sepa
 
 When race control has switched penalties on, each team has a smaller **Penalty** button under its finish button. It adds no time; race control sets the length afterwards.
 
-- **When:** any time from the start until the race finishes, before or after the team's finish tap. Once every team has a result, the race finishes by itself once the auto-finish delay has passed since the last tap, and each penalty tap starts the auto-finish delay again.
+- **When:** any time from the start until the race finishes, before or after the team's finish tap. Once every team has a result, the race finishes by itself once the auto-finish delay has passed since the last tap, and each penalty tap or penalty note starts the auto-finish delay again.
 - **Stacking:** each tap adds one penalty. The button shows how many, for example **×2**.
 - **Undo:** each penalty tap has its own **Undo**, just like a finish tap, unless race control has already decided that penalty.
 - **Don't mix them up:** the penalty button is deliberately smaller, and it's an outlined button rather than a solid one like the finish button.
 
-### After the race: penalty notes
+### Penalty notes
 
-Once the round finishes, you'll see a **Penalty notes** card for each penalty you gave that still needs review:
+You don't have to wait for the round to finish to say why you gave a penalty. A **Penalty notes** card appears below the team buttons for each penalty you gave that still needs review:
+- **During the race:** as soon as you tap the team's finish button (or race control marks the team DNF, DNS or DQ). If you give a penalty after the team finished, its card appears straight away. The **Undo** bars still work as usual: if you undo the finish, the card goes away (with anything you typed) until you tap the finish again; if you undo the penalty, its card goes away.
+- **After the race:** every penalty you gave that still needs review has a card.
 
+On each card:
 1. Pick the closest reason from the list.
 2. Add a short note if it helps (optional).
 3. Press **Send to race control**. The card then shows **Sent ✓**.
+
+If the round finishes while you're filling in a card, what you've picked and typed stays; just press **Send**. Sending a note restarts the auto-finish delay, which gives you time for the next one.
 
 Your note goes only to race control, who makes the final decision.
 

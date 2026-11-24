@@ -1,7 +1,7 @@
 import { Hub } from './hub';
 import { CONSOLE_HEADER, credentials, DEVICE_COOKIE, SESSION_COOKIE, sessionToken } from './http';
 import { accessKeyFetcher } from './auth/access';
-import { consoleUser } from './auth/console';
+import { consoleUser, encodeConsoleIdentity } from './auth/console';
 import type { Actor } from './core/model';
 
 export { Hub };
@@ -64,7 +64,7 @@ async function consoleRoute(route: string, request: Request, url: URL, hub: HubS
   const get = request.method === 'GET';
   if (route === '/ws') {
     const headers = new Headers(request.headers);
-    headers.set(CONSOLE_HEADER, JSON.stringify({ label: actor.label, exp }));
+    headers.set(CONSOLE_HEADER, encodeConsoleIdentity({ label: actor.label, exp }));
     return hub.fetch(new Request(request, { headers }));
   }
   if (route === '/me' && get) return json({ role: actor.role, label: actor.label });

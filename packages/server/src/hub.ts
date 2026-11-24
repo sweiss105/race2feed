@@ -11,6 +11,7 @@ import { autoFinishDelay, nextAlarm } from './core/autofinish';
 import { CONSOLE_HEADER, credentials, hasCredentials, sessionToken, type Credentials } from './http';
 import { randomToken, sha256Hex } from './auth/crypto';
 import { LOCKOUT_WINDOW_MS, loginAllowed, shouldTouch } from './auth/ratelimit';
+import { decodeConsoleIdentity } from './auth/console';
 
 export type HubCommand =
   | { type: 'createEvent'; name: string; date: string; tableCount: number }
@@ -32,15 +33,7 @@ interface Attachment { actor: Actor; cred: CredentialHashes; exp?: number | null
 const CONSOLE_SOCKETS = new Set(['/api/control/ws', '/api/emergency/ws']);
 
 /** The `{ label, exp }` the Worker put in the CONSOLE_HEADER, or null when missing or malformed. */
-function consoleIdentity(request: Request): { label: string; exp: number | null } | null {
-  try {
-    const v = JSON.parse(request.headers.get(CONSOLE_HEADER) ?? '') as { label?: unknown; exp?: unknown };
-    if (typeof v.label !== 'string' || v.label === '' || !(v.exp === null || typeof v.exp === 'number')) return null;
-    return { label: v.label, exp: v.exp };
-  } catch {
-    return null;
-  }
-}
+const consoleIdentity = (request: Request) => decodeConsoleIdentity(request.headers.get(CONSOLE_HEADER));
 
 async function hashCredentials(cred: Credentials): Promise<CredentialHashes> {
   return {

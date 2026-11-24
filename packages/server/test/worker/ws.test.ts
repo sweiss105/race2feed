@@ -3,6 +3,7 @@ import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from 'c
 import { describe, it, expect } from 'vitest';
 import { call, command, connect, CONSOLE, emergencySignIn, pairReferee, lockedEvent, settle, upgrade, wsCommand } from './client';
 import { sha256Hex } from '../../src/auth/crypto';
+import { encodeConsoleIdentity } from '../../src/auth/console';
 
 const hub = () => env.HUB.getByName('hub');
 
@@ -161,7 +162,7 @@ describe('live connections', () => {
     const socketFor = async (exp: number) => {
       // The hub is reached only through the Worker, which sets this header after checking Access.
       const res = await hub().fetch('https://r2f.test/api/control/ws', {
-        headers: { upgrade: 'websocket', 'x-r2f-console': JSON.stringify({ label: 'a@b.c', exp }) },
+        headers: { upgrade: 'websocket', 'x-r2f-console': encodeConsoleIdentity({ label: 'a@b.c', exp }) },
       });
       const ws = res.webSocket!;
       ws.accept();
@@ -187,7 +188,7 @@ describe('live connections', () => {
   it('closes a silent console socket whose Access sign-in expired, instead of sending it the next view', async () => {
     await lockedEvent();
     const res = await hub().fetch('https://r2f.test/api/control/ws', {
-      headers: { upgrade: 'websocket', 'x-r2f-console': JSON.stringify({ label: 'a@b.c', exp: Date.now() + 200 }) },
+      headers: { upgrade: 'websocket', 'x-r2f-console': encodeConsoleIdentity({ label: 'a@b.c', exp: Date.now() + 200 }) },
     });
     const ws = res.webSocket!;
     ws.accept();

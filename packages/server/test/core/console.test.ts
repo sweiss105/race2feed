@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll, vi } from 'vitest';
-import { consoleUser } from '../../src/auth/console';
+import { consoleUser, decodeConsoleIdentity, encodeConsoleIdentity } from '../../src/auth/console';
 import type { Env } from '../../src/worker';
 
 const enc = new TextEncoder();
@@ -61,5 +61,24 @@ describe('consoleUser', () => {
     }
     expect(await consoleUser(req('https://r2f.weiss-audio.com/api/control/me', token), env({ ...dev, ...ACCESS }), deps()))
       .toEqual({ label: 'a@b.c', exp: (nowS + 60) * 1000 });
+  });
+});
+
+describe('the console identity header', () => {
+  it('carries a label with non-Latin-1 characters as a valid header value', () => {
+    for (const who of [{ label: 'jörg@例え.jp', exp: 1234 }, { label: 'Race control 名 ö', exp: null }]) {
+      const value = encodeConsoleIdentity(who);
+      expect(() => new Headers({ 'x-r2f-console': value })).not.toThrow();
+      expect(new Headers({ 'x-r2f-console': value }).get('x-r2f-console')).toBe(value);
+      expect(decodeConsoleIdentity(value)).toEqual(who);
+    }
+  });
+
+  it('treats a missing, undecodable or malformed value as absent', () => {
+    for (const value of [null, '', '%E0%A4%A', '%', 'not json', encodeURIComponent('[]'), encodeURIComponent('null'),
+      encodeURIComponent(JSON.stringify({ label: '', exp: null })), encodeURIComponent(JSON.stringify({ label: 'a', exp: '1' })),
+      encodeURIComponent(JSON.stringify({ exp: null }))]) {
+      expect(decodeConsoleIdentity(value), String(value)).toBeNull();
+    }
   });
 });

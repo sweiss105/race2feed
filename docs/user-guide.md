@@ -53,11 +53,9 @@ Everything happens at **https://r2f.weiss-audio.com**:
 
 Race control sets up the event before the day, then runs it. Sign in at `/control` with your email address:
 
-![The console sign-in: choose Admin or Race control, then enter the password](guide/images/console-sign-in.png)
-
-1. Open `/control`. Cloudflare asks for your email address.
-2. Type it and wait for the email with a one-time code.
-3. Type the code. The console opens.
+1. Open `/control`. Before the console appears, a Cloudflare sign-in page (Cloudflare's own page, not the Race to Feed app) asks for your email address.
+2. Type it and press the button to send a code. Wait for the email with a one-time code.
+3. Type the code on the same Cloudflare page. The console opens on the **Race** page.
 
 Only addresses on the console's allow list get a code. **Sign in again the day before the event** on every laptop that will run the console: a sign-in lasts 14 days on that browser, and signing in needs email, which you don't want to depend on during the event. Your email is shown in the **Log** next to everything you do.
 
@@ -141,8 +139,6 @@ When teams, groups and brackets look right, press **Lock setup** in **Setup**.
 
 The console has no password. The list of email addresses allowed to sign in is kept in Cloudflare, not in the console: whoever manages the Cloudflare account adds or removes addresses in Cloudflare's Zero Trust dashboard, on the policy of the Access application **Race to Feed console**. Ask them to add every member of race control well before the day, and have each person sign in once to check.
 
-![Settings: passwords, the active event's penalty, undo window and bag total, and the penalty list](guide/images/console-settings.jpg)
-
 ### 6. Companion keys
 
 Bitfocus Companion (the Stream Deck buttons) needs a key. Under **Settings → Companion keys**:
@@ -174,6 +170,8 @@ About pairing:
 ### 8. Settings
 
 Under **Settings**, for the active event:
+
+![Settings: the Time penalties switch (on), the referee undo window, the auto-finish delay and the bag total, then the penalty list](guide/images/console-settings.jpg)
 
 - **Time penalties:** the switch that turns referee penalties on or off for the whole event (off for a new event). See [Time penalties](#time-penalties).
 - **Referee undo window (seconds):** how long a referee can undo their own tap (default 10 seconds). Press **Save undo window**.
@@ -222,7 +220,7 @@ At the top of **Race** you'll see:
 
 On a device set to reduce motion, the button doesn't pulse.
 
-![The Race page with round 1 open: Tables 1 & 2 is Ready, three stations are not ready yet, and time penalties are on](guide/images/console-race-open.jpg)
+![The top of the Race page before the first round: the status line says "Ready to open round 1" and the big button, Open round 1, pulses](guide/images/console-race-button.jpg)
 
 ### Open a round
 
@@ -252,6 +250,8 @@ The **Stations** panel shows every station as **Ready**, **Not ready** or **No t
 
 While the round is open, the status line tells you how many stations are not ready yet ("Waiting on N referees to be ready", or "N tables" with one referee per table).
 
+![Round 1 open: Tables 1 & 2 is Ready, three stations are not ready yet, so Start is greyed out and the status line reads "Waiting on 3 referees to be ready"](guide/images/console-race-open.jpg)
+
 ### Start and finish
 
 - **Start** works only when every station that has teams is Ready (or overridden). Until then it's greyed out and the status line reads, for example, "Waiting on 2 referees to be ready".
@@ -259,7 +259,7 @@ While the round is open, the status line tells you how many stations are not rea
 
 While a round runs, the **Waiting on *N* teams** panel lists every team without a result yet, with **DNF** and **DNS** buttons for each one.
 
-![A running round: the race clock, every station Ready, and the teams still waiting for a result](guide/images/console-race-running.jpg)
+![A running round: the race clock, every station Ready, "Racing — waiting on 7 teams" with Finish now greyed out, and the teams still waiting for a result](guide/images/console-race-running.jpg)
 
 When the round finishes, the clock stops and the round's results are locked in. Referees can no longer tap or undo.
 
@@ -269,6 +269,8 @@ When the round finishes, the clock stops and the round's results are locked in. 
 - **The status line counts down**: "All teams in — finishing in 23 s".
 - **It finishes exactly as Finish now does**, and the **Log** shows it as "auto-finish". You can still press **Finish now** (or the Companion button) sooner.
 - It keeps counting even if nobody has the console open.
+
+![Every team has a result: the status line counts down to auto-finish, and Finish now can end the race sooner](guide/images/console-race-all-in.jpg)
 
 Companion's Start and Finish buttons follow exactly the same rules.
 
@@ -280,11 +282,11 @@ The **Results** panel lists every team in the round, with its table, race and ti
 - **DNF** or **DNS:** mark the team.
 - **Clear:** remove the result.
 - **Add a penalty:** pick a reason from the penalty list and press **Add**. Penalties you add count straight away, with no review needed.
-![Results: correcting Alpha's time by typing 3:21.40 and pressing Set; the −5s button removes Alpha's penalty](guide/images/console-results.jpg)
-
 - **Remove a penalty:** take away the team's most recent penalty. The button shows what it removes: the seconds (for example **−10s**), **−DQ**, or **−Penalty** for a referee's penalty that is still waiting for review.
 
 The newest change always wins, so you can correct a referee's tap by entering the right time.
+
+![Results: correcting Alpha's time by typing 3:21.40 before pressing Set; the −10s button would remove Alpha's approved penalty](guide/images/console-results.jpg)
 
 **Correcting an earlier round:** once a later round has been opened, the app asks **"Change an earlier round?"**
 - **A round keeps its line-up once it's opened.** The app saves who races where when you open each round, and which teams are in each bracket when you open the first bracket round. A correction never changes those.
@@ -322,6 +324,8 @@ Pending penalties appear in the **Penalties to review** panel on the Race page (
 ![A penalty to review: the referee picked Started early and added a note; Approve or Reject](guide/images/console-penalty-review.jpg)
 
 **You can't open the next round while any penalty is still pending.** The big button stays greyed out and the status line reads "Waiting on *N* penalties to be reviewed".
+
+![A penalty still to review: Open round 2 is greyed out and the status line reads "Waiting on 1 penalty to be reviewed"](guide/images/console-race-penalty-waiting.jpg)
 
 Approved reasons are shown to everyone:
 - **On phones**, for example `3:46.20 (incl. +10s · Started early)` or `DQ · Unsafe conduct`.
@@ -376,6 +380,8 @@ You'll use a tablet or phone paired to your station. The top of the screen shows
 2. Scan it with your device's camera. The referee page asks for **Your name**.
 3. Type your name (up to 40 characters) and press **Start**. If the connection drops, the form stays: check the connection and press **Start** again. Your tables appear. Your name shows in race control's Devices list and in the log next to what you do.
 
+![Pairing: type your name, then press Start](guide/images/referee-name.jpg)
+
 If you see **"Scan the station QR code"**, your device isn't paired (or was disconnected). Ask race control for a new code.
 
 ![An unpaired referee device asks you to scan the station QR code](guide/images/referee-scan.jpg)
@@ -401,7 +407,7 @@ When the race starts, the clock runs and there's one large button per team.
 
 If the buttons are greyed out with **"Syncing clock…"**, wait a moment: the tablet is lining its clock up with the server.
 
-![During the race: one big button per team, the race clock at the top right, and the smaller +5s penalty buttons underneath](guide/images/referee-tap-buttons.jpg)
+![During the race: one big button per team, the race clock at the top right, and the smaller Penalty buttons underneath (when race control has switched penalties on)](guide/images/referee-tap-buttons.jpg)
 
 ### Undo
 
@@ -413,11 +419,11 @@ Every tap gets its own bar at the bottom, newest on top, for example "**Alpha fi
 - **If the server refuses a tap that was waiting to send** (for example the team already has a result), a red message says "The saved tap for Alpha in round 3 was refused", with the reason. You see it even if the round changed while the tap was being sent. Tell race control if the time looks wrong.
 - **If a red message says "The server could not process that. Try again."**, the tap is not lost: it stays saved on the tablet and is sent again automatically within a few seconds. Tell race control if the message keeps coming back.
 
+![After a penalty tap and a finish tap for Alpha: its button shows its time marked "pending: under review", the Penalty button shows ×1, and each tap has its own Undo bar counting down](guide/images/referee-undo.jpg)
+
 ### Only one referee tab
 
 The referee page runs in one browser tab per tablet, so two tabs never keep separate lists of saved taps. If you open it a second time, the new tab says **"The referee page is already open in another tab on this tablet"** with a **Use this tab instead** button. Press it to make this tab the live one; the other tab then shows the same message, with its own button to take it back. Browsers without this feature behave as before and allow several tabs.
-
-![After a tap: Alpha's button shows its time, the penalty button shows ×1, and the undo bar counts down at the bottom](guide/images/referee-undo.jpg)
 
 ### Penalty button
 
@@ -471,10 +477,12 @@ Your phone remembers your team, so next time it opens straight to it. Tap **Not 
 - **Brackets:** every category's brackets, updating live. Switch between **Cards** and **Diagram**.
 - **Results:** the latest round's results.
 
+![Brackets as cards, with your team highlighted](guide/images/phone-brackets.png)
+
 Times include penalties. For example, `3:46.20 (incl. +10s · Started early)` means the time already includes a 10-second penalty. **pending: under review** after a time means a referee has flagged the team and race control hasn't decided yet; the time may still change. **DQ** means the team was disqualified from that race.
 
-![My team: a race time that includes an approved +10s penalty for Started early](guide/images/phone-results-penalty.png)
-![Brackets as cards, with your team highlighted](guide/images/phone-brackets.png)
+![My team while a referee's penalty waits for race control: the time is marked "pending: under review"](guide/images/phone-results-pending.png)
+![The same race once race control approved the penalty: the time includes +10s for Started early](guide/images/phone-results-penalty.png)
 
 When race control shows the champion, a champion card appears at the top of every phone. It shows the Grand Champion (or each category's winner if there's no Grand Championship), the bags packed and the final standings, with your team highlighted. The tabs stay available below. After the event ends, phones also show **Event complete**.
 
@@ -624,6 +632,8 @@ The app's Cloudflare Access settings are missing. Tell whoever deployed the app.
 
 **Cloudflare or email is down and nobody can sign in (emergency sign-in).**
 Open `/emergency` (for example `r2f.weiss-audio.com/emergency`). It is not linked from any page. Type the emergency password and press **Sign in**. You get the same console for 12 hours; the Log shows your actions as "emergency sign-in". Whoever deployed the app holds the emergency password. If the page says **"Emergency sign-in is not enabled."**, no emergency password has been set.
+
+![The emergency sign-in page at /emergency: type the emergency password, then press Sign in](guide/images/console-emergency-sign-in.png)
 
 **"Too many attempts. Wait five minutes and try again."**
 After 5 wrong emergency passwords in 5 minutes, emergency sign-in pauses for that network. Wait, then try again with the right password.

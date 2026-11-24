@@ -194,7 +194,7 @@ All times in this section are **official times**: the raw time plus any penaltie
     - The time is stored with the event and driven by the hub's single alarm, which also paces phone updates; the alarm is always set to the earlier of the two, so a countdown survives the server going idle.
   - Race control sees the list of teams still outstanding and can mark them DNF or DNS.
   - When finish succeeds, the clock stops and resets, and the round's results are locked.
-- **Next round:** race control reviews results, resolves any ties, then presses **Open next round**.
+- **Next round:** race control reviews results, resolves any ties, then presses **Open round N** (§7.2).
   - Matchups for the next round are generated from the locked results and published at that moment, not before.
 - **Late corrections:**
   - Race control can edit a finished round's results until a later round that depends on them is opened.
@@ -342,15 +342,31 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 
 ### 7.2 Race control (password)
 - **Grid of every station:** each shows not ready / Ready / excluded, the teams with their times and status, and any overrides.
-- **Master clock** and round state, plus a "waiting on N teams" list with one-click DNF and DNS.
-- **Time penalties on/off switch** (event-wide, takes effect immediately, §5.1).
+- **Race page header:** round title, state, master clock, a status line (`role="status"`) and **one large action button** that always shows the next step. It is about three times a normal button (min-height 6rem, min-width 16rem, title-sized text). It **pulses** (a 2-second scale-and-glow loop, off under `prefers-reduced-motion: reduce`) only when pressing it will work and is the expected next step; it never pulses while the server would refuse. A refused command's message shows under the header. The first matching row wins:
+
+  | Condition | Button | Enabled | Pulses | Status line |
+  |---|---|---|---|---|
+  | Champion showing | Hide champion | yes | no | Champion is showing |
+  | Running, N teams outstanding | Finish now | no | no | Racing — waiting on N team(s) |
+  | Running, none outstanding, auto-finish set | Finish now | yes | no | All teams in — finishing in S s (seconds left, rounded up, never below 0) |
+  | Running, none outstanding, no auto-finish | Finish now | yes | yes | All teams in |
+  | Open, N stations not ready | Start | no | no | Waiting on N table(s) to be ready |
+  | Open, all ready | Start | yes | yes | All tables ready |
+  | N penalties pending review | Open round M (Show champion after the last round) | no | no | Waiting on N penalty/penalties to be reviewed |
+  | Undecided tie or other blocker | as the row above | no | no | Waiting on a tie to be decided |
+  | Last round finished | Show champion | yes | yes | Event complete |
+  | Otherwise | Open round M | yes (no before setup is locked) | yes | Ready to open round M ("Not started" before round 1) |
+
+  M is the current round plus one. Show champion opens the bag-count sheet first. Finish now does not pulse while the auto-finish countdown runs: the race finishes itself.
+- **"Waiting on N teams" list** with one-click DNF and DNS.
+- **Time penalties on/off switch** in Settings, in the event's panel (event-wide, takes effect immediately, §5.1).
 - **Penalties per team:** each team shows `raw + penalties = official`, with buttons to add or remove a penalty.
 - **Tie resolution**, time edits and clears, and the audit log.
 - **Rename a team** at any time during the event (e.g. a misspelling spotted on the projector). Other setup changes stay with admin.
-- **Open next round,** with a results review first.
+- **Open round N** (the action button), with a results review first.
 - **Referee pairing:** a QR code per station, a paired-device list, and revoke.
 - **Projector override:** pin any screen (e.g. the champion reveal) or return to automatic.
-- **Backup controls:** START and FINISH buttons that follow the same gates as Companion.
+- **Backup controls:** Start and Finish now (the action button) follow the same gates as Companion.
 
 ### 7.3 Referee (paired tablet, QR)
 - Shows the station's table numbers and the current round's teams.

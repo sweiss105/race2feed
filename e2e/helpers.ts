@@ -9,9 +9,13 @@ export async function signInAdmin(page: Page) {
   await expect(page.getByRole('link', { name: 'Race' })).toBeVisible();
 }
 
-/** Creates, activates and locks a 4-team event on 4 tables. Returns the console page. */
+/**
+ * Creates, activates and locks a 4-team event on 4 tables. Returns the console page.
+ * The console asks for reduced motion: Playwright never clicks the Race page's pulsing button
+ * while it moves, so it would wait forever.
+ */
 export async function setUpEvent(browser: Browser, name: string) {
-  const admin = await (await browser.newContext()).newPage();
+  const admin = await (await browser.newContext({ reducedMotion: 'reduce' })).newPage();
   await signInAdmin(admin);
   await admin.getByRole('link', { name: 'Events' }).click();
   await admin.getByLabel('Event name').fill(name);

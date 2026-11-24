@@ -38,11 +38,11 @@ Everything happens at **https://r2f.weiss-audio.com**:
 
 **How a round flows:**
 
-1. Race control presses **Open next round**. Everyone's phone, the projector and the referee tablets show who races at which table.
+1. Race control presses **Open round N** (the big button on the Race page). Everyone's phone, the projector and the referee tablets show who races at which table.
 2. Each referee checks their teams are in place and presses **Ready**.
 3. When every station is Ready, race control (or the Companion **Start** button) starts the race. The master clock runs.
 4. Referees tap each team's button the moment the team finishes.
-5. When every team has a time (or is marked DNF or DNS), the race finishes by itself after the auto-finish delay (30 seconds by default). Race control can press **Finish** sooner.
+5. When every team has a time (or is marked DNF or DNS), the race finishes by itself after the auto-finish delay (30 seconds by default). Race control can press **Finish now** sooner.
 6. Race control checks the results, settles any ties or penalties, and opens the next round.
 
 > **DNF** means "did not finish" and **DNS** means "did not start". Both always rank after teams that finished.
@@ -156,8 +156,9 @@ About pairing:
 
 Under **Settings**, for the active event:
 
+- **Time penalties:** the switch that turns referee penalties on or off for the whole event (off for a new event). See [Time penalties](#time-penalties).
 - **Referee undo window (seconds):** how long a referee can undo their own tap (default 10 seconds). Press **Save undo window**.
-- **Auto-finish delay (seconds):** how long after the last team gets a result the race finishes by itself (default 30 seconds). It is never shorter than the undo window. Set it to 0 to turn auto-finish off, so only **Finish** ends a race. Press **Save auto-finish delay**. See [Start and finish](#start-and-finish).
+- **Auto-finish delay (seconds):** how long after the last team gets a result the race finishes by itself (default 30 seconds). It is never shorter than the undo window. Set it to 0 to turn auto-finish off, so only **Finish now** (or Companion's Finish) ends a race. Press **Save auto-finish delay**. See [Start and finish](#start-and-finish).
 - **Bags of food packed:** the number shown on the champion screen. Type just the number (for example `9,816`) and press **Save bag total**. The screen adds "bags of food packed!". Race control can also enter it when showing the champion.
 - **The penalty list:** the reasons race control chooses from when reviewing penalties. Each reason has a name and either a time (for example +10s) or **DQ** (disqualified from that race). New events start with:
 
@@ -179,17 +180,35 @@ Sign in at `/control`: choose **Race control**, enter the race control password,
 At the top of **Race** you'll see:
 - the round number and its state: **idle**, **open**, **running** or **finished**
 - the race clock, while running
-- three buttons: **Open next round**, **Start** and **Finish**
+- a **status line** that says what the room is waiting for
+- **one large button** that always shows the next step. It **pulses** when pressing it will work and is what you should do next. When it's greyed out, the status line says why.
+
+| What's happening | Button | Pulses | Status line |
+|---|---|---|---|
+| Between rounds, nothing blocking | **Open round N** | yes | "Ready to open round N" ("Not started" before round 1) |
+| Round open, some stations not ready | **Start** (greyed out) | no | "Waiting on N tables to be ready" |
+| Round open, every station ready | **Start** | yes | "All tables ready" |
+| Racing, teams still out | **Finish now** (greyed out) | no | "Racing — waiting on N teams" |
+| Racing, every team has a result | **Finish now** | no | "All teams in — finishing in 23 s" (the auto-finish countdown) |
+| Racing, every team in, auto-finish off | **Finish now** | yes | "All teams in" |
+| Penalties still to review | **Open round N** or **Show champion** (greyed out) | no | "Waiting on N penalties to be reviewed" |
+| A tie to decide | **Open round N** or **Show champion** (greyed out) | no | "Waiting on a tie to be decided" |
+| Last round finished | **Show champion** | yes | "Event complete" |
+| Champion showing | **Hide champion** | no | "Champion is showing" |
+
+"N tables" counts referee stations that are not Ready yet. If both penalties and a tie are waiting, the status line names the penalties first. Before admin locks the setup, the button reads **Open round 1** and stays greyed out.
+
+On a device set to reduce motion, the button doesn't pulse.
 
 ### Open a round
 
-1. Press **Open next round**.
+1. Press **Open round N**.
 2. The round's tables go out to phones, the projector and the referee tablets.
 3. Stations with no teams this round are marked **No teams** automatically.
 
 **Before you open the first bracket round, check the seeding results.** Brackets become final the moment that round opens: later bracket rounds are built from those brackets, and a correction to seeding won't move a team to another bracket.
 
-If it's refused, the message tells you why:
+The button is greyed out while penalties or a tie are waiting (the status line says which). If the server still refuses, the message appears under the button:
 
 | Message | What to do |
 |---|---|
@@ -198,7 +217,7 @@ If it's refused, the message tells you why:
 | "*N* penalties need a decision first." | Decide the pending penalties (see [Penalty review](#penalty-review)). |
 | "The next round is waiting on a decision." | Usually a tie that needs deciding (see [Ties](#ties)). |
 
-When every round has been raced, the button reads **No rounds left** and is greyed out. That's your cue to [show the champion](#show-the-champion).
+When every round has been raced, the button reads **Show champion** and the status line says "Event complete". That's your cue to [show the champion](#show-the-champion).
 
 ### Station readiness
 
@@ -207,21 +226,22 @@ The **Stations** panel shows every station as **Ready**, **Not ready** or **No t
 - **Unready:** clear a Ready. A referee can't undo their own Ready, so this is the only way.
 - **Exclude:** leave the station out of the Ready check. **Include** puts it back.
 
-While the round is open, a line tells you how many stations are not ready yet.
+While the round is open, the status line tells you how many stations are not ready yet ("Waiting on N tables to be ready").
 
 ### Start and finish
 
-- **Start** works only when every station that has teams is Ready (or overridden). Otherwise you'll see, for example, "2 station(s) not ready."
-- **Finish** works only when every team in the round has a time, DNF or DNS. Otherwise you'll see "*N* team(s) have no result."
+- **Start** works only when every station that has teams is Ready (or overridden). Until then it's greyed out and the status line reads, for example, "Waiting on 2 tables to be ready".
+- **Finish now** works only when every team in the round has a time, DNF or DNS. Until then it's greyed out and the status line reads "Racing — waiting on *N* teams".
 
 While a round runs, the **Waiting on *N* teams** panel lists every team without a result yet, with **DNF** and **DNS** buttons for each one.
 
-When Finish succeeds, the clock stops and the round's results are locked in. Referees can no longer tap or undo.
+When the round finishes, the clock stops and the round's results are locked in. Referees can no longer tap or undo.
 
 **Auto-finish:** once every team in the running round has a result, the race finishes by itself after the auto-finish delay (the **Auto-finish delay** in Settings).
 - **The auto-finish delay starts again** after any later tap, penalty, undo or correction, so referees have time to add penalties after the last finish. Changing the undo window or the auto-finish delay in Settings also starts it again, with the new length.
 - **It is cancelled** if a team loses its result (a referee's undo, or you press **Clear**). It starts again when every team has a result.
-- **It finishes exactly as Finish does**, and the **Log** shows it as "auto-finish". You can still press **Finish** (or the Companion button) sooner.
+- **The status line counts down**: "All teams in — finishing in 23 s".
+- **It finishes exactly as Finish now does**, and the **Log** shows it as "auto-finish". You can still press **Finish now** (or the Companion button) sooner.
 - It keeps counting even if nobody has the console open.
 
 Companion's Start and Finish buttons follow exactly the same rules.
@@ -249,7 +269,7 @@ The newest change always wins, so you can correct a referee's tap by entering th
 
 ### Time penalties
 
-Penalties are switched **off** for a new event. The **Time penalties** switch on the Race page turns them on or off for the whole event.
+Penalties are switched **off** for a new event. The **Time penalties** switch in **Settings**, in the event's panel, turns them on or off for the whole event. Settings is in admin's menu, so race control asks admin to flip it.
 - **It takes effect at once**, even mid-race: the penalty buttons appear or disappear on every referee tablet.
 - **Turning it off doesn't remove** penalties already given.
 - **You can still add or remove penalties** in Results while it's off.
@@ -260,7 +280,7 @@ How penalties count:
 
 ### Penalty review
 
-A referee's penalty **adds no time**; it flags the team as **pending: under review** (that label appears beside the team's time for everyone, and as "under review" on the projector) until you decide it. After you press **Finish**, the referee can send a note for each penalty: the closest reason from the list, plus a short comment.
+A referee's penalty **adds no time**; it flags the team as **pending: under review** (that label appears beside the team's time for everyone, and as "under review" on the projector) until you decide it. After the round finishes, the referee can send a note for each penalty: the closest reason from the list, plus a short comment.
 
 Pending penalties appear in the **Penalties to review** panel on the Race page ("Round N · flagged by the referee"). For each one:
 
@@ -271,7 +291,7 @@ Pending penalties appear in the **Penalties to review** panel on the Race page (
    - **Approve with a DQ reason:** the team is disqualified from that race. It ranks like a DNF and shows as **DQ**.
    - **Reject:** the penalty is removed and the results update.
 
-**You can't open the next round while any penalty is still pending.**
+**You can't open the next round while any penalty is still pending.** The big button stays greyed out and the status line reads "Waiting on *N* penalties to be reviewed".
 
 Approved reasons are shown to everyone:
 - **On phones**, for example `3:46.20 (incl. +10s · Started early)` or `DQ · Unsafe conduct`.
@@ -299,13 +319,13 @@ The projector changes screens by itself. To show a particular screen, use the **
 
 ### Show the champion
 
-When the last round is finished and every penalty has been decided (Show champion is refused while one is still under review):
+When the last round is finished and every penalty has been decided (until then the button is greyed out and the status line says what it's waiting for):
 
-1. Press **Show champion**.
+1. Press **Show champion** (the big button on the Race page).
 2. Enter or confirm the number of bags packed, then press **Show**.
 3. The projector **and every participant's phone** switch to the champion screen: the Grand Champion, the bag total and the final standings by category. If there's no Grand Championship, it shows each category's winner instead.
 
-**Hide champion** returns everyone to the normal screens. You can change the bag number at any time.
+While the champion is showing, the big button reads **Hide champion**. Pressing it returns everyone to the normal screens. You can change the bag number at any time.
 
 ### Devices and Log
 
@@ -369,7 +389,7 @@ When race control has switched penalties on, each team has a smaller **Penalty**
 
 ### After the race: penalty notes
 
-Once race control presses **Finish**, you'll see a **Penalty notes** card for each penalty you gave that still needs review:
+Once the round finishes, you'll see a **Penalty notes** card for each penalty you gave that still needs review:
 
 1. Pick the closest reason from the list.
 2. Add a short note if it helps (optional).
@@ -432,7 +452,7 @@ Race control can pin any screen, including **standings**, from the console (see 
 
 ## Bitfocus Companion (Start and Finish buttons)
 
-Race control can start and finish races from Stream Deck buttons through Bitfocus Companion. The buttons follow exactly the same rules as the console's **Start** and **Finish**: a refused press changes nothing.
+Race control can start and finish races from Stream Deck buttons through Bitfocus Companion. The buttons follow exactly the same rules as the console's **Start** and **Finish now**: a refused press changes nothing.
 
 **What you need:**
 - A Companion key, made by admin in **Settings → Companion keys** (see [Companion keys](#6-companion-keys)).
@@ -510,14 +530,14 @@ The connection dropped. The taps are saved with their real times and will send b
 **The referee page says "The referee page is already open in another tab on this tablet".**
 Only one tab can run the referee page. Close the other tab, or press **Use this tab instead** here.
 
-**Start is refused: "*N* station(s) not ready."**
+**Start is greyed out: "Waiting on *N* tables to be ready".**
 Look at the **Stations** panel. Ask those referees to press Ready, or use **Ready** or **Exclude** on their station yourself.
 
-**Finish is refused: "*N* team(s) have no result."**
+**Finish now is greyed out: "Racing — waiting on *N* teams".**
 Use the **Waiting on *N* teams** panel: wait for the referee's tap, enter a time in **Results**, or mark the team **DNF** or **DNS**.
 
-**Open next round is refused.**
-Read the message: lock the setup, finish the current round, decide pending penalties, or decide a tie. See [Open a round](#open-a-round).
+**Open round N is greyed out or refused.**
+Read the status line or the message under the button: lock the setup, finish the current round, decide pending penalties, or decide a tie. See [Open a round](#open-a-round).
 
 **A referee tapped the wrong team or too early.**
 Within the undo window, the referee presses **Undo**. After that, race control fixes it in **Results**: enter the right time, or press **Clear**.

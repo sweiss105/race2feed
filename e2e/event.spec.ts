@@ -17,7 +17,7 @@ test('a seeding round across every page', async ({ browser }) => {
 
   // Open round 1: referee readies station 1, race control readies station 2, then starts.
   await admin.getByRole('link', { name: 'Race' }).click();
-  await admin.getByRole('button', { name: 'Open next round' }).click();
+  await admin.getByRole('button', { name: 'Open round 1' }).click();
   await expect(projector.getByRole('heading', { name: 'Round 1' })).toBeVisible();
   await expect(phone.getByTestId('next-table')).toHaveText('1');
   await ref.getByRole('button', { name: 'Ready' }).click();
@@ -41,7 +41,7 @@ test('a seeding round across every page', async ({ browser }) => {
     await row.getByRole('button', { name: 'Set' }).click();
     await expect(row).toContainText(time);
   }
-  await admin.getByRole('button', { name: 'Finish' }).click();
+  await admin.getByRole('button', { name: 'Finish now' }).click();
   await expect(admin.locator('.pill')).toHaveText('finished');
 
   // Everyone sees the result.

@@ -84,6 +84,19 @@ describe('admin sections', () => {
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setSettings', autoFinishMs: 45_000 }));
   });
 
+  it("has the Time penalties switch in the event's settings, flipping at once while the server confirms", async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
+    let resolve!: (a: Ack) => void;
+    const send = vi.fn(() => new Promise<Ack>((r) => { resolve = r; }));
+    withRunner(<Settings view={ctlViewOf(lockedFour())} />, send);
+    const sw = screen.getByRole('switch', { name: 'Time penalties' }) as HTMLInputElement;
+    expect(sw.checked).toBe(false);
+    fireEvent.click(sw);
+    expect(sw.checked).toBe(true);
+    expect(send).toHaveBeenCalledWith({ type: 'setPenaltiesEnabled', enabled: true });
+    resolve({ ok: true });
+  });
+
   it('chooses how many tables each referee covers until setup is locked', async () => {
     const send = vi.fn(async () => ({ ok: true }));
     withRunner(<Setup view={ctlViewOf(blank(4))} />, send);

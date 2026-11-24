@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/preact';
+import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/preact';
 import { Login } from '../../src/pages/control/Login';
 import { ConsolePage } from '../../src/pages/control/ConsolePage';
 import { ctlViewOf, heatsOpen, lockedFour, openNext, runRound, seedTimes, start, teamId } from '../support/state';
@@ -46,13 +46,66 @@ describe('console sections by role', () => {
 describe('race section', () => {
   beforeEach(() => cleanup());
 
-  it('greys out Open next round once every round has been raced', () => {
+  const header = () => document.querySelector('header.race-head') as HTMLElement;
+  const readyView = () => {
+    const e = openNext(lockedFour());
+    return ctlViewOf({ ...e, stations: { 1: { ready: true, excluded: false }, 2: { ready: true, excluded: false } } });
+  };
+
+  it('offers no round to open once every round has been raced', () => {
     let e = lockedFour();
     for (let i = 0; i < 4; i++) e = runRound(e, seedTimes);
     render(<ConsolePage me={me('control')} view={ctlViewOf(e)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
-    const btn = screen.getByRole('button', { name: 'No rounds left' }) as HTMLButtonElement;
-    expect(btn.disabled).toBe(true);
-    expect(screen.queryByRole('button', { name: 'Open next round' })).toBeNull();
+    expect(within(header()).getAllByRole('button').map((b) => b.textContent)).toEqual(['Show champion']);
+    expect(screen.queryByRole('button', { name: /^Open round/ })).toBeNull();
+    expect(within(header()).getByRole('status').textContent).toBe('Event complete');
+  });
+
+  it('shows one action button in the header, pulsing Start once every table is ready', async () => {
+    const send = vi.fn(async () => ({ ok: true }));
+    render(<ConsolePage me={me('control')} view={readyView()} send={send} serverNow={() => 0} status="open" />);
+    const buttons = within(header()).getAllByRole('button');
+    expect(buttons).toHaveLength(1);
+    const startBtn = within(header()).getByRole('button', { name: 'Start' }) as HTMLButtonElement;
+    expect(startBtn.disabled).toBe(false);
+    expect(startBtn.classList.contains('pulse')).toBe(true);
+    expect(within(header()).getByRole('status').textContent).toBe('All tables ready');
+    fireEvent.click(startBtn);
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'startRace' }));
+  });
+
+  it('disables Start and says what it waits for while a table is not ready', () => {
+    const e = openNext(lockedFour());
+    const oneLeft = { ...e, stations: { 1: { ready: true, excluded: false }, 2: { ready: false, excluded: false } } };
+    render(<ConsolePage me={me('control')} view={ctlViewOf(oneLeft)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    const startBtn = within(header()).getByRole('button', { name: 'Start' }) as HTMLButtonElement;
+    expect(startBtn.disabled).toBe(true);
+    expect(startBtn.classList.contains('pulse')).toBe(false);
+    expect(within(header()).getByRole('status').textContent).toBe('Waiting on 1 table to be ready');
+  });
+
+  it('counts down to the automatic finish once every team is in', () => {
+    const e = start(openNext(lockedFour()), 1_000_000);
+    const v = ctlViewOf(e);
+    const allIn = { ...v, outstanding: [], round: { ...v.round, autoFinishAt: 1_030_000 } };
+    render(<ConsolePage me={me('control')} view={allIn} send={async () => ({ ok: true })} serverNow={() => 1_007_200} status="open" />);
+    expect(within(header()).getByRole('status').textContent).toBe('All teams in — finishing in 23 s');
+    expect((within(header()).getByRole('button', { name: 'Finish now' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('opens the next round from the one button', async () => {
+    const send = vi.fn(async () => ({ ok: true }));
+    render(<ConsolePage me={me('control')} view={ctlViewOf(runRound(lockedFour(), seedTimes))} send={send} serverNow={() => 0} status="open" />);
+    expect(within(header()).getByRole('status').textContent).toBe('Ready to open round 2');
+    fireEvent.click(within(header()).getByRole('button', { name: 'Open round 2' }));
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'openNextRound' }));
+  });
+
+  it('shows a refused command under the header', async () => {
+    const send = vi.fn(async () => ({ ok: false, code: 'stations_not_ready', message: '1 station(s) not ready.' }));
+    render(<ConsolePage me={me('control')} view={readyView()} send={send} serverNow={() => 0} status="open" />);
+    fireEvent.click(within(header()).getByRole('button', { name: 'Start' }));
+    expect((await screen.findByRole('alert')).textContent).toBe('1 station(s) not ready.');
   });
 
   it('sends one START however many times it is clicked', async () => {
@@ -110,16 +163,9 @@ describe('race section', () => {
     expect(dialog.textContent).not.toContain('No line-ups are affected.');
   });
 
-  it('flips the penalties switch at once while the server confirms', async () => {
-    let resolve!: (a: Ack) => void;
-    const send = vi.fn(() => new Promise<Ack>((r) => { resolve = r; }));
-    render(<ConsolePage me={me('control')} view={ctlViewOf(openNext(lockedFour()))} send={send} serverNow={() => 0} status="open" />);
-    const sw = screen.getByRole('switch') as HTMLInputElement;
-    expect(sw.checked).toBe(false);
-    fireEvent.click(sw);
-    expect(sw.checked).toBe(true);
-    expect(send).toHaveBeenCalledWith({ type: 'setPenaltiesEnabled', enabled: true });
-    resolve({ ok: true });
+  it('has no penalties switch on the Race page any more', () => {
+    render(<ConsolePage me={me('control')} view={ctlViewOf(openNext(lockedFour()))} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    expect(screen.queryByRole('switch')).toBeNull();
   });
 
   it('marks an outstanding team DNF', async () => {

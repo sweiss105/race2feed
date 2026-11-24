@@ -30,7 +30,16 @@ test('screens for visual review', async ({ browser }) => {
   await shot(projector, 'projector-welcome');
 
   await admin.getByRole('link', { name: 'Race' }).click();
-  await admin.getByRole('button', { name: 'Open next round' }).click();
+  await expect(admin.locator('.race-status')).toHaveText('Not started');
+  await shot(admin, 'console-race-not-started');
+  // The same header mid-pulse (the console context otherwise asks for reduced motion; see setUpEvent).
+  await admin.emulateMedia({ reducedMotion: 'no-preference' });
+  await admin.waitForTimeout(400); // the shot waits 600 more: 1 s into the 2 s loop, the largest glow
+  await shot(admin, 'console-race-pulse');
+  await admin.emulateMedia({ reducedMotion: 'reduce' });
+  await admin.getByRole('button', { name: 'Open round 1' }).click();
+  await expect(admin.locator('.race-status')).toHaveText('Waiting on 2 tables to be ready');
+  await shot(admin, 'console-race-open');
   await expect(ref.getByRole('button', { name: 'Ready' })).toBeVisible();
   await shot(ref, 'referee-ready-phone');
   await expect(projector.getByRole('heading', { name: 'Round 1' })).toBeVisible();
@@ -41,7 +50,9 @@ test('screens for visual review', async ({ browser }) => {
   await shot(phone, 'participant-next-race-dark');
   await phone.emulateMedia({ colorScheme: 'light' });
 
-  await admin.getByRole('switch').check();
+  await admin.getByRole('link', { name: 'Settings' }).click();
+  await admin.getByRole('switch', { name: 'Time penalties' }).check();
+  await admin.getByRole('link', { name: 'Race' }).click();
   await ref.getByRole('button', { name: 'Ready' }).click();
   await readyAndStart(admin);
   await expect(ref.getByRole('button', { name: /^Alpha/ })).toBeEnabled();
@@ -66,17 +77,21 @@ test('screens for visual review', async ({ browser }) => {
 
   await admin.getByRole('link', { name: 'Race' }).click();
   await timeEveryone(admin, { Bravo: '3:05.10', Charlie: '3:10.00', Delta: '3:20.50' });
-  await admin.getByRole('button', { name: 'Finish' }).click();
+  await expect(admin.locator('.race-status')).toHaveText(/^All teams in — finishing in \d+ s$/);
+  await shot(admin, 'console-race-all-in');
+  await admin.getByRole('button', { name: 'Finish now' }).click();
   await expect(projector.getByRole('heading', { name: 'Seeding results' })).toBeVisible();
   await shot(projector, 'projector-seeding-results');
 
   // Second seeding run, then open the heats so brackets exist.
-  await admin.getByRole('button', { name: 'Open next round' }).click();
+  await expect(admin.locator('.race-status')).toHaveText('Ready to open round 2');
+  await shot(admin, 'console-race-between-rounds');
+  await admin.getByRole('button', { name: 'Open round 2' }).click();
   await readyAndStart(admin);
   await timeEveryone(admin, Object.fromEntries(TEAMS.map((t, i) => [t, `3:0${i}.00`])));
-  await admin.getByRole('button', { name: 'Finish' }).click();
+  await admin.getByRole('button', { name: 'Finish now' }).click();
   await expect(admin.locator('.pill')).toHaveText('finished');
-  await admin.getByRole('button', { name: 'Open next round' }).click();
+  await admin.getByRole('button', { name: 'Open round 3' }).click();
   await expect(admin.locator('.pill')).toHaveText('open');
 
   await phone.getByRole('tab', { name: 'Brackets' }).click();

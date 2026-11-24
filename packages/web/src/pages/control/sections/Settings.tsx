@@ -3,6 +3,7 @@ import type { ControlView } from '../../../lib/types';
 import { Button } from '../../../ui/Button';
 import { getJson } from '../../../lib/api';
 import { useRunner } from '../runner';
+import { Switch } from '../../../ui/Switch';
 
 interface ApiKey { id: string; label: string; created_at: number; revoked_at: number | null }
 
@@ -69,6 +70,8 @@ function EventSettings({ view }: { view: ControlView }) {
   return (
     <section class="panel card stack">
       <h3 class="headline">{view.event.name}</h3>
+      <Switch checked={view.settings.penaltiesEnabled} label="Time penalties"
+        onToggle={(enabled) => runner.run({ type: 'setPenaltiesEnabled', enabled })} />
       <NumberSetting label="Referee undo window (seconds)" button="Save undo window" initial={view.settings.undoWindowMs / 1000} keyName="setSettings-undo"
         onSave={(s) => void runner.run({ type: 'setSettings', undoWindowMs: Math.round(s * 1000) }, 'setSettings-undo')} />
       <NumberSetting label="Auto-finish delay (seconds)" button="Save auto-finish delay" initial={(view.settings.autoFinishMs ?? 30_000) / 1000} keyName="setSettings-autofinish"

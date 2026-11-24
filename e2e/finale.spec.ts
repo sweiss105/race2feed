@@ -20,10 +20,11 @@ test('penalty review, champion and the end of the event', async ({ browser }) =>
   await projector.goto('/projector');
 
   // Round 1 with penalties on: the referee gives Alpha a penalty.
+  await admin.getByRole('link', { name: 'Settings' }).click();
+  await admin.getByRole('switch', { name: 'Time penalties' }).click();
+  await expect(admin.getByRole('switch', { name: 'Time penalties' })).toBeChecked();
   await admin.getByRole('link', { name: 'Race' }).click();
-  await admin.getByRole('switch').click();
-  await expect(admin.getByRole('switch')).toBeChecked();
-  await admin.getByRole('button', { name: 'Open next round' }).click();
+  await admin.getByRole('button', { name: 'Open round 1' }).click();
   await readyAndStart(admin);
   await ref.getByRole('button', { name: 'Penalty for Alpha' }).click();
   for (const name of ['Alpha', 'Bravo']) {
@@ -33,7 +34,7 @@ test('penalty review, champion and the end of the event', async ({ browser }) =>
   }
   await expect(ref.getByRole('button', { name: /^Bravo/ })).toContainText(/\d:\d\d\.\d\d/);
   await timeEveryone(admin, { Charlie: '3:10.00', Delta: '3:20.50' });
-  await admin.getByRole('button', { name: 'Finish' }).click();
+  await admin.getByRole('button', { name: 'Finish now' }).click();
   await expect(admin.locator('.pill')).toHaveText('finished');
 
   // After the round the referee says why.
@@ -46,28 +47,30 @@ test('penalty review, champion and the end of the event', async ({ browser }) =>
   await expect(phone.getByText(/pending: under review/).first()).toBeVisible();
 
   // The next round waits for race control's decision.
-  await admin.getByRole('button', { name: 'Open next round' }).click();
-  await expect(admin.getByRole('alert').filter({ hasText: 'needs a decision first' })).toBeVisible();
+  await expect(admin.getByRole('button', { name: 'Open round 2' })).toBeDisabled();
+  await expect(admin.locator('.race-status')).toHaveText('Waiting on 1 penalty to be reviewed');
   const review = admin.getByRole('region', { name: 'Penalties to review' });
   await expect(review.getByText(/Went before the horn/)).toBeVisible();
   await expect(review.getByLabel('Penalty')).toHaveValue('early');
   await shot(admin, 'console-penalty-review');
   await review.getByRole('button', { name: 'Approve' }).click();
   await expect(review.getByText('All penalties decided.')).toBeVisible();
+  await expect(admin.getByRole('button', { name: 'Open round 2' })).toBeEnabled();
   await expect(phone.getByText(/\(incl\. \+10s · Started early\)/).first()).toBeVisible();
 
   // Race the remaining rounds from the console.
   const times = { Alpha: '3:00.00', Bravo: '3:05.00', Charlie: '3:10.00', Delta: '3:15.00' };
   for (;;) {
-    const open = admin.getByRole('button', { name: 'Open next round' });
+    const open = admin.getByRole('button', { name: /^Open round \d+$/ });
     if (!(await open.isVisible())) break;
     await open.click();
     await readyAndStart(admin);
     await timeEveryone(admin, times);
-    await admin.getByRole('button', { name: 'Finish' }).click();
+    await admin.getByRole('button', { name: 'Finish now' }).click();
     await expect(admin.locator('.pill')).toHaveText('finished');
   }
-  await expect(admin.getByRole('button', { name: 'No rounds left' })).toBeDisabled();
+  await expect(admin.locator('.race-status')).toHaveText('Event complete');
+  await expect(admin.getByRole('button', { name: /^Open round/ })).toHaveCount(0);
 
   // Show the champion with the bag count.
   await admin.getByRole('button', { name: 'Show champion' }).click();

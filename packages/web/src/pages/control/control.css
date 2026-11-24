@@ -18,6 +18,17 @@
 
 .race-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); justify-content: space-between; margin-bottom: var(--space-4); }
 .race-head .left { display: flex; align-items: baseline; gap: var(--space-3); }
+.race-info { display: grid; gap: var(--space-2); }
+.race-status { margin: 0; font-size: 1.0625rem; font-weight: 600; color: var(--secondary-label); }
+.race-action.btn { min-height: 6rem; min-width: 16rem; padding: 0 var(--space-6); border-radius: var(--radius-l); font-size: 1.75rem; font-weight: 700; letter-spacing: -0.02em; }
+.race-action.pulse { animation: race-pulse 2s ease-in-out infinite; }
+@keyframes race-pulse {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 var(--highlight); }
+  50% { transform: scale(1.04); box-shadow: 0 0 0 0.75rem var(--highlight), 0 0 2rem 0.5rem var(--highlight); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .race-action.pulse { animation: none; }
+}
 .race-clock { font-size: 2.25rem; font-weight: 700; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .pill { display: inline-block; padding: 0.15rem 0.65rem; border-radius: 999px; font-size: 0.8125rem; font-weight: 600; background: var(--surface-2); text-transform: capitalize; }
 .pill.running { background: var(--accent-fill); color: var(--on-accent); }

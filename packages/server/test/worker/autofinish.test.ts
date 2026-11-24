@@ -89,6 +89,22 @@ describe('auto-finish', () => {
     expect((await consoleView(admin)).round.phase).toBe('running');
   });
 
+  it('gives referees the full window again when switching away to another event and back mid-countdown', async () => {
+    const { admin, teams } = await runningRound();
+    for (const teamId of teams) await setTime(admin, teamId);
+    const eventId = ((await consoleGet(admin, '/events')).body as { id: string; active: boolean }[]).find((e) => e.active)!.id;
+    const other = await command({ type: 'createEvent', name: 'Other', date: '2026-12-02', tableCount: 2 }, admin);
+    expect((await command({ type: 'activateEvent', eventId: other.body.reply.eventId }, admin)).status).toBe(200);
+    await wait(1100);
+    const backAt = Date.now();
+    expect((await command({ type: 'activateEvent', eventId }, admin)).status).toBe(200);
+
+    const view = await consoleView(admin);
+    expect(view.round.autoFinishAt).toBeGreaterThan(backAt);
+    await runDurableObjectAlarm(hub());
+    expect((await consoleView(admin)).round.phase).toBe('running');
+  });
+
   it('drops a due time that finishRace refuses instead of firing again', async () => {
     const { admin, teams } = await runningRound();
     for (const teamId of teams.slice(0, 3)) await setTime(admin, teamId);

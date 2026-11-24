@@ -265,15 +265,19 @@ export class Hub extends DurableObject<Env> {
         this.ctx.storage.transactionSync(() => {
           this.sql.exec('UPDATE events SET active = CASE WHEN id = ? THEN 1 ELSE 0 END', cmd.eventId);
           const row = this.sql.exec<{ doc: string }>('SELECT doc FROM events WHERE id = ?', cmd.eventId).toArray()[0]!;
-          const doc = JSON.parse(row.doc) as LiveEvent;
+          let doc = JSON.parse(row.doc) as LiveEvent;
+          const before = doc;
+          // A countdown that was running when the event was ended or switched away from starts again,
+          // so referees get the full window.
+          if (doc.round.phase === 'running' && typeof doc.round.autoFinishAt === 'number') {
+            doc = { ...doc, round: { ...doc.round, autoFinishAt: now + autoFinishDelay(doc) } };
+          }
           if (doc.endedAt) {
             // Keep the champion up only if the event really was over when it ended.
             const over = doc.round.phase === 'finished' && doc.round.current > 0 && doc.round.current === (this.safeDerive(doc)?.rounds.length ?? -1);
-            // A countdown that was running when the event ended starts again, so referees get the full window.
-            const round = doc.round.phase === 'running' && typeof doc.round.autoFinishAt === 'number'
-              ? { ...doc.round, autoFinishAt: now + autoFinishDelay(doc) } : doc.round;
-            this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify({ ...doc, round, endedAt: null, championShown: over && doc.championShown }), cmd.eventId);
+            doc = { ...doc, endedAt: null, championShown: over && doc.championShown };
           }
+          if (doc !== before) this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify(doc), cmd.eventId);
         });
         this.active = this.loadActive();
         this.ended = this.loadEnded();

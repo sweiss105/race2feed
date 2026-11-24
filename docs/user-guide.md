@@ -510,7 +510,7 @@ When an event ends:
 
 On the ended event's row in **Events**, press **Make active** and confirm. Then:
 - Referee tablets must be **paired again**.
-- If a race was counting down to auto-finish when the event ended, the auto-finish delay starts again from the moment you reopen it.
+- If a race was counting down to auto-finish when the event ended, the auto-finish delay starts again from the moment you reopen it. The same happens if you make another event active mid-countdown and then switch back.
 - If the event was ended before its last round, the champion screen is taken down automatically. If it was ended after the last round, the champion stays up; race control can press **Hide champion** at any time.
 
 ---

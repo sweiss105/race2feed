@@ -26,7 +26,7 @@ In this repository (issues, pull requests, discussions, reviews and commit messa
 
 ## Reporting a problem
 
-If someone's behaviour here makes you uncomfortable, or you see something that breaks this code, tell the maintainer privately: **CONTACT TO BE ADDED**.
+If someone's behaviour here makes you uncomfortable, or you see something that breaks this code, tell the maintainer privately: [development@weissaudio.app](mailto:development@weissaudio.app).
 
 Reports are read by the maintainer and kept confidential. You will get a reply, and you will not be penalised for reporting in good faith. If your concern is about the maintainer, you can report it to GitHub directly using the "Report content" option on the comment or profile.
 

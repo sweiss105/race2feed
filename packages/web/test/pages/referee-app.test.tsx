@@ -54,3 +54,49 @@ describe('referee App pairing', () => {
     expect(screen.getByText(/invalid or already used/)).toBeTruthy();
   });
 });
+
+describe('referee App auto-lock notice', () => {
+  const pairedFetch = () => vi.fn(async (url: string) => (url === '/api/pair'
+    ? new Response(JSON.stringify({ station: 2 }), { status: 200, headers: { 'content-type': 'application/json' } })
+    : new Response('{}', { status: 200 })));
+  beforeEach(() => {
+    vi.stubGlobal('WebSocket', FakeSocket);
+    localStorage.clear();
+  });
+  afterEach(() => { cleanup(); vi.unstubAllGlobals(); localStorage.clear(); });
+
+  it('after pairing, shows the notice until the box is ticked and Continue pressed, then the live page', async () => {
+    history.replaceState(null, '', '/ref?code=ABC');
+    localStorage.setItem('r2f.autoLockAck', '1');
+    vi.stubGlobal('fetch', pairedFetch());
+    render(<App />);
+    await screen.findByLabelText('Your name');
+    fill('Dana');
+    expect(await screen.findByRole('heading', { name: 'Keep your screen on' })).toBeTruthy();
+    // A new pairing clears the earlier acknowledgement.
+    expect(localStorage.getItem('r2f.autoLockAck')).toBeNull();
+    expect(screen.queryByText('Connecting…')).toBeNull();
+    const cont = screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement;
+    expect(cont.disabled).toBe(true);
+    fireEvent.click(screen.getByLabelText("I've turned off auto-lock on this device"));
+    expect(cont.disabled).toBe(false);
+    fireEvent.click(cont);
+    expect(await screen.findByText('Connecting…')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Keep your screen on' })).toBeNull();
+    expect(localStorage.getItem('r2f.autoLockAck')).toBe('2');
+  });
+
+  it('a device already paired goes straight to the live page, acknowledged or not', async () => {
+    history.replaceState(null, '', '/ref');
+    vi.stubGlobal('fetch', pairedFetch());
+    localStorage.setItem('r2f.autoLockAck', '2');
+    render(<App />);
+    expect(await screen.findByText('Connecting…')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Keep your screen on' })).toBeNull();
+    cleanup();
+    localStorage.clear();
+    render(<App />);
+    expect(await screen.findByText('Connecting…')).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Keep your screen on' })).toBeNull();
+  });
+});

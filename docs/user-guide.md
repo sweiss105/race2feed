@@ -386,9 +386,17 @@ You'll use a tablet or phone paired to your station. The top of the screen shows
 
 1. Race control shows a QR code for your station (in **Referees**).
 2. Scan it with your device's camera. The referee page asks for **Your name**.
-3. Type your name (up to 40 characters) and press **Start**. If the connection drops, the form stays: check the connection and press **Start** again. Your tables appear. Your name shows in race control's Referees list and in the log next to what you do.
+3. Type your name (up to 40 characters) and press **Start**. If the connection drops, the form stays: check the connection and press **Start** again. Your name shows in race control's Referees list and in the log next to what you do.
 
 ![Pairing: type your name, then press Start](guide/images/referee-name.jpg)
+
+4. **Keep your screen on.** If your phone or tablet locks during a race, unlocking it delays your tap and adds time to your team's result. The page shows where to turn off auto-lock:
+   - iPhone or iPad: Settings, then Display & Brightness, then Auto-Lock, then Never. Turn off Low Power Mode.
+   - Android: Settings, then Display, then Screen timeout, then the longest option. Turn off Battery Saver.
+
+   Turn it off, tick **I've turned off auto-lock on this device** and press **Continue**. Your tables appear. You see this once each time you pair.
+
+![After pairing: Keep your screen on, with the box ticked and Continue ready to press](guide/images/referee-auto-lock.jpg)
 
 If you see **"Scan the station QR code"**, your device isn't paired (or was disconnected). Ask race control for a new code.
 
@@ -630,6 +638,9 @@ Codes work once and last 10 minutes. Make a new one with **Pair tablet**.
 
 **The referee's buttons are grey and say "Syncing clock…".**
 Wait a few seconds; the tablet is lining up its clock with the server. If it stays like that, check the tablet's Wi-Fi.
+
+**A referee's phone keeps locking (the screen goes dark during a round).**
+Unlocking it delays the tap and adds time to the team's result. Turn off auto-lock: on an iPhone or iPad, Settings, then Display & Brightness, then Auto-Lock, then Never, and turn off Low Power Mode; on Android, Settings, then Display, then Screen timeout, then the longest option, and turn off Battery Saver. The referee page tries to keep the screen on during a round, but that doesn't work on every device.
 
 **A referee says "*N* taps waiting to send".**
 The connection dropped. The taps are saved with their real times and will send by themselves. Keep the page open. Race control sees those teams under **Waiting on *N* teams** until the taps arrive.

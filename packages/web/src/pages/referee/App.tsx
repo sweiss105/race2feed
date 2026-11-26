@@ -12,7 +12,17 @@ import { RefereePage } from './RefereePage';
 import { codeFromUrl, pair } from './pairing';
 import { claimTab } from '../../lib/singleTab';
 
-type Gate = { kind: 'checking'; retrying?: boolean } | { kind: 'name'; code: string } | { kind: 'unpaired'; error?: string } | { kind: 'paired' };
+type Gate = { kind: 'checking'; retrying?: boolean } | { kind: 'name'; code: string } | { kind: 'unpaired'; error?: string }
+  | { kind: 'notice'; station: number } | { kind: 'paired' };
+
+/** Set when the referee acknowledges the auto-lock notice after pairing; cleared by a new pairing or sign-out. */
+export const AUTO_LOCK_ACK = 'r2f.autoLockAck';
+const setAck = (value: string | null) => {
+  try {
+    if (value === null) localStorage.removeItem(AUTO_LOCK_ACK);
+    else localStorage.setItem(AUTO_LOCK_ACK, value);
+  } catch { /* storage blocked: the notice simply shows again after the next pairing */ }
+};
 
 export function App() {
   const [gate, setGate] = useState<Gate>({ kind: 'checking' });
@@ -37,10 +47,12 @@ export function App() {
 
   /** Resolves to a message when the form should stay (the code is still unspent). */
   const submitName = async (code: string, name: string): Promise<string | null> => {
+    // A new pairing asks about auto-lock again.
+    setAck(null);
     const result = await pair(code, name, fetch);
     if (result.paired) {
       history.replaceState(null, '', location.pathname);
-      setGate({ kind: 'paired' });
+      setGate({ kind: 'notice', station: result.station });
       return null;
     }
     if (result.retry) return result.error;
@@ -68,7 +80,14 @@ export function App() {
       </div>
     );
   }
-  return <OneTab><Live onSignedOut={() => setGate({ kind: 'unpaired', error: 'This device was disconnected. Scan a new station QR code.' })} /></OneTab>;
+  if (gate.kind === 'notice') {
+    return <AutoLockNotice onContinue={() => { setAck(String(gate.station)); setGate({ kind: 'paired' }); }} />;
+  }
+  return (
+    <OneTab>
+      <Live onSignedOut={() => { setAck(null); setGate({ kind: 'unpaired', error: 'This device was disconnected. Scan a new station QR code.' }); }} />
+    </OneTab>
+  );
 }
 
 function NameForm({ onSubmit }: { onSubmit(name: string): Promise<string | null> }) {
@@ -94,6 +113,33 @@ function NameForm({ onSubmit }: { onSubmit(name: string): Promise<string | null>
           {error && <p class="callout" role="alert" style={{ color: 'var(--danger)', margin: 0 }}>{error}</p>}
           <Button type="submit" busy={busy} disabled={!name.trim()}>Start</Button>
         </form>
+      </div>
+    </div>
+  );
+}
+
+/** Shown once after pairing, before the live page: a locked phone delays taps and adds time to results. */
+function AutoLockNotice({ onContinue }: { onContinue(): void }) {
+  const [ticked, setTicked] = useState(false);
+  return (
+    <div class="ref">
+      <Header title="Referee" />
+      <div class="center-page">
+        <div class="card ref-autolock">
+          <h1 class="title-2">Keep your screen on</h1>
+          <p class="callout">If this device locks during a race, unlocking it delays your tap and adds time to your team's result. Turn off auto-lock before you start.</p>
+          <ul class="callout">
+            <li>iPhone or iPad: Settings, then Display &amp; Brightness, then Auto-Lock, then Never. Turn off Low Power Mode.</li>
+            <li>Android: Settings, then Display, then Screen timeout, then the longest option. Turn off Battery Saver.</li>
+            <li>Menu names vary a little between devices.</li>
+          </ul>
+          <p class="footnote secondary">This page also tries to keep the screen on while a round is open or running, but that does not work on every device.</p>
+          <label class="ref-autolock-check">
+            <input type="checkbox" checked={ticked} onChange={(e) => setTicked((e.target as HTMLInputElement).checked)} />
+            <span>I've turned off auto-lock on this device</span>
+          </label>
+          <Button disabled={!ticked} onClick={onContinue}>Continue</Button>
+        </div>
       </div>
     </div>
   );

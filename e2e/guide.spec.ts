@@ -201,6 +201,10 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await ref.getByLabel('Your name').fill('Sam');
   await region(ref, ref.locator('form.login'), 'referee-name.jpg', 48);
   await ref.getByRole('button', { name: 'Start' }).click();
+  await expect(ref.getByRole('heading', { name: 'Keep your screen on' })).toBeVisible();
+  await ref.getByLabel("I've turned off auto-lock on this device").check();
+  await region(ref, ref.locator('.ref-autolock'), 'referee-auto-lock.jpg', 48);
+  await ref.getByRole('button', { name: 'Continue' }).click();
   await expect(ref.getByText('Tables 1 & 2')).toBeVisible();
   await admin.getByRole('button', { name: 'Done' }).click();
 

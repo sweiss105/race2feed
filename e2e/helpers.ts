@@ -66,6 +66,13 @@ export async function setUpEvent(browser: Browser, name: string) {
   return admin;
 }
 
+/** Ticks the box on the auto-lock notice shown after pairing and continues to the live page. */
+export async function acknowledgeAutoLock(ref: Page) {
+  await expect(ref.getByRole('heading', { name: 'Keep your screen on' })).toBeVisible();
+  await ref.getByLabel("I've turned off auto-lock on this device").check();
+  await ref.getByRole('button', { name: 'Continue' }).click();
+}
+
 /** Pairs a fresh referee context to station 1 via the console's pairing code. */
 export async function pairReferee(browser: Browser, admin: Page, viewport?: { width: number; height: number }) {
   await admin.getByRole('link', { name: 'Referees', exact: true }).click();
@@ -75,6 +82,7 @@ export async function pairReferee(browser: Browser, admin: Page, viewport?: { wi
   await ref.goto(`/ref?code=${code}`);
   await ref.getByLabel('Your name').fill('Ref');
   await ref.getByRole('button', { name: 'Start' }).click();
+  await acknowledgeAutoLock(ref);
   await expect(ref.getByText('Tables 1 & 2')).toBeVisible();
   return ref;
 }

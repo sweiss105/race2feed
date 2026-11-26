@@ -1,10 +1,16 @@
-import type { Actor, Ctx, LiveEvent, CommandResult, PenaltyReason } from '../../src/core/model';
+import type { Actor, Ctx, LiveEvent, CommandResult, PenaltyReason, RosterEntry } from '../../src/core/model';
 import { newEvent } from '../../src/core/model';
 
 export const admin: Actor = { role: 'admin', label: 'admin' };
 export const companion: Actor = { role: 'companion', label: 'companion' };
 export const referee = (station: number, deviceId = `dev${station}`): Actor =>
   ({ role: 'referee', label: `ref ${station}`, station, deviceId });
+/** A referee known by device: `station` is the home station it was paired to. */
+export const refereeDev = (deviceId: string, station: number): Actor =>
+  ({ role: 'referee', label: `ref ${deviceId}`, station, deviceId });
+/** n paired referees: dev1 "Ref 1" at home station 1, dev2 at 2, … */
+export const roster = (n: number): RosterEntry[] =>
+  Array.from({ length: n }, (_, i) => ({ deviceId: `dev${i + 1}`, name: `Ref ${i + 1}`, home: i + 1 }));
 
 let n = 0;
 export const ctx = (actor: Actor = admin, now = 1_000_000): Ctx => ({ actor, now, newId: () => `id${++n}` });
@@ -29,8 +35,11 @@ export const TEST_REASONS: PenaltyReason[] = [
   { id: 'early', name: 'Started early', kind: 'time', amountMs: 10_000 },
   { id: 'unsafe', name: 'Unsafe conduct', kind: 'dq' },
 ];
-export const blank = (tables = 26): LiveEvent =>
-  ({ ...newEvent('ev1', 'Test', '2026-12-01', tables), penaltyReasons: TEST_REASONS.map((r) => ({ ...r })) });
+/** Rotation is off here so referee(n) actors keep their paired station; rotation tests turn it on. */
+export const blank = (tables = 26): LiveEvent => {
+  const e = newEvent('ev1', 'Test', '2026-12-01', tables);
+  return { ...e, settings: { ...e.settings, rotateReferees: false }, penaltyReasons: TEST_REASONS.map((r) => ({ ...r })) };
+};
 
 import { handleSetup } from '../../src/core/setup';
 import { handleLifecycle } from '../../src/core/lifecycle';

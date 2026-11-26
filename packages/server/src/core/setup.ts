@@ -133,6 +133,10 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
         if (!Number.isInteger(cmd.autoFinishMs) || cmd.autoFinishMs < 0) return fail('invalid', 'Auto-finish delay must be a whole number of ms.');
         settings.autoFinishMs = cmd.autoFinishMs;
       }
+      if (cmd.rotateReferees !== undefined) {
+        if (typeof cmd.rotateReferees !== 'boolean') return fail('invalid', 'Rotate referees must be on or off.');
+        settings.rotateReferees = cmd.rotateReferees;
+      }
       return ok({ ...e, settings });
     }
     case 'setBagTotal':

@@ -53,7 +53,8 @@ export interface LiveEvent {
   setup: EventInput;
   setupLocked: boolean;
   /** autoFinishMs: missing means 30 s (events stored before auto-finish); 0 turns auto-finish off. */
-  settings: { penaltiesEnabled: boolean; undoWindowMs: number; penaltyMs?: number; autoFinishMs?: number };
+  /** rotateReferees: missing means off (events stored before rotation); new events have it on. See rotation.ts. */
+  settings: { penaltiesEnabled: boolean; undoWindowMs: number; penaltyMs?: number; autoFinishMs?: number; rotateReferees?: boolean };
   bagTotal: string | null;
   /** autoFinishAt: when the running round finishes by itself (every team has a result); see autofinish.ts. */
   round: { current: number; phase: Phase; startedAt: number | null; finishedAt: number | null; autoFinishAt?: number | null };
@@ -78,7 +79,17 @@ export interface LiveEvent {
   lineups?: Record<number, SavedRace[]>;
   /** bracketId → team ids in seed order, saved when the first bracket round opened. */
   bracketMembers?: Record<string, string[]>;
+  /**
+   * round → who judged which tables, saved when the round opened with rotation on; see rotation.ts.
+   * A round without an entry was opened with rotation off: every referee is at their home station.
+   */
+  assignments?: Record<number, Assignment[]>;
 }
+
+/** One paired referee that has not been revoked. home: the station the device was paired to. */
+export interface RosterEntry { deviceId: string; name: string; home: number }
+/** A referee's place in one round. tables: only the tables this referee judges that round. */
+export interface Assignment { deviceId: string; name: string; station: number; tables: number[] }
 
 export type SetupCommand =
   | { type: 'importTeams'; csv: string }
@@ -93,7 +104,7 @@ export type SetupCommand =
   | { type: 'setGrandChampionship'; enabled: boolean }
   | { type: 'lockSetup' }
   | { type: 'unlockSetup' }
-  | { type: 'setSettings'; undoWindowMs?: number; autoFinishMs?: number }
+  | { type: 'setSettings'; undoWindowMs?: number; autoFinishMs?: number; rotateReferees?: boolean }
   | { type: 'setBagTotal'; text: string }
   | { type: 'setPenaltyReasons'; reasons: PenaltyReason[] };
 
@@ -130,7 +141,8 @@ export type CommandResult =
   | { ok: true; event: LiveEvent; audit: AuditEntry; reply?: unknown }
   | { ok: false; code: string; message: string; detail?: unknown };
 
-export interface Ctx { now: number; actor: Actor; newId: () => string }
+/** roster: the paired referees, passed by the hub (the only code that knows the devices). */
+export interface Ctx { now: number; actor: Actor; newId: () => string; roster?: RosterEntry[] }
 
 export function newEvent(id: string, name: string, date: string, tableCount: number): LiveEvent {
   return {
@@ -139,7 +151,7 @@ export function newEvent(id: string, name: string, date: string, tableCount: num
     date,
     setup: { tableCount, categories: [], teams: [], groups: [], tableOf: {}, brackets: [], grandChampionship: true },
     setupLocked: false,
-    settings: { penaltiesEnabled: false, undoWindowMs: 10_000 },
+    settings: { penaltiesEnabled: false, undoWindowMs: 10_000, rotateReferees: true },
     bagTotal: null,
     round: { current: 0, phase: 'idle', startedAt: null, finishedAt: null },
     finishedRounds: 0,

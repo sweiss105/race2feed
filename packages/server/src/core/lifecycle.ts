@@ -3,6 +3,7 @@ import { done, fail, perStation, readyTablesOf, type CommandResult, type Ctx, ty
 import { buildProgress, derive, teamsInRound } from './results';
 import { checkCorrection } from './corrections';
 import { saveLineup } from './lineups';
+import { assignRound, rotationOn } from './rotation';
 
 /** Referee penalties still waiting for race control, in rounds raced so far. */
 export function pendingPenalties(e: LiveEvent) {
@@ -45,7 +46,9 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       const stations: LiveEvent['stations'] = {};
       for (let s = 1; s <= stationCount(e.setup.tableCount, perStation(e)); s++) stations[s] = { ready: false, excluded: !busy.has(s), readyTables: [] };
       const round = e.round.current + 1;
-      return ok(saveLineup({ ...e, round: { current: round, phase: 'open', startedAt: null, finishedAt: null }, stations }, round));
+      const opened = saveLineup({ ...e, round: { current: round, phase: 'open', startedAt: null, finishedAt: null }, stations }, round);
+      if (!rotationOn(opened)) return ok(opened);
+      return ok({ ...opened, assignments: { ...opened.assignments, [round]: assignRound(opened, derive(opened), round, ctx.roster ?? []) } });
     }
     case 'stationReady': {
       if (e.round.phase !== 'open') return fail('round_not_open', 'There is no round waiting to start.');

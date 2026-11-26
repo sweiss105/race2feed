@@ -220,6 +220,23 @@ All times in this section are **official times**: the raw time plus any penaltie
 - **Everything follows the choice:** station counts, the Ready/Start check, pairing, the referee screen and the console's station labels.
 - **One per two tables:** the referee readies each of their two tables separately (§4); the station is Ready when both tables with a team are. With one table per referee a station has one table, so per-table and per-station Ready are the same.
 
+### 3.7 Referee rotation
+
+*Added at the owner's request, so a referee judges each team as few times as possible. Spec: `docs/superpowers/specs/2026-11-26-referee-rotation-fairness-design.md`.*
+
+- **Setting:** `settings.rotateReferees`, changed with `setSettings` (allowed with setup locked; it must be true or false). It is on for new events. An event stored before rotation has no value, which means off.
+- **Off:** every referee stays at the station they paired to (their *home station*), and nothing is saved.
+- **On:** when a round is opened the server gives each station that has a team that round one referee, and saves the result with the event (`assignments`: round → list of referee device, name, station and tables). Table assignments of teams do not change.
+  - The referees are the paired, not revoked referee tablets at that moment. The hub passes them to the core as a roster (device, name, home station).
+  - A saved round is never rewritten when a later round opens, and a round opened with rotation off has no entry: its referees were at their home stations. Changing the setting takes effect from the next round opened.
+  - Opening a round never fails because of rotation, whatever the number of referees (including none).
+- **Choosing who goes where.** The cost of a referee at a station is, for each team at that station: 1 for every earlier round that referee had the team, plus 3 more if they had it in the round before. The server picks the choice with the lowest total cost. It is an exact search (Hungarian algorithm), not an approximation.
+  - Equal cost: the choice that moves the fewest referees away from the station they had in the round before (their home station if they had none).
+  - Still equal: the smallest list of device ids, read in station order. So the same event and the same referees always give the same answer.
+- **Fewer referees than stations with a team:** the lowest-numbered stations get the referees (chosen by the same cost rule). The others have no referee that round, as an unpaired station behaves: race control uses its own Ready, Finish, DNF and DNS controls.
+- **More referees than stations:** the referees left over have no tables that round.
+- **Finals split.** With one referee per two tables only. It applies to a race that decides a bracket (the race of a 2-team bracket, or the Winners race of a larger one) and to the Grand Championship, when the race has two teams and both are at one station. If a referee is left over, the station's referee keeps the lower table and the spare takes the higher one, so each team has its own referee. Such races are taken in station order while spares last; the spare with the lowest cost for that team is used (lowest device id if equal). The Others race is not split.
+
 ### 4.1 Show champion and end the event
 
 *Added after the first live test, at the user's request.*

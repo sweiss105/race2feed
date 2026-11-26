@@ -117,7 +117,7 @@ describe('setup commands', () => {
     e = ok(handleSetup(e, { type: 'removeTeam', teamId: b.id }, ctx(admin)));
     expect(e.setup.teams.length).toBe(1);
     e = ok(handleSetup(e, { type: 'setSettings', undoWindowMs: 3000 }, ctx(admin)));
-    expect(e.settings).toEqual({ penaltiesEnabled: false, undoWindowMs: 3000 });
+    expect(e.settings).toEqual({ penaltiesEnabled: false, undoWindowMs: 3000, rotateReferees: false });
     e = ok(handleSetup(e, { type: 'setTableCount', tableCount: 10 }, ctx(admin)));
     expect(e.setup.tableCount).toBe(10);
   });

@@ -65,7 +65,7 @@ export const SEEDING_RANK: Record<SeedingRankRule, { label: string; help: string
   },
   dropSlowest: {
     label: 'Drop the slowest',
-    help: "Each team's slowest run is ignored, so one bad run (or one DNF) is forgiven. Needs three seeding rounds.",
+    help: "Each team's slowest run is ignored, so one bad run (or one DNF) is forgiven.",
   },
 };
 

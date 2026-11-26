@@ -32,7 +32,7 @@ describe('format copy', () => {
     expect(SEEDING_RANK).toEqual({
       total: { label: 'Total time', help: 'Add up every run. Rewards teams that are consistently fast; a team that misses a run ranks below teams that finished them all.' },
       best: { label: 'Best run', help: "Only each team's fastest run counts. One great run is enough, and a bad run costs nothing." },
-      dropSlowest: { label: 'Drop the slowest', help: "Each team's slowest run is ignored, so one bad run (or one DNF) is forgiven. Needs three seeding rounds." },
+      dropSlowest: { label: 'Drop the slowest', help: "Each team's slowest run is ignored, so one bad run (or one DNF) is forgiven." },
     });
     expect(BRACKET_FORMAT).toEqual({
       placement: { label: 'Heats, then placement', help: 'Teams race head-to-head in heats, top seed against bottom seed. Heat winners then race each other for the top places, and the rest race for the remaining places.' },

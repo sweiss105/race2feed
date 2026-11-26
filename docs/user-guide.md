@@ -132,7 +132,7 @@ You can also change each setting on its own. The preset then reads **Custom**. E
 | | **3 rounds** | Every team races three times. The fairest seeding and the longest evening. |
 | **Seeding rank** | **Total time** | Add up every run. Rewards teams that are consistently fast; a team that misses a run ranks below teams that finished them all. |
 | | **Best run** | Only each team's fastest run counts. One great run is enough, and a bad run costs nothing. |
-| | **Drop the slowest** | Each team's slowest run is ignored, so one bad run (or one DNF) is forgiven. Needs three seeding rounds. |
+| | **Drop the slowest** | Each team's slowest run is ignored, so one bad run (or one DNF) is forgiven. |
 | **Bracket format** | **Heats, then placement** | Teams race head-to-head in heats, top seed against bottom seed. Heat winners then race each other for the top places, and the rest race for the remaining places. |
 | | **Finals only** | Each bracket races once, all its teams together. The finishing order is the result. |
 | | **Seeding only** | No brackets. Each category's final order is its seeding order. |

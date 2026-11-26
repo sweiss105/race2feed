@@ -119,7 +119,7 @@ describe('tournament format panel', () => {
     expect(option('Seeding rank', 'Best run').disabled).toBe(true);
     expect(within(option('Seeding rank', 'Best run')).getByText('Needs at least two seeding rounds.')).toBeTruthy();
     expect(option('Seeding rank', 'Drop the slowest').disabled).toBe(true);
-    expect(within(option('Seeding rank', 'Drop the slowest')).getAllByText(/Needs three seeding rounds\./).length).toBe(2);
+    expect(within(option('Seeding rank', 'Drop the slowest')).getAllByText(/Needs three seeding rounds\./).length).toBe(1);
     cleanup();
     show(unlocked());
     expect(option('Seeding rank', 'Best run').disabled).toBe(false);

@@ -409,6 +409,20 @@ When the round finishes, the clock stops and the round's results are locked in. 
 
 Companion's Start and Finish buttons follow exactly the same rules.
 
+### Late finishes
+
+Normally a referee's tap reaches the app within a second. If a finish tap arrives **10 seconds or more after the time on it**, usually because the referee's device was offline and sent the tap when it reconnected, the app can't check that time itself. So it holds the tap and asks you:
+
+- A **Late finishes to confirm** panel appears on the Race Control page, with a card for the team: its time, which referee sent it, and how late it arrived ("Time 3:20.45, received 45 s after the tap").
+- **Until you decide, the team has no result.** It stays in the "Waiting on" list, the round won't finish by itself, and **Finish now** asks about it like any other team without a result.
+- **Confirm** if the time looks right (ask the referee, or compare with the other team in the race). The team gets that time.
+- **Reject** if it doesn't. The team still has no result: have the referee tap again, or enter the time yourself under [Enter or correct results](#enter-or-correct-results).
+- The referee's device shows "Sent late — waiting for race control" on that team and can't tap it again meanwhile.
+
+![The Late finishes to confirm panel: one team's time, the referee who sent it and how late it arrived, with Reject and Confirm](guide/images/console-late-finish.jpg)
+
+Decided ones are listed under **Decided** at the bottom of the panel, with who decided, and in the **Log** and the [fairness report](#fairness-report). Penalty taps are not held: they already wait for your decision under [Penalty review](#penalty-review).
+
 ### Enter or correct results
 
 The **Results** panel lists every team in the round, with its table, race and time. Use the **Round** menu to look at an earlier round. For each team you can:
@@ -486,7 +500,6 @@ What each one means:
 | **Unusual number of penalties** | After three rounds: a referee has given far more penalties than the others, or none when the others have given several. |
 | **Close finish** | Two teams in the same race, both judged by one referee, finished within half a second of each other. |
 | **Undo changed the winner** | A referee took back a finish tap, and with the first tap a different team would have won that race. |
-| **Finish arrived late** | A referee's finish tap reached the server 10 seconds or more after the time their device gave for it, usually because the device was offline and sent the tap when it reconnected. The time still counts as tapped. Check it looks right, for example against the other team in the race. |
 | **Final judged by one referee** | A bracket's deciding race or the Grand Championship had both teams at one referee, because no referee was spare. |
 
 Each warning says which round and referee it's about ("Whole event" for the two that look at the whole event) and gives the details in a sentence. Warnings update by themselves: if you correct a result and the pattern no longer holds, the warning goes away.
@@ -654,6 +667,8 @@ Your note goes only to race control, who makes the final decision.
 
 Keep tapping. Your device saves your taps with their exact times and sends them automatically when the connection is back, so the results aren't affected. A notice shows how many taps are waiting to send. Leave the page open until it disappears.
 
+A finish that reaches the app 10 seconds or more after you tapped it is checked by race control before it counts. The team's button reads "Sent late — waiting for race control" until they confirm it. You don't need to do anything; if they ask, tell them what you saw.
+
 ---
 
 ## Participants
@@ -816,7 +831,7 @@ When an event ends:
 Next to **CSV** and **JSON** on every event's row in **Settings → Events** there's a third download, **Fairness report**. You can download it at any time, during the event or after it. It's one spreadsheet file (CSV) with three parts:
 
 1. **Warnings:** every [Fairness](#fairness) warning, whether it's open or dismissed, and for a dismissed one the note, who dismissed it and when.
-2. **Race control edits:** every result or penalty that race control entered, changed or removed by hand, with the time and who did it. Referees' own taps aren't listed.
+2. **Race control edits:** every result or penalty that race control entered, changed or removed by hand, and every [late finish](#late-finishes) they confirmed or rejected, with the time and who did it. Referees' own taps aren't listed.
 3. **Referee assignments:** one row per referee per round, with their station, tables and teams. Rounds opened with Rotate referees off have no rows.
 
 ### Reopen an event

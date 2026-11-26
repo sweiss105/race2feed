@@ -11,7 +11,10 @@ function collectFacts(e: LiveEvent): Map<string, Fact[]> {
   const push = (k: string, f: Fact) => facts.set(k, [...(facts.get(k) ?? []), f]);
   for (const tap of e.taps) {
     if (tap.removedAt !== null || tap.kind !== 'finish' || !Number.isFinite(tap.elapsedMs)) continue;
-    push(key(tap.round, tap.teamId), { at: tap.createdAt, result: { status: 'finished', rawMs: tap.elapsedMs as number } });
+    // A late finish counts only once race control has confirmed it.
+    if (tap.hold?.status === 'pending') continue;
+    // A confirmed one counts from the confirmation, so it is the latest fact whatever was entered and cleared while it waited.
+    push(key(tap.round, tap.teamId), { at: tap.hold?.decidedAt ?? tap.createdAt, result: { status: 'finished', rawMs: tap.elapsedMs as number } });
   }
   for (const o of e.overrides) {
     const k = key(o.round, o.teamId);

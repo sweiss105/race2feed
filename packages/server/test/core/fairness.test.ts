@@ -250,29 +250,24 @@ describe('undo_changed_winner', () => {
   });
 });
 
-describe('late_finish', () => {
-  const tapped = (lateBy: number) => {
-    const e = start(lockedFour());
-    const [a] = racesIn(e)[0]!.entrants;
-    const at = startOf(1) + 200_000;
-    const after = run(e, { type: 'tapFinish', teamId: a!.teamId, atServerMs: at, clientTapId: 'q' }, referee(1), at + lateBy);
-    return { e: after, a: a!.teamId };
-  };
-
-  it('flags a finish the server received well after the time its device gave, against that device', () => {
-    const { e, a } = tapped(45_400);
-    const deviceId = referee(1).deviceId!;
-    expect(ofKind(e, 'late_finish')).toEqual([{
-      id: `late_finish:1:${deviceId}:${a}`, kind: 'late_finish', round: 1, referee: null, refereeId: deviceId, teamIds: [a],
-      message: `${nameOf(e, a)}'s finish in round 1 reached the server 45 s after the time the referee's device gave for it.`,
-    }]);
-  });
-
-  it('says nothing for a finish that arrived on time, or one the referee took back', () => {
-    expect(ofKind(tapped(900).e, 'late_finish')).toEqual([]);
-    const { e } = tapped(45_000);
-    const undone = { ...e, taps: e.taps.map((t) => ({ ...t, removedAt: 5 })) };
-    expect(ofKind(undone, 'late_finish')).toEqual([]);
+describe('a late finish held for race control', () => {
+  it('is not an undo that changed the winner when race control rejects it, or the referee undoes it while it waits', () => {
+    let e = heatsRunning(lockedFour());
+    const [a, b] = raceAt(e, 1).entrants.map((x) => x.teamId) as [string, string];
+    const at = (s: number) => startOf(3) + s * 1000;
+    // Team a's first finish (60 s) would have won; it arrives 45 s late and is held.
+    e = run(e, { type: 'tapFinish', teamId: a, atServerMs: at(60), clientTapId: 'late' }, referee(1), at(105));
+    const held = e.taps.at(-1)!;
+    expect(held.hold).toEqual({ status: 'pending' });
+    const rejected = run(e, { type: 'decideLateFinish', tapId: held.id, decision: 'reject' }, admin, at(110));
+    const undone = run(e, { type: 'undoTap', tapId: held.id }, referee(1), at(106));
+    for (let x of [rejected, undone]) {
+      // Team b wins at 115 s; with the 60 s tap team a would have.
+      x = run(x, { type: 'tapFinish', teamId: b, atServerMs: at(115), clientTapId: 'b' }, referee(1), at(115));
+      x = run(x, { type: 'tapFinish', teamId: a, atServerMs: at(120), clientTapId: 'again' }, referee(1), at(120));
+      expect(x.taps.filter((t) => t.removedAt === null && t.kind === 'finish' && t.round === 3)).toHaveLength(2);
+      expect(ofKind(x, 'undo_changed_winner')).toEqual([]);
+    }
   });
 });
 

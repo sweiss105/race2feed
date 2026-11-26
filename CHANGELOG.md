@@ -6,7 +6,7 @@ Notable changes to PRC, newest first. Day-to-day detail is in the git history.
 
 Fixes for the ten findings of a whole-repository security scan (revision `204b990`).
 
-- **New fairness warning, Finish arrived late.** A referee's finish that reaches the server 10 seconds or more after the time the device gave for it is flagged for race control. The time still counts as tapped, as before.
+- **Late finishes are held for race control.** A referee's finish that reaches the server 10 seconds or more after the time the device gave for it no longer counts by itself. It appears in a new **Late finishes to confirm** panel on Race Control, and the team has no result until race control presses **Confirm** (or **Reject**). The referee's device shows "Sent late — waiting for race control". The staff guide explains it under **Late finishes**. (For an hour on 2026-11-26 such a finish counted and raised a "Finish arrived late" fairness warning instead; that warning is gone.)
 - **Switching events ends pairing for good.** Making a different event active now revokes every paired device and deletes unused pairing codes. Before, a device paired to an event worked again if that event was made active later. The staff guide already said devices must be paired again.
 - **Requests from another origin are refused on every API route,** not only the console's, including another host under `weiss-audio.com`. Companion and scripts (no `Origin` header) are unaffected.
 - **A command's answer is only `{ok, reply}` or `{ok, code, message}`.** `POST /api/command` used to answer a referee device or Companion with the whole event.

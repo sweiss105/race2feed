@@ -49,9 +49,11 @@ describe('the previous event, driven through commands', () => {
       for (const race of derive(e).rounds[round - 1]!.races) {
         for (const { teamId, table } of race.entrants) {
           const atServerMs = startedAt + timeFor(round, nameOf(teamId)!);
+          now = atServerMs;
           e = run(e, { type: 'tapFinish', teamId, atServerMs, clientTapId: `${round}-${teamId}` }, referee(stationOfTable(table)));
         }
       }
+      now = startedAt + 900_000;
       e = run(e, { type: 'finishRace' }, admin);
       now += 60_000;
     }

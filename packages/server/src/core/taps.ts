@@ -6,7 +6,7 @@ import { tablesFor } from './rotation';
 
 /** Clock skew allowed between a synced device and the server. */
 const FUTURE_TOLERANCE_MS = 2000;
-/** A finish that arrives this long after the time its device gave for it is recorded as late (fairness.ts flags it). */
+/** A finish that arrives this long after the time its device gave for it is held until race control confirms it. */
 export const LATE_FINISH_MS = 10_000;
 /** Penalties one device may have waiting for race control on one team in one round. */
 export const MAX_PENDING_PENALTIES = 10;
@@ -72,11 +72,15 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
         return fail('bad_timestamp', "The tap time is outside the race; check the device's clock.");
       }
       if (buildProgress(e).results[current]?.[cmd.teamId]) return fail('already_finished', 'That team already has a result.');
+      if (e.taps.some((t) => t.kind === 'finish' && t.round === current && t.teamId === cmd.teamId && t.removedAt === null && t.hold?.status === 'pending')) {
+        return fail('finish_held', "That team's finish arrived late and is waiting for race control.");
+      }
+      const lateMs = Math.round(ctx.now - cmd.atServerMs);
       const tap = newTap({
         clientTapId: cmd.clientTapId, kind: 'finish', round: current, teamId: cmd.teamId,
         elapsedMs: cmd.atServerMs - startedAt, source: 'referee',
-        // The device's time decides the result (it may have been offline); how late it arrived is kept for race control.
-        ...(ctx.now - cmd.atServerMs >= LATE_FINISH_MS ? { lateMs: Math.round(ctx.now - cmd.atServerMs) } : {}),
+        // The time is the device's word alone when it arrives late (the device was offline): race control decides whether it counts.
+        ...(lateMs >= LATE_FINISH_MS ? { lateMs, hold: { status: 'pending' as const } } : {}),
       });
       return ok({ ...e, taps: [...e.taps, tap] });
     }
@@ -105,6 +109,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       if (e.round.phase !== 'running' || tap.round !== current) return fail('round_not_running', 'The race is over; ask race control.');
       if (ctx.now - tap.createdAt > e.settings.undoWindowMs) return fail('undo_expired', 'Too late to undo; ask race control.');
       if (tap.kind === 'penalty' && tap.review && tap.review.status !== 'pending') return fail('already_decided', 'Race control has already decided this penalty.');
+      if (tap.hold?.status === 'confirmed') return fail('already_decided', 'Race control has confirmed this finish; ask race control.');
       return ok({ ...e, taps: e.taps.map((t) => (t.id === tap.id ? { ...t, removedAt: ctx.now } : t)) });
     }
     case 'setResult': {
@@ -156,6 +161,21 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       const note = typeof cmd.note === 'string' ? cmd.note.trim().slice(0, 200) : '';
       const review = { ...reviewOf(tap), refereeReasonId: cmd.reasonId, ...(note ? { refereeNote: note } : {}) };
       return ok({ ...e, taps: e.taps.map((t) => (t.id === tap.id ? { ...t, review } : t)) });
+    }
+    case 'decideLateFinish': {
+      const tap = e.taps.find((t) => t.id === cmd.tapId && t.kind === 'finish' && t.hold);
+      if (!tap || tap.removedAt !== null || tap.hold!.status !== 'pending') return fail('not_found', 'That finish is no longer waiting.');
+      const hold = { decidedAt: ctx.now, by: ctx.actor.label };
+      if (cmd.decision === 'reject') {
+        // The team had no result from this tap, so nothing already raced can change.
+        return ok({ ...e, taps: e.taps.map((t) => (t.id === tap.id ? { ...t, removedAt: ctx.now, removedBy: ctx.actor.label, hold: { ...hold, status: 'rejected' as const } } : t)) });
+      }
+      if (cmd.decision !== 'confirm') return fail('invalid', 'Decision must be confirm or reject.');
+      if (buildProgress(e).results[tap.round]?.[tap.teamId]) {
+        return fail('already_finished', 'That team already has a result. Reject this finish, or clear the result first.');
+      }
+      const confirmed = { ...tap, hold: { ...hold, status: 'confirmed' as const } };
+      return correct(tap.round, cmd.confirmUnlock, { ...e, taps: e.taps.map((t) => (t.id === tap.id ? confirmed : t)) });
     }
     case 'decidePenalty': {
       const tap = e.taps.find((t) => t.id === cmd.tapId && t.kind === 'penalty');

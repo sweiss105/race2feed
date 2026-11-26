@@ -1,7 +1,7 @@
 import type { Command, LiveEvent } from './model';
 
 const ALWAYS = new Set<string>([
-  'openNextRound', 'startRace', 'finishRace', 'decideTie', 'pinProjector', 'removePenalty', 'decidePenalty', 'showChampion', 'hideChampion', 'endEvent', 'activateEvent', 'createEvent',
+  'openNextRound', 'startRace', 'finishRace', 'decideTie', 'pinProjector', 'removePenalty', 'decidePenalty', 'decideLateFinish', 'showChampion', 'hideChampion', 'endEvent', 'activateEvent', 'createEvent',
   'importTeams', 'addTeam', 'renameTeam', 'removeTeam', 'setTableCount', 'suggestSetup', 'setGroups', 'setBrackets',
   'setGrandChampionship', 'setFormat', 'lockSetup', 'unlockSetup', 'setBagTotal',
 ]);

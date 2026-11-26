@@ -101,6 +101,15 @@ describe('referee page', () => {
     await waitFor(() => expect(sent).toContainEqual({ type: 'undoTap', tapId: 'srv-1' }));
   });
 
+  it('a finish held for race control: the team cannot be tapped again and says why', async () => {
+    const e = start(openNext(lockedFour()));
+    const held = { ...e, taps: [{ id: 'srv-1', clientTapId: 'c1', kind: 'finish' as const, round: 1, teamId: teamId(e, 'T1'), elapsedMs: 100_000, lateMs: 45_000, hold: { status: 'pending' as const }, source: 'referee' as const, deviceId: 'dev1', createdAt: NOW, removedAt: null }] };
+    setup(held);
+    const t1 = (await screen.findByRole('button', { name: /T1.*waiting for race control/ })) as HTMLButtonElement;
+    expect(t1.disabled).toBe(true);
+    expect(((await enabledButton(/^T2/)) as HTMLButtonElement).disabled).toBe(false);
+  });
+
   it('keeps a tap queued when the network is down', async () => {
     const e = start(openNext(lockedFour()));
     const queue = new TapQueue(new MemoryStorage());

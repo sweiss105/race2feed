@@ -275,3 +275,42 @@ describe('pairing attempts', () => {
     expect((await call('/api/pair', { code, name: 'Ref' }, { ip: '10.4.0.9' })).status).toBe(200);
   });
 });
+
+describe('a finish that arrives late', () => {
+  it('is held: no result until race control confirms it, and the referee is told it waits', async () => {
+    const admin = await lockedEvent();
+    const { device, teamId, startedAt } = await runningRace(admin);
+    // The race started moments ago; pretend it started a minute ago so a tap can be 45 s old.
+    await runInDurableObject(hub(), async (instance, state) => {
+      const row = state.storage.sql.exec<{ id: string; doc: string }>('SELECT id, doc FROM events WHERE active = 1').one();
+      const doc = JSON.parse(row.doc);
+      doc.round.startedAt = startedAt - 60_000;
+      state.storage.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify(doc), row.id);
+      (instance as unknown as { active: unknown }).active = doc;
+    });
+    const tap = { type: 'tapFinish', teamId, atServerMs: Date.now() - 45_000, clientTapId: 'offline-1' };
+    expect(await command(tap, { cookie: device })).toMatchObject({ status: 200, body: { ok: true } });
+
+    const ctl = await connect(admin);
+    const view = (await ctl.next('view', 0)).view;
+    expect(view.heldFinishes).toMatchObject([{ teamId, status: 'pending', referee: 'Ref' }]);
+    expect(view.heldFinishes[0].lateMs).toBeGreaterThanOrEqual(45_000);
+    expect(view.outstanding.map((o: any) => o.teamId)).toContain(teamId);
+
+    const ref = await connect({ cookie: device, query: 'role=referee' });
+    const mine = (await ref.next('view', 0)).view.teams.find((t: any) => t.teamId === teamId);
+    expect(mine).toMatchObject({ result: null, finishHeld: true });
+    expect(await command({ ...tap, atServerMs: Date.now(), clientTapId: 'again' }, { cookie: device }))
+      .toMatchObject({ status: 400, body: { code: 'finish_held' } });
+    expect((await command({ type: 'decideLateFinish', tapId: view.heldFinishes[0].tapId, decision: 'confirm' }, { cookie: device })).status).toBe(400);
+
+    const since = ref.messages.length;
+    const ack = await wsCommand(ctl, { type: 'decideLateFinish', tapId: view.heldFinishes[0].tapId, decision: 'confirm' });
+    expect(ack.ok).toBe(true);
+    const after = (await ref.next('view', since)).view.teams.find((t: any) => t.teamId === teamId);
+    expect(after.finishHeld).toBe(false);
+    expect(after.result).toMatchObject({ status: 'finished' });
+    ctl.ws.close();
+    ref.ws.close();
+  });
+});

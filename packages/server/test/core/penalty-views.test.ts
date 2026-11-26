@@ -49,7 +49,7 @@ describe('penalties in views', () => {
 
   it('race control sees penalties to review with the referee note', () => {
     const { e, a } = reviewed();
-    const v = controlView(e, derive(e), { devices: [], audit: [] });
+    const v = controlView(e, derive(e), { devices: [], audit: [], roster: [] });
     expect(v.penaltyReasons.length).toBe(4);
     expect(v.penaltyReviews.find((r) => r.tapId === a.id)).toMatchObject({ round: 1, status: 'pending', refereeReasonId: 'early', refereeNote: 'jumped' });
   });

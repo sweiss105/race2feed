@@ -116,6 +116,35 @@ export function assignRound(e: LiveEvent, d: DerivedEvent, round: number, roster
 }
 
 /**
+ * A referee paired while the round is open takes their home station's tables if that station has teams and no
+ * referee this round; otherwise nothing changes and they wait for the next round. Only for an open round with
+ * saved assignments (a round opened with rotation off needs none: the tablet is at its home station).
+ */
+export function withLateReferee(e: LiveEvent, d: DerivedEvent, ref: RosterEntry): LiveEvent {
+  const round = e.round.current;
+  const saved = e.assignments?.[round];
+  if (e.round.phase !== 'open' || !saved) return e;
+  if (saved.some((a) => a.deviceId === ref.deviceId || a.station === ref.home)) return e;
+  const occupied = new Set(entrantsOf(d, round).map((x) => x.table));
+  const tables = tablesOfStation(ref.home, e.setup.tableCount, perStation(e)).filter((t) => occupied.has(t));
+  if (!tables.length) return e;
+  const joined = [...saved, { deviceId: ref.deviceId, name: ref.name, station: ref.home, tables }]
+    .sort((a, b) => a.station - b.station || a.tables[0]! - b.tables[0]!);
+  return { ...e, assignments: { ...e.assignments, [round]: joined } };
+}
+
+/**
+ * Takes a revoked referee out of the open or running round: their tables then have no referee.
+ * Rounds that are over keep who judged them.
+ */
+export function withoutReferee(e: LiveEvent, deviceId: string): LiveEvent {
+  const round = e.round.current;
+  const saved = e.assignments?.[round];
+  if ((e.round.phase !== 'open' && e.round.phase !== 'running') || !saved?.some((a) => a.deviceId === deviceId)) return e;
+  return { ...e, assignments: { ...e.assignments, [round]: saved.filter((a) => a.deviceId !== deviceId) } };
+}
+
+/**
  * Hungarian algorithm: gives every row a different column so that the sum of weights is the lowest possible.
  * weights[row][column], with at least as many columns as rows. Returns the column of each row.
  */

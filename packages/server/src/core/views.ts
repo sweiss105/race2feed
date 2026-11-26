@@ -1,5 +1,5 @@
 import { officialMs, stationOfTable, tablesOfStation, type DerivedEvent, type EntryResult } from '@race2feed/engine';
-import { perStation, readyTablesOf, type LiveEvent, type ProjectorScreen } from './model';
+import { perStation, readyTablesOf, type LiveEvent, type ProjectorScreen, type RosterEntry } from './model';
 import { buildProgress, teamsInRound } from './results';
 import { reasonsOf, reviewOf } from './reasons';
 import { pendingPenalties } from './lifecycle';
@@ -194,7 +194,7 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, who: { station?: numb
   };
 }
 
-export function controlView(e: LiveEvent, d: DerivedEvent, extras: { devices: unknown[]; audit: unknown[] }) {
+export function controlView(e: LiveEvent, d: DerivedEvent, extras: { devices: unknown[]; audit: unknown[]; roster: RosterEntry[] }) {
   return {
     ...publicView(e, d, { includeUnopened: true }),
     stations: Object.fromEntries(Object.entries(e.stations).map(([n, s]) =>
@@ -220,6 +220,9 @@ export function controlView(e: LiveEvent, d: DerivedEvent, extras: { devices: un
     outstanding: outstanding(e, d),
     ties: d.rounds.flatMap((r) => r.races.filter((x) => x.ranking.ties.length).map((x) => ({ raceId: x.id, teams: x.ranking.ties }))),
     blockers: d.blockers,
+    /** Who judges which tables in the current round ([] when none is saved), and every paired referee. Race control only. */
+    assignments: e.assignments?.[e.round.current] ?? [],
+    roster: extras.roster,
     devices: extras.devices,
     audit: extras.audit,
   };

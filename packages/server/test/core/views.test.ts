@@ -150,7 +150,7 @@ describe('table readiness in the public races', () => {
     const ref = refereeView(e, derive(e), { station: 1 });
     expect(ref.station).toMatchObject({ ready: false, readyTables: [2] });
     expect(ref.teams.map((t) => [t.table, t.ready])).toEqual([[1, false], [2, true]]);
-    expect(controlView(e, derive(e), { devices: [], audit: [] }).stations[1]).toEqual({ ready: false, excluded: false, readyTables: [2] });
+    expect(controlView(e, derive(e), { devices: [], audit: [], roster: [] }).stations[1]).toEqual({ ready: false, excluded: false, readyTables: [2] });
   });
 
   it('treats a station stored as ready before per-table Ready as every table ready', () => {
@@ -184,7 +184,7 @@ describe('companionView and controlView', () => {
     let e = runRound(lockedFour(), times);
     e = { ...e, taps: [{ id: 'pen', kind: 'penalty', round: 1, teamId: teamId(e, 'T1'), amountMs: 5000, source: 'control', createdAt: 1, removedAt: null }] };
     e = open(e);
-    const c = controlView(e, derive(e), { devices: [], audit: [] });
+    const c = controlView(e, derive(e), { devices: [], audit: [], roster: [] });
     expect(c.taps.map((t) => t.id)).toContain('pen');
     expect(c.overrides.length).toBe(4);
     expect(c.projectorPin).toBeNull();
@@ -194,7 +194,7 @@ describe('companionView and controlView', () => {
     let e = open(lockedFour());
     e = ok(handleLifecycle(e, { type: 'stationReady' }, ctx(referee(1))));
     expect(companionView(e, derive(e))).toMatchObject({ state: 'open', round: 1, readyCount: 1, stationCount: 2, outstanding: 4 });
-    const c = controlView(e, derive(e), { devices: [], audit: [] });
+    const c = controlView(e, derive(e), { devices: [], audit: [], roster: [] });
     expect(c.outstanding.map((o) => o.table)).toEqual([1, 2, 3, 4]);
   });
 });

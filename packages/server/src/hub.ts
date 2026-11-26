@@ -4,6 +4,7 @@ import { applyCommand } from './core/apply';
 import { fail, newEvent, type Actor, type Command, type CommandResult, type LiveEvent, type RosterEntry } from './core/model';
 import { derive } from './core/results';
 import { backfillLineups } from './core/lineups';
+import { withLateReferee, withoutReferee } from './core/rotation';
 import { eventCsv } from './core/export';
 import { companionView, controlView, publicRoundUpdate, publicView, refereeView } from './core/views';
 import { needsSnapshot } from './core/broadcast';
@@ -48,8 +49,9 @@ const PUBLIC: Actor = { role: 'public', label: 'public' };
 const PUBLIC_INTERVAL_MS = 1000;
 const AUTO_FINISH: Actor = { role: 'admin', label: 'auto-finish' };
 
+/** Referee sockets are tagged by device: each referee gets their own view (their tables depend on the round). */
 const tagFor = (a: Actor) =>
-  a.role === 'admin' ? 'control' : a.role === 'referee' ? `referee:${a.station}` : a.role;
+  a.role === 'admin' ? 'control' : a.role === 'referee' ? `referee:${a.deviceId}` : a.role;
 
 const SESSION_MS = 12 * 60 * 60 * 1000;
 /** `{name} (station n)`; a device stored before names existed (label `Station n`) keeps `referee station n`. */
@@ -193,17 +195,27 @@ export class Hub extends DurableObject<Env> {
   }
 
   async pair(code: string, name: string): Promise<{ ok: true; deviceToken: string; station: number } | { ok: false }> {
+    const token = randomToken();
+    // Hashed first: nothing below waits, so the event cannot change between the checks and the save.
+    const tokenHash = await sha256Hex(token);
     const now = Date.now();
     const key = code.trim().toUpperCase();
     const row = this.sql.exec<{ event_id: string; station: number; expires_at: number }>(
       'SELECT event_id, station, expires_at FROM pairing_codes WHERE code = ?', key).toArray()[0];
     this.sql.exec('DELETE FROM pairing_codes WHERE code = ? OR expires_at <= ?', key, now);
-    if (!row || row.expires_at <= now || row.event_id !== this.active?.id) return { ok: false };
-    const token = randomToken();
+    const before = this.active;
+    if (!row || row.expires_at <= now || !before || row.event_id !== before.id) return { ok: false };
     const id = crypto.randomUUID();
-    this.sql.exec('INSERT INTO devices (id, event_id, station, token_hash, label, created_at) VALUES (?, ?, ?, ?, ?, ?)',
-      id, row.event_id, row.station, await sha256Hex(token), name, now);
-    this.audit(row.event_id, { role: 'referee', label: refereeLabel(name, row.station) }, 'pairDevice', { deviceId: id });
+    // Paired while a round is open: the referee takes their station for this round if it has no referee.
+    const d = this.safeDerive(before);
+    const event = d ? withLateReferee(before, d, { deviceId: id, name: name || `Referee ${row.station}`, home: row.station }) : before;
+    this.ctx.storage.transactionSync(() => {
+      this.sql.exec('INSERT INTO devices (id, event_id, station, token_hash, label, created_at) VALUES (?, ?, ?, ?, ?, ?)',
+        id, row.event_id, row.station, tokenHash, name, now);
+      if (event !== before) this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify(event), event.id);
+      this.audit(row.event_id, { role: 'referee', label: refereeLabel(name, row.station) }, 'pairDevice', { deviceId: id });
+    });
+    this.active = event;
     try {
       await this.afterChange({ type: 'pairDevice' });
     } catch (err) {
@@ -347,10 +359,18 @@ export class Hub extends DurableObject<Env> {
           code, this.active.id, cmd.station, expiresAt);
         return reply({ code, expiresAt }, { station: cmd.station });
       }
-      case 'revokeDevice':
-        this.sql.exec('UPDATE devices SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL', now, cmd.deviceId);
+      case 'revokeDevice': {
+        // The referee's tables in the open or running round are left without a referee.
+        const before = this.active;
+        const event = before ? withoutReferee(before, cmd.deviceId) : before;
+        this.ctx.storage.transactionSync(() => {
+          this.sql.exec('UPDATE devices SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL', now, cmd.deviceId);
+          if (event && event !== before) this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify(event), event.id);
+        });
+        this.active = event;
         await this.afterChange(cmd);
         return reply(null);
+      }
     }
   }
 
@@ -501,6 +521,7 @@ export class Hub extends DurableObject<Env> {
     return {
       devices: this.sql.exec('SELECT id, station, label, created_at, revoked_at, last_seen FROM devices WHERE event_id = ? ORDER BY station', id).toArray(),
       audit: this.sql.exec('SELECT at, actor, action, detail FROM audit WHERE event_id = ? ORDER BY id DESC LIMIT 50', id).toArray(),
+      roster: this.roster(),
     };
   }
 
@@ -552,12 +573,13 @@ export class Hub extends DurableObject<Env> {
     }
     this.send('control', JSON.stringify({ type: 'view', view: controlView(e, d, this.controlExtras()) }));
     this.send('companion', JSON.stringify({ type: 'view', view: companionView(e, d) }));
-    // Each referee gets their own view: their tables this round depend on the device, not only its station.
+    // One view per connected referee: their tables this round depend on the device, not only its station.
+    const referees = new Map<string, Actor>();
     for (const ws of this.ctx.getWebSockets()) {
       const { actor } = ws.deserializeAttachment() as Attachment;
-      if (actor.role !== 'referee') continue;
-      try { ws.send(JSON.stringify({ type: 'view', view: refereeView(e, d, actor) })); } catch { /* socket already closing */ }
+      if (actor.role === 'referee' && actor.deviceId) referees.set(actor.deviceId, actor);
     }
+    for (const actor of referees.values()) this.send(tagFor(actor), JSON.stringify({ type: 'view', view: refereeView(e, d, actor) }));
 
     if (needsSnapshot(cmd, before ?? e)) {
       this.lastPublicSent = Date.now();

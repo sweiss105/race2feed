@@ -56,7 +56,7 @@ Bitfocus Companion has no page. It sends commands with an API key (see [Companio
 
 ### Real-time model
 
-Every page opens a WebSocket: `/api/ws` for phones, the projector, referee tablets and Companion; `/api/control/ws` (or `/api/emergency/ws`) for the console. The hub accepts it with the Durable Object **hibernation API**, so idle connections cost nothing. Each socket is tagged by role (`public`, `control`, `referee:<station>`, `companion`).
+Every page opens a WebSocket: `/api/ws` for phones, the projector, referee tablets and Companion; `/api/control/ws` (or `/api/emergency/ws`) for the console. The hub accepts it with the Durable Object **hibernation API**, so idle connections cost nothing. Each socket is tagged by role (`public`, `control`, `referee:<device id>`, `companion`). A referee socket is tagged by device because each referee gets their own view: their tables can change every round (design §3.7).
 
 - **Public pages** connect with `?role=public`. They receive:
   - a full `snapshot` when something structural changes (`core/broadcast.ts` decides which commands need one)

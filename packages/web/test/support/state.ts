@@ -54,4 +54,4 @@ export const refViewOf = (e: LiveEvent, station = 1): RefereeView => refereeView
 
 import { controlView } from '../../../server/src/core/views';
 import type { ControlView } from '../../src/lib/types';
-export const ctlViewOf = (e: LiveEvent): ControlView => controlView(e, derive(e), { devices: [], audit: [] });
+export const ctlViewOf = (e: LiveEvent): ControlView => controlView(e, derive(e), { devices: [], audit: [], roster: [] });

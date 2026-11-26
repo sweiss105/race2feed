@@ -12,6 +12,10 @@ test('screens for visual review', async ({ browser }) => {
   test.setTimeout(180_000);
   const admin = await setUpEvent(browser, 'Race to Feed 2026');
   await admin.setViewportSize({ width: 1440, height: 900 });
+  // Rotation off: this run pairs a second tablet to station 1 while the race is running and expects it to show
+  // that station's teams. With rotation on, a tablet paired then has no tables until the next round.
+  const off = await admin.request.post('/api/control/command', { data: { cmd: { type: 'setSettings', rotateReferees: false } } });
+  expect(off.ok()).toBe(true);
   const ref = await pairReferee(browser, admin, { width: 390, height: 844 });
   const tablet = await (await browser.newContext({ viewport: { width: 1180, height: 820 } })).newPage();
 

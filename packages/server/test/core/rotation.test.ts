@@ -5,9 +5,9 @@ import { handleSetup } from '../../src/core/setup';
 import { handleLifecycle } from '../../src/core/lifecycle';
 import { handleTaps } from '../../src/core/taps';
 import { applyCommand } from '../../src/core/apply';
-import { refereeView } from '../../src/core/views';
+import { companionView, controlView, publicRoundUpdate, publicView, refereeView } from '../../src/core/views';
 import { derive, teamsInRound } from '../../src/core/results';
-import { assignmentOf, assignRound, refereeTeams, rotationOn, tablesFor } from '../../src/core/rotation';
+import { assignmentOf, assignRound, refereeTeams, rotationOn, tablesFor, withLateReferee, withoutReferee } from '../../src/core/rotation';
 import { admin, blank, csvFor, ctx, lockedFour, ok, referee, refereeDev, roster } from './helpers';
 import { previousEvent } from './fixture';
 
@@ -475,5 +475,103 @@ describe('swapReferees', () => {
     expect(code(applyCommand(opened, cmd, { ...ctx(refereeDev('dev1', 1)), roster: roster(2) }))).toBe('forbidden');
     expect(code(applyCommand(opened, cmd, { ...ctx({ role: 'companion', label: 'c' }), roster: roster(2) }))).toBe('forbidden');
     expect(code(applyCommand(opened, cmd, withRoster(roster(2))))).toBe('ok');
+  });
+});
+
+describe('a referee paired while a round is open', () => {
+  const late: RosterEntry = { deviceId: 'dev9', name: 'Late', home: 2 };
+  const one = roster(1);
+
+  it('takes the home station when it has no referee', () => {
+    const before = open(rotating(lockedFour()), one);
+    expect(before.assignments![1]).toEqual([{ deviceId: 'dev1', name: 'Ref 1', station: 1, tables: [1, 2] }]);
+    const e = withLateReferee(before, derive(before), late);
+    expect(e.assignments![1]).toEqual([
+      { deviceId: 'dev1', name: 'Ref 1', station: 1, tables: [1, 2] },
+      { deviceId: 'dev9', name: 'Late', station: 2, tables: [3, 4] },
+    ]);
+    expect(code(ready(e, refereeDev('dev9', 2), 3))).toBe('ok');
+    // Pairing does not touch Ready, and doing it twice changes nothing more.
+    expect(e.stations).toEqual(before.stations);
+    expect(withLateReferee(e, derive(e), late)).toBe(e);
+  });
+
+  it('waits for the next round when the home station has a referee', () => {
+    const e = open(rotating(lockedFour()), one);
+    expect(withLateReferee(e, derive(e), { ...late, home: 1 })).toBe(e);
+    const split = openRound(rotating(lockedFour()), 4, roster(3));
+    expect(withLateReferee(split, derive(split), { ...late, home: 1 })).toBe(split);
+  });
+
+  it('gets only the tables that have a team, and nothing at a station without teams', () => {
+    let e = ok(handleSetup(blank(6), { type: 'importTeams', csv: csvFor({ T: 3 }) }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'setGrandChampionship', enabled: false }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+    e = open(rotating(ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)))), []);
+    const d = derive(e);
+    const tables = teamsInRound(d, 1).map((t) => t.table).sort((a, b) => a - b);
+    expect(tables).toEqual([1, 2, 3]);
+    expect(withLateReferee(e, d, late).assignments![1]).toEqual([{ deviceId: 'dev9', name: 'Late', station: 2, tables: [3] }]);
+    expect(withLateReferee(e, d, { ...late, home: 3 })).toBe(e);
+    expect(withLateReferee(e, d, { ...late, home: 99 })).toBe(e);
+  });
+
+  it('changes nothing once the race is running or finished, before the first round, or with rotation off', () => {
+    const opened = open(rotating(lockedFour()), one);
+    for (const e of [start(opened), race(opened), rotating(lockedFour()), open(lockedFour(), one)]) {
+      expect(withLateReferee(e, derive(e), late)).toBe(e);
+    }
+  });
+});
+
+describe('a referee revoked during a round', () => {
+  it('leaves the tables without a referee, while open and while running', () => {
+    const opened = open(rotating(lockedFour()), roster(2));
+    for (const before of [opened, start(opened)]) {
+      const e = withoutReferee(before, 'dev2');
+      expect(e.assignments![1]).toEqual([{ deviceId: 'dev1', name: 'Ref 1', station: 1, tables: [1, 2] }]);
+      expect(tablesFor(e, refereeDev('dev2', 2), 1)).toEqual([]);
+      expect(e.stations).toEqual(before.stations);
+    }
+  });
+
+  it('never changes a round that is over, or an event without saved assignments', () => {
+    const finished = race(open(rotating(lockedFour()), roster(2)));
+    expect(withoutReferee(finished, 'dev2')).toBe(finished);
+    const second = open(finished, roster(2));
+    const e = withoutReferee(second, 'dev2');
+    expect(e.assignments![1]).toEqual(second.assignments![1]);
+    expect(e.assignments![2]!.map((a) => a.deviceId)).toEqual(['dev1']);
+    const off = open(lockedFour(), roster(2));
+    expect(withoutReferee(off, 'dev2')).toBe(off);
+    expect(withoutReferee(second, 'nobody')).toBe(second);
+  });
+});
+
+describe('who sees the assignments', () => {
+  const keysDeep = (v: unknown, out = new Set<string>()): Set<string> => {
+    if (v && typeof v === 'object') for (const [k, x] of Object.entries(v)) { out.add(k); keysDeep(x, out); }
+    return out;
+  };
+
+  it('race control sees the current round\'s assignments and the paired referees', () => {
+    const e = open(race(open(rotating(lockedFour()), roster(2))), roster(2));
+    const v = controlView(e, derive(e), { devices: [], audit: [], roster: roster(3) });
+    expect(v.assignments).toEqual(e.assignments![2]);
+    expect(v.roster).toEqual(roster(3));
+    const off = open(lockedFour(), roster(2));
+    expect(controlView(off, derive(off), { devices: [], audit: [], roster: [] }).assignments).toEqual([]);
+    const idle = rotating(lockedFour());
+    expect(controlView(idle, derive(idle), { devices: [], audit: [], roster: [] }).assignments).toEqual([]);
+  });
+
+  it('nobody else does', () => {
+    const e = open(rotating(lockedFour()), roster(2));
+    const d = derive(e);
+    for (const v of [publicView(e, d), publicRoundUpdate(e, d), companionView(e, d), refereeView(e, d, dev1)]) {
+      const keys = keysDeep(v);
+      for (const k of ['assignments', 'roster', 'deviceId']) expect(keys.has(k), k).toBe(false);
+      expect(JSON.stringify(v)).not.toContain('Ref 2');
+    }
   });
 });

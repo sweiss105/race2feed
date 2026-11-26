@@ -23,3 +23,5 @@
 .p-winner .title-1 { color: var(--accent); }
 .p-bags { margin: 0; }
 .p-cat { margin: var(--space-3) var(--space-1) var(--space-1); text-transform: uppercase; letter-spacing: 0.04em; }
+/* A seeding run that is not counted (drop the slowest). */
+.list s.run { color: var(--secondary-label); }

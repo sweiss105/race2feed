@@ -7,7 +7,10 @@ export interface BracketStage { title: string; races: BracketRace[] }
 export interface BracketCard { bracketId: string; tierName: string; tierIndex: number; firstSeed: number; size: number; stages: BracketStage[] }
 export interface CategoryCards { categoryId: string; categoryName: string; brackets: BracketCard[] }
 
-/** Brackets per category, each as its stages: first race, placement, final places. */
+/** What a bracket round is called in a bracket's list of stages. */
+const STAGE: Record<string, string> = { heats: 'First race', placement: 'Placement', finals: 'Final' };
+
+/** Brackets per category, each as its stages: first race, placement, final places; in finals only, the one final. */
 export function buildBracketCards(state: PublicView): CategoryCards[] {
   return state.categories.map((c) => ({
     categoryId: c.id,
@@ -21,7 +24,7 @@ export function buildBracketCards(state: PublicView): CategoryCards[] {
           const races = r.races.filter((race) => race.bracketId === b.id);
           if (!races.length) continue;
           stages.push({
-            title: `Round ${r.round} · ${r.kind === 'heats' ? 'First race' : 'Placement'}`,
+            title: `Round ${r.round} · ${STAGE[r.kind] ?? 'Placement'}`,
             races: races.map((race) => ({
               id: race.id,
               label: race.label.split(' · ').at(-1) ?? race.label,
@@ -33,7 +36,8 @@ export function buildBracketCards(state: PublicView): CategoryCards[] {
           });
         }
         const places = (state.standings[c.id] ?? []).slice(b.firstSeed - 1, b.firstSeed - 1 + b.size);
-        if (places.some((id) => id !== null)) {
+        // In finals only the one race is the result: its finishing order is the final places.
+        if (state.format.brackets !== 'finals' && places.some((id) => id !== null)) {
           stages.push({
             title: 'Final places',
             races: [{

@@ -2,7 +2,9 @@ import { publicView } from '../../../server/src/core/views';
 import { derive } from '../../../server/src/core/results';
 import { handleLifecycle } from '../../../server/src/core/lifecycle';
 import type { LiveEvent } from '../../../server/src/core/model';
-import { admin, ctx, lockedFour, ok, runRound, teamId } from '../../../server/test/core/helpers';
+import { admin, blank, csvFor, ctx, lockedFour, ok, runRound, teamId } from '../../../server/test/core/helpers';
+import { handleSetup } from '../../../server/src/core/setup';
+import type { TournamentFormat } from '@race2feed/engine';
 import { fixture, previousEvent } from '../../../server/test/core/fixture';
 import type { PublicView } from '../../src/lib/types';
 
@@ -55,3 +57,21 @@ export const refViewOf = (e: LiveEvent, station = 1): RefereeView => refereeView
 import { controlView } from '../../../server/src/core/views';
 import type { ControlView } from '../../src/lib/types';
 export const ctlViewOf = (e: LiveEvent): ControlView => controlView(e, derive(e), { devices: [], audit: [], roster: [] });
+
+/**
+ * A locked event on 4 tables in the given format, no Grand Championship unless asked: by default T1..T4 in one
+ * category; `counts` gives other categories ({ A: 2, B: 2 } makes "A 1", "A 2", "B 1", "B 2").
+ */
+export function lockedWith(format: TournamentFormat, opts: { counts?: Record<string, number>; grand?: boolean } = {}): LiveEvent {
+  const csv = opts.counts ? csvFor(opts.counts) : csvFor({ T: 4 }).replace(/T (\d)/g, 'T$1');
+  let e = ok(handleSetup(blank(4), { type: 'importTeams', csv }, ctx(admin)));
+  e = ok(handleSetup(e, { type: 'setGrandChampionship', enabled: opts.grand ?? false }, ctx(admin)));
+  e = ok(handleSetup(e, { type: 'setFormat', format }, ctx(admin)));
+  e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+  return ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
+}
+
+/** Runs the next `times.length` rounds, each with its own times by team name. */
+export function runRounds(e: LiveEvent, times: Record<string, number>[]): LiveEvent {
+  return times.reduce((ev, t, i) => runRound(ev, t, 2_000_000 + i * 1_000_000), e);
+}

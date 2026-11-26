@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import './participant.css';
 import type { PublicView } from '../../lib/types';
-import { champions, nextRaceFor, scheduleRows, seedingRow, teamName, teamResults, teamSearch } from '../../lib/selectors';
+import { champions, nextRaceFor, runHeadings, scheduleRows, SEEDING_DECIDES, seedHeading, seedingLine, seedingOnly, standingsDecided, teamName, teamResults, teamSearch } from '../../lib/selectors';
 import { formatMs } from '@race2feed/engine';
-import { Time } from '../../ui/Time';
+import { RunTime, Time } from '../../ui/Time';
 import { Button } from '../../ui/Button';
 import { Brackets } from './Brackets';
 
@@ -47,7 +47,8 @@ export function ParticipantPage({ state, storage }: { state: PublicView; storage
         </>
       )}
       <nav class="segmented" role="tablist" aria-label="Views">
-        {([['team', 'My team'], ['schedule', 'Schedule'], ['brackets', 'Brackets'], ['results', 'Results']] as const)
+        {/* Seeding only has no brackets: the tab is the standings. */}
+        {([['team', 'My team'], ['schedule', 'Schedule'], ['brackets', seedingOnly(state) ? 'Standings' : 'Brackets'], ['results', 'Results']] as const)
           .filter(([t]) => known || t !== 'team')
           .map(([t, label]) => (
             <button key={t} role="tab" aria-selected={(tab === t || (!known && t === 'schedule' && tab === 'team')) ? 'true' : 'false'} onClick={() => setTab(t)}>{label}</button>
@@ -55,7 +56,9 @@ export function ParticipantPage({ state, storage }: { state: PublicView; storage
       </nav>
       {tab === 'team' && known && <MyTeam state={state} teamId={teamId!} />}
       {(tab === 'schedule' || (tab === 'team' && !known)) && <Schedule state={state} teamId={teamId} />}
-      {tab === 'brackets' && <Brackets state={state} teamId={known ? teamId : null} storage={storage} />}
+      {tab === 'brackets' && (seedingOnly(state)
+        ? <SeedingStandings state={state} teamId={known ? teamId : null} />
+        : <Brackets state={state} teamId={known ? teamId : null} storage={storage} />)}
       {tab === 'results' && <Results state={state} teamId={teamId} />}
     </div>
   );
@@ -68,7 +71,7 @@ function Search({ state, onPick }: { state: PublicView; onPick(id: string): void
   return (
     <section class="p-hero">
       <h2 class="large-title">Find your team</h2>
-      <p class="secondary callout">See your table, your times and where you are in the brackets.</p>
+      <p class="secondary callout">{seedingOnly(state) ? 'See your table, your times and where you stand.' : 'See your table, your times and where you are in the brackets.'}</p>
       <div class="p-search" style={{ marginTop: 'var(--space-4)' }}>
         <label class="visually-hidden" for="team-search">Team name</label>
         <input id="team-search" class="input" type="search" role="searchbox" placeholder="Team name" autocomplete="off"
@@ -115,14 +118,17 @@ function NextRaceCard({ state, teamId }: { state: PublicView; teamId: string }) 
 }
 
 function MyTeam({ state, teamId }: { state: PublicView; teamId: string }) {
-  const seed = seedingRow(state, teamId);
+  const seed = seedingLine(state, teamId);
+  // One run is its own score: the time alone.
+  const runs = state.format.seedingRuns > 1 ? runHeadings(state.format) : [];
   const results = teamResults(state, teamId).filter((r) => r.me.status !== 'pending');
   return (
     <>
       <h3 class="headline section-title">Seeding</h3>
-      <ul class="list">
+      <ul class="list" aria-label="Seeding">
         <li><span>Rank in category</span><span class="tabular headline">{seed.rank ?? '—'}</span></li>
-        <li><span>Total time</span><span class="tabular">{seed.totalMs === null ? '—' : formatMs(seed.totalMs, 'hundredths')}</span></li>
+        {runs.map((h, i) => <li key={h}><span>{h}</span><RunTime ms={seed.runs[i] ?? null} counted={seed.counted[i] ?? false} /></li>)}
+        <li><span>{seedHeading(state.format)}</span><span class="tabular headline">{seed.scoreMs === null ? '—' : formatMs(seed.scoreMs, 'hundredths')}</span></li>
       </ul>
       <h3 class="headline section-title">Races</h3>
       {results.length === 0 ? <p class="secondary callout">No times yet.</p> : (
@@ -139,6 +145,41 @@ function MyTeam({ state, teamId }: { state: PublicView; teamId: string }) {
         </ul>
       )}
     </>
+  );
+}
+
+/** Seeding only: where the brackets would be. The final standings once seeding is complete; until then, why there are none. */
+function SeedingStandings({ state, teamId }: { state: PublicView; teamId: string | null }) {
+  if (!standingsDecided(state)) {
+    return (
+      <>
+        <p class="headline section-title">{SEEDING_DECIDES}</p>
+        <p class="secondary callout" style={{ margin: '0 var(--space-1)' }}>The final standings appear here when every seeding round is finished.</p>
+      </>
+    );
+  }
+  return <FinalStandings state={state} teamId={teamId} id="seeding-standings" />;
+}
+
+/** id: the heading's, unique on the page (the champion card's list and the Standings tab can both be showing). */
+function FinalStandings({ state, teamId, id = 'final-standings' }: { state: PublicView; teamId: string | null; id?: string }) {
+  return (
+    <section aria-labelledby={id}>
+      <h3 id={id} class="headline section-title">Final standings</h3>
+      {state.categories.map((c) => (
+        <div key={c.id} style={{ marginBottom: 'var(--space-3)' }}>
+          <h4 class="footnote secondary p-cat">{c.name}</h4>
+          <ol class="list">
+            {(state.standings[c.id] ?? []).map((id, i) => (
+              <li key={i} class={id && id === teamId ? 'me' : ''} aria-current={id && id === teamId ? 'true' : undefined}>
+                <span class="num">{i + 1}</span>
+                <span class="grow headline">{id ? teamName(state, id) : '—'}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
+      ))}
+    </section>
   );
 }
 
@@ -200,22 +241,7 @@ function Finale({ state, teamId }: { state: PublicView; teamId: string | null })
         ))}
         {state.bagTotal && <p class="p-bags headline">{state.bagTotal} bags of food packed!</p>}
       </section>
-      <section aria-labelledby="final-standings">
-        <h3 id="final-standings" class="headline section-title">Final standings</h3>
-        {state.categories.map((c) => (
-          <div key={c.id} style={{ marginBottom: 'var(--space-3)' }}>
-            <h4 class="footnote secondary p-cat">{c.name}</h4>
-            <ol class="list">
-              {(state.standings[c.id] ?? []).map((id, i) => (
-                <li key={i} class={id && id === teamId ? 'me' : ''} aria-current={id && id === teamId ? 'true' : undefined}>
-                  <span class="num">{i + 1}</span>
-                  <span class="grow headline">{id ? teamName(state, id) : '—'}</span>
-                </li>
-              ))}
-            </ol>
-          </div>
-        ))}
-      </section>
+      <FinalStandings state={state} teamId={teamId} />
     </>
   );
 }

@@ -112,6 +112,8 @@ Go to **Setup**. The **Tournament format** panel is at the top. It decides how t
 
 If you want the event to run the way Race to Feed has been run, leave it on **Standard** and go on to the next step.
 
+![The Tournament format panel in Setup with Standard selected: the four presets, then Seeding rounds, Seeding rank and Bracket format, each choice with its explanation, and at the bottom what the setup makes](guide/images/console-setup-format.jpg)
+
 **Presets** set all three settings at once:
 
 | Preset | What it does |
@@ -140,7 +142,7 @@ Good to know:
 - **"Seeding rounds" counts how many times each team races for seeding.** With more teams than tables the teams are split into groups, and each group races separately, so 2 seeding rounds with 2 groups is 4 rounds on the day.
 - **A choice that can't be used says why.** **Best run** needs at least two seeding rounds, and **Drop the slowest** needs three; until then they are greyed out with "Needs at least two seeding rounds." or "Needs three seeding rounds."
 - **If you lower the number of seeding rounds below what the seeding rank needs**, the rank goes back to **Total time** and the panel says "Seeding rank changed to Total time."
-- **This setup makes** at the bottom of the panel counts the rounds and races the event will have, for example "9 rounds, 30 races", and changes as you choose. A race is one start on the clock, so every team's seeding run counts as one. Before there are teams, groups or brackets it tells you what is still needed.
+- **This setup makes** at the bottom of the panel counts the rounds and races the event will have, for example "5 rounds, 25 races", and changes as you choose. A race is one start on the clock, so every team's seeding run counts as one. Before there are teams, groups or brackets it tells you what is still needed.
 - **The Grand Championship switch works with every format.** Each category's winner races; with **Seeding only** that is each category's top seed.
 - **If you change the bracket format after pressing Suggest groups and brackets**, the brackets may no longer fit. The panel says "Your brackets were set up for a different format. Press Suggest groups and brackets to rebuild them." Do that before locking.
 - **Once setup is locked** the panel is greyed out and says "Setup is locked. Unlock it to change the format." The format can't be changed after the first round has opened.
@@ -159,12 +161,14 @@ In **Setup**, press **Suggest groups and brackets**. The app:
 - **Splits teams into seeding groups** that fit your tables (for example, 50 teams with 26 tables gives Group A with 26 and Group B with 24). It fills each group in category order, so categories stay together and only the last group is short. That last group can be much smaller (27 teams on 26 tables gives 26 and 1), so move teams between groups to even them out if you want. Each team gets a table.
 - **Suggests a bracket plan** for each category, in fours (Gold, Silver, Bronze, Copper, Tin). Leftover teams join the last bracket, making it 5, 6 or 7 teams. With the **Seeding only** format there are no brackets: the Brackets list says "Seeding only uses no brackets."
 
-![Setup after Suggest groups and brackets: Lock setup, the Grand Championship switch, the Referees choice and each category's brackets](guide/images/console-setup.jpg)
+![The top of Setup after Suggest groups and brackets: the counts of tables, groups and brackets, then Suggest groups and brackets, Lock setup and the Grand Championship switch](guide/images/console-setup.jpg)
 
 You can then adjust:
 - **Seeding groups and tables:** change any team's **Group** or **Table** in the list. Two teams can't share a table in the same group.
 - **Brackets:** for each category, rename a tier, change its number of teams, **Add tier** or **Remove last tier**, then press **Save [category] brackets**. The line "*X of Y teams placed*" must match before you can lock. Brackets hold 4 to 7 teams (a category with fewer than 4 teams gets one small bracket).
 - **Grand Championship:** the switch turns the final race between the top-bracket winners on or off. It needs a table for every category winner, so with more categories than tables you can't lock until you add tables or turn it off.
+
+![Brackets in Setup: each category's tiers, with the seeds and the number of teams in each](guide/images/console-setup-brackets.jpg)
 
 ![Seeding groups and tables: change a team's group or table here](guide/images/console-setup-groups.jpg)
 
@@ -484,7 +488,7 @@ Spotted a misspelling on the projector? Go to **Teams**, press **Rename** on the
 
 ### Projector control
 
-The projector changes screens by itself. To show a particular screen, use the **Projector** menu on the Race Control page and choose **welcome**, **tables**, **clock**, **seeding results**, **brackets**, **standings** or **champion**. The projector stays on that screen until you choose **Projector: automatic** again. The automatic option shows which screen it would pick.
+The projector changes screens by itself. To show a particular screen, use the **Projector** menu on the Race Control page and choose **welcome**, **tables**, **clock**, **seeding results**, **brackets**, **standings** or **champion**. (A **Seeding only** event has no brackets, so the menu doesn't offer that screen.) The projector stays on that screen until you choose **Projector: automatic** again. The automatic option shows which screen it would pick.
 
 ### Show the champion
 
@@ -638,9 +642,9 @@ Your phone remembers your team, so next time it opens straight to it. Tap **Not 
 - **After the last round:** "All rounds are done. Thanks for racing!"
 
 **The tabs below:**
-- **My team:** your seeding rank in your category, your total seeding time, and your time and place in each race.
+- **My team:** your seeding, then your time and place in each race. **Seeding** shows your rank in your category, each seeding run (**Run 1**, **Run 2**, …) and the time you are ranked on: **Total**, **Best run** or **Best two**, depending on the event's [tournament format](#3-tournament-format). With one seeding round it is just your **Time**. With **Drop the slowest**, the run that isn't counted is crossed out.
 - **Schedule:** every team's table for the current round, with yours highlighted.
-- **Brackets:** every category's brackets, updating live. Switch between **Cards** and **Diagram**.
+- **Brackets:** every category's brackets, updating live. Switch between **Cards** and **Diagram**. In a **Finals only** event each bracket is one race, the **Final**, listed in finishing order. In a **Seeding only** event there are no brackets, so this tab is called **Standings**: it says "Standings are decided by seeding" until every seeding round is finished, then lists the final standings by category.
 - **Results:** the latest round's results.
 
 ![Brackets as cards, with your team highlighted](guide/images/phone-brackets.png)
@@ -650,7 +654,7 @@ Times include penalties. For example, `3:46.20 (incl. +10s · False Start)` mean
 ![My team while a referee's penalty waits for race control: the time is marked "pending: under review"](guide/images/phone-results-pending.png)
 ![The same race once race control approved the penalty: the time includes +10s for False Start](guide/images/phone-results-penalty.png)
 
-When race control shows the champion, a champion card appears at the top of every phone. It shows the Grand Champion (or each category's winner if there's no Grand Championship), the bags packed and the final standings, with your team highlighted. The tabs stay available below. After the event ends, phones also show **Event complete**.
+When race control shows the champion, a champion card appears at the top of every phone. It shows the Grand Champion (or each category's winner if there's no Grand Championship; in a Seeding only event a category's winner is its top seed), the bags packed and the final standings, with your team highlighted. The tabs stay available below. After the event ends, phones also show **Event complete**.
 
 ![The champion card on a phone, with the final standings and your team highlighted](guide/images/phone-champion.png)
 
@@ -667,9 +671,9 @@ The projector follows the event by itself:
 | Before the first round | **Welcome**: the event name and a QR code to the participant site |
 | A round is open | **Tables**: "Go to your table", every team's table number, and the QR code. A green dot next to a team's name means its table is ready (the referee pressed **Ready**); a red dot means the start is still waiting on that table |
 | A race is running | **Clock**: a big master clock. As soon as the first team is in, the clock shrinks to the top and the list of teams appears under **Preliminary times** (see below) |
-| After a seeding round | **Seeding results** by category, coloured by bracket tier |
-| After a bracket round | **Brackets**, cycling through the categories |
-| After the Grand Championship, or when race control shows the champion | **Champion**: the Grand Champion and the bags packed. While a penalty is still pending review, a tie is still undecided or a team has no result, it stays on **Brackets**, and switches to the champion once those are settled |
+| After a seeding round | **Seeding results** by category, coloured by bracket tier (see below) |
+| After a bracket round | **Brackets**, cycling through the categories. In a **Finals only** event each bracket is one race, the **Final**, in finishing order |
+| After the Grand Championship, or when race control shows the champion | **Champion**: the Grand Champion and the bags packed. While a penalty is still pending review, a tie is still undecided or a team has no result, it stays on **Brackets**, and switches to the champion once those are settled. A **Seeding only** event has no Brackets screen: the projector stays on **Seeding results** until the champion is shown |
 
 ![Projector: Welcome, with the QR code to the participant site](guide/images/projector-welcome.jpg)
 ![Projector: Tables, while a round is open. Table 1 is ready, so Alpha has a green dot; every other team still has a red dot](guide/images/projector-tables.jpg)
@@ -677,10 +681,17 @@ The projector follows the event by itself:
 ![Projector: the race has started and no team is in yet, so the big master clock fills the screen](guide/images/projector-clock-start.jpg)
 ![Projector: part-way through the race. The clock has moved up; under Preliminary times the finished teams come first, fastest first, with a checkered-flag marker and their time, and the teams still racing follow with a green dot](guide/images/projector-clock.jpg)
 
-![Projector: seeding results by category, coloured by bracket tier](guide/images/projector-seeding-results.jpg)
+![Projector: seeding results by category after both seeding rounds, with Run 1, Run 2 and the Total each team is ranked on](guide/images/projector-seeding-results.jpg)
 ![Projector: a category's brackets](guide/images/projector-brackets.jpg)
 
 ![Projector: the Grand Champion and the bags packed](guide/images/projector-champion.jpg)
+
+**Seeding results** list each category's teams in seeding order, best first, with every time to the hundredth of a second:
+- A column for each seeding run (**Run 1**, **Run 2**, **Run 3**), then the time the teams are ranked on. Its heading says which it is: **Total** (every run added up), **Best run** (the fastest run) or **Best two** (with **Drop the slowest**). With one seeding round there is a single column, **Time**.
+- A run that hasn't been raced yet, or wasn't finished, shows "—".
+- With **Drop the slowest**, each team's run that isn't counted is crossed out.
+- With three or more categories side by side there isn't room for the run columns, so only the ranked-on time is shown. Phones always show every run.
+- Until seeding is finished the order is provisional: teams are listed by the time they have so far.
 
 **During the race**, once the first team is in, every team of the round is listed under the clock in two columns (down the first column, then the second):
 - The **red number is the finishing position** (1 for the fastest time so far). Teams still racing, and teams marked DNF, DNS or DQ, have no number. Two teams showing the same time (equal to the hundredth of a second) share a position and are listed by table; the next team takes the position after them (1, 1, 3).
@@ -692,7 +703,7 @@ With fewer teams in a round, the team list on the **Tables** and **Clock** scree
 
 The times are preliminary until race control finishes the round. The list stays up for the rest of the race, even if a finish is undone.
 
-Race control can pin any screen, including **standings**, from the console (see [Projector control](#projector-control)). If the projector seems stuck on one screen, check whether it's been pinned.
+Race control can pin any screen, including **standings**, from the console (see [Projector control](#projector-control)). In a **Seeding only** event the standings read "Standings are decided by seeding" until every seeding round is finished, and a pinned **brackets** screen shows the standings instead. If the projector seems stuck on one screen, check whether it's been pinned.
 
 ### Using the projector in OBS
 

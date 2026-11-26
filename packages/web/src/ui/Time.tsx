@@ -24,3 +24,12 @@ export function timeText(x: Timed, { short = false } = {}): string {
 export function Time({ entrant }: { entrant: Timed }) {
   return <span class="tabular">{timeText(entrant)}</span>;
 }
+
+/** One seeding run's time; struck through, with "not counted" for screen readers, when the seeding rule leaves it out. */
+export function RunTime({ ms, counted }: { ms: number | null; counted: boolean }) {
+  if (ms === null) return <span class="tabular run">—</span>;
+  const text = formatMs(ms, 'hundredths');
+  return counted
+    ? <span class="tabular run">{text}</span>
+    : <s class="tabular run">{text}<span class="visually-hidden"> not counted</span></s>;
+}

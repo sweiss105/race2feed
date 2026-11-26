@@ -3,10 +3,10 @@ import './projector.css';
 import '../participant/brackets.css';
 import { formatMs, hundredths } from '@race2feed/engine';
 import type { PublicView } from '../../lib/types';
-import { champions, rowsPerColumn, scheduleRows, teamName, tierOf } from '../../lib/selectors';
+import { champions, rowsPerColumn, runHeadings, scheduleRows, SEEDING_DECIDES, seedHeading, seedingOnly, seedingTable, standingsDecided, teamName, tierOf } from '../../lib/selectors';
 import { buildBracketCards } from '../../lib/bracketModel';
 import { QR } from '../../ui/QR';
-import { timeText } from '../../ui/Time';
+import { RunTime, timeText } from '../../ui/Time';
 import { useNow } from '../../lib/useNow';
 import { BracketDiagramView } from '../participant/Brackets';
 
@@ -20,7 +20,8 @@ export function ProjectorPage({ state, serverNow, siteUrl }: Props) {
       {screen === 'tables' && <Tables state={state} siteUrl={siteUrl} />}
       {screen === 'clock' && <Clock state={state} serverNow={serverNow} />}
       {screen === 'seeding-results' && <SeedingResults state={state} />}
-      {screen === 'brackets' && <BracketsScreen state={state} />}
+      {/* Seeding only has no brackets: a pinned brackets screen shows the standings. */}
+      {screen === 'brackets' && (seedingOnly(state) ? <Standings state={state} /> : <BracketsScreen state={state} />)}
       {screen === 'standings' && <Standings state={state} />}
       {screen === 'champion' && <Champion state={state} />}
     </div>
@@ -153,37 +154,41 @@ function Clock({ state, serverNow }: { state: PublicView; serverNow: () => numbe
 function SeedingResults({ state }: { state: PublicView }) {
   const tierFor = (categoryId: string, rank: number) =>
     state.brackets.find((b) => b.categoryId === categoryId && rank >= b.firstSeed && rank < b.firstSeed + b.size)?.tierIndex ?? -1;
+  // One run is its own score: no run columns, just the time.
+  const runs = state.format.seedingRuns > 1 ? runHeadings(state.format) : [];
+  const tables = seedingTable(state);
   return (
     <>
       <header>
         <div class="proj-kicker">After the seeding rounds</div>
         <h2 class="proj-title">Seeding results</h2>
       </header>
-      <div class="proj-body proj-columns">
-        {state.categories.map((c) => {
-          const teams = state.teams.filter((t) => t.categoryId === c.id && state.seedTotalsMs[t.id] !== undefined)
-            .sort((a, b) => (state.seedRank?.[a.id] ?? 0) - (state.seedRank?.[b.id] ?? 0)
-              || (state.seedTotalsMs[a.id] ?? 0) - (state.seedTotalsMs[b.id] ?? 0));
-          return (
-            <section key={c.id}>
-              <h3>{c.name}</h3>
-              {teams.map((t, i) => {
-                const rank = state.seedRank?.[t.id] ?? i + 1;
-                return (
-                  <div class={`row ${state.seedRank ? tierOf(tierFor(c.id, rank)) : ''}`} key={t.id}>
-                    <span class="n">{rank}</span>
-                    <span>{t.name}</span>
-                    <span class="tabular">{formatMs(state.seedTotalsMs[t.id]!, 'seconds')}</span>
-                  </div>
-                );
-              })}
-            </section>
-          );
-        })}
+      <div class={`proj-body proj-columns proj-seeding runs-${runs.length}`} style={columnsStyle(tables.length, runs.length)}>
+        {tables.map((c) => (
+          <section key={c.categoryId}>
+            <h3>{c.categoryName}</h3>
+            <div class="row head">
+              <span /><span />
+              {runs.map((h) => <span class="run" key={h}>{h}</span>)}
+              <span>{seedHeading(state.format)}</span>
+            </div>
+            {c.rows.map((r) => (
+              <div class={`row ${state.seedRank ? tierOf(tierFor(c.categoryId, r.rank)) : ''}`} key={r.teamId}>
+                <span class="n">{r.rank}</span>
+                <span>{r.name}</span>
+                {runs.map((h, i) => <RunTime key={h} ms={r.runs[i] ?? null} counted={r.counted[i] ?? false} />)}
+                <span class="tabular">{formatMs(r.scoreMs!, 'hundredths')}</span>
+              </div>
+            ))}
+          </section>
+        ))}
       </div>
     </>
   );
 }
+
+/** For the category columns' CSS: how many categories share the width (three at most per row), and how many run columns each row has. */
+const columnsStyle = (categories: number, runs = 0) => ({ '--cols': String(Math.min(3, Math.max(1, categories))), '--runs': String(runs) }) as Record<string, string>;
 
 function BracketsScreen({ state }: { state: PublicView }) {
   const cards = useMemo(() => buildBracketCards(state).filter((c) => c.brackets.some((b) => b.stages.length)), [state]);
@@ -210,11 +215,14 @@ function BracketsScreen({ state }: { state: PublicView }) {
 function Standings({ state }: { state: PublicView }) {
   const tierFor = (categoryId: string, place: number) =>
     state.brackets.find((b) => b.categoryId === categoryId && place >= b.firstSeed && place < b.firstSeed + b.size)?.tierIndex ?? -1;
+  // Seeding only: no place is known until every seeding round is settled, and the screen says why.
+  const waiting = seedingOnly(state) && !standingsDecided(state);
   return (
     <>
       <header>
         <div class="proj-kicker">By category</div>
-        <h2 class="proj-title">Final standings</h2>
+        <h2 class="proj-title">{waiting ? 'Standings' : 'Final standings'}</h2>
+        {waiting && <div class="proj-sub">{SEEDING_DECIDES}</div>}
       </header>
       <div class="proj-body proj-columns">
         {state.categories.map((c) => (

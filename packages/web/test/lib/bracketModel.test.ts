@@ -40,3 +40,27 @@ describe('buildBracketDiagram', () => {
     expect(d.columns[0]!.groups.length).toBe(2);
   });
 });
+
+import { lockedWith, runRounds, openNext } from '../support/state';
+
+describe('finals only', () => {
+  const sec = (...s: number[]) => Object.fromEntries(s.map((v, i) => [`T${i + 1}`, v * 1000]));
+  it('shows a bracket as one race, the Final, with the finishing order and no placement stage', () => {
+    const e = runRounds(lockedWith({ seedingRuns: 1, brackets: 'finals' }), [sec(100, 110, 120, 130), sec(140, 110, 120, 130)]);
+    const [gold] = buildBracketCards(viewOf(e))[0]!.brackets;
+    expect(gold!.stages.map((s) => s.title)).toEqual(['Round 2 · Final']);
+    expect(gold!.stages[0]!.races.map((r) => r.label)).toEqual(['Final']);
+    expect(gold!.stages[0]!.races[0]!.entrants.map((x) => [x.name, x.place])).toEqual([['T1', 4], ['T2', 1], ['T3', 2], ['T4', 3]]);
+    expect(buildBracketDiagram(gold!).columns.map((c) => c.title)).toEqual(['Round 2 · Final']);
+  });
+  it('shows the open final before it is raced', () => {
+    const e = openNext(runRounds(lockedWith({ seedingRuns: 1, brackets: 'finals' }), [sec(100, 110, 120, 130)]));
+    const [gold] = buildBracketCards(viewOf(e))[0]!.brackets;
+    expect(gold!.stages.map((s) => s.title)).toEqual(['Round 2 · Final']);
+    expect(gold!.stages[0]!.races[0]!.entrants.map((x) => x.place)).toEqual([null, null, null, null]);
+  });
+  it('seeding only has no bracket cards at all', () => {
+    const e = runRounds(lockedWith({ seedingRuns: 1, brackets: 'none' }), [sec(100, 110, 120, 130)]);
+    expect(buildBracketCards(viewOf(e)).flatMap((c) => c.brackets)).toEqual([]);
+  });
+});

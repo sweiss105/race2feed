@@ -26,7 +26,8 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
             void runner.run({ type: 'pinProjector', screen: v || null });
           }}>
             <option value="">Projector: automatic ({view.projector})</option>
-            {SCREENS.map((s) => <option key={s} value={s}>Projector: {s.replace('-', ' ')}</option>)}
+            {/* Seeding only has no brackets screen. */}
+            {SCREENS.filter((s) => s !== 'brackets' || view.format.brackets !== 'none').map((s) => <option key={s} value={s}>Projector: {s.replace('-', ' ')}</option>)}
           </select>
         </label>
       </div>

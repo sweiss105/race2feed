@@ -72,6 +72,30 @@ html.proj-clear .proj { text-shadow: 0 0.06em 0.3em rgba(0, 0, 0, 0.85); }
 .proj-columns .row { display: grid; grid-template-columns: 2em 1fr auto; gap: 0.7em; padding: 0.25em 0.5em; border-left: 0.35em solid var(--tier, transparent); }
 .proj-columns .row .n { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--secondary-label); }
 
+/*
+ * Seeding results: the categories share the width (three at most per row), and each row has a column per seeding run
+ * before the value the teams are ranked on. The run columns need room beside the name: a category column too narrow
+ * for them (three categories at 1080p) shows the ranked-on value alone.
+ */
+.proj-seeding { grid-template-columns: repeat(var(--cols, 3), minmax(0, 1fr)); }
+.proj-seeding section { container-type: inline-size; max-width: 46em; }
+.proj-seeding .row { grid-template-columns: 2em minmax(0, 1fr) repeat(var(--runs, 0), 4.1em) 4.7em; align-items: baseline; }
+.proj-seeding .row > :nth-child(n + 3) { text-align: right; white-space: nowrap; }
+.proj-seeding .row > :last-child { font-weight: 700; }
+.proj-seeding .run { font-size: 0.85em; color: var(--secondary-label); }
+.proj-seeding s.run { text-decoration: line-through; text-decoration-thickness: 0.08em; color: var(--tertiary-label); }
+.proj-seeding .row.head { padding-bottom: 0; }
+.proj-seeding .row.head > span { font-size: 0.6em; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--secondary-label); }
+@container (max-width: 30em) {
+  .proj-seeding.runs-2 .run { display: none; }
+  .proj-seeding.runs-2 .row { grid-template-columns: 2em minmax(0, 1fr) 4.7em; }
+}
+@container (max-width: 36em) {
+  .proj-seeding.runs-3 .run { display: none; }
+  .proj-seeding.runs-3 .row { grid-template-columns: 2em minmax(0, 1fr) 4.7em; }
+}
+.proj header .proj-sub { margin-top: 1vh; }
+
 .proj-brackets { display: grid; grid-template-columns: repeat(auto-fit, minmax(32vw, 1fr)); gap: 2vw; }
 .proj-brackets .card { background: var(--surface); }
 

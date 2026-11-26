@@ -160,7 +160,14 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await admin.getByRole('link', { name: 'Setup' }).click();
   await admin.getByRole('button', { name: 'Suggest groups and brackets' }).click();
   await expect(admin.getByLabel('Group for Alpha')).toBeVisible();
-  await shot(admin, 'console-setup.jpg');
+  // The top of Setup: the status line, the buttons and the Grand Championship switch.
+  await region(admin, [admin.getByRole('heading', { name: 'Setup', exact: true }), admin.locator('.race-actions').first()], 'console-setup.jpg');
+  // The Tournament format panel, Standard selected, with what the suggested setup adds up to.
+  const format = admin.getByRole('region', { name: 'Tournament format' });
+  await expect(format.getByRole('radio', { name: 'Standard' })).toHaveAttribute('aria-checked', 'true');
+  await expect(format.getByTestId('format-summary')).toHaveText(/^\d+ rounds, \d+ races$/);
+  await region(admin, format, 'console-setup-format.jpg', 0);
+  await region(admin, admin.getByRole('region', { name: 'Brackets' }), 'console-setup-brackets.jpg');
   await region(admin, admin.getByRole('region', { name: 'Referees' }), 'console-tables-per-referee.jpg');
   await region(admin, admin.getByRole('region', { name: 'Seeding groups' }), 'console-setup-groups.jpg');
   // The guide server runs on a local address; show the real site's addresses in the picture.

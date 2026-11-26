@@ -20,7 +20,10 @@ import { applyCommand } from '../../src/core/apply';
 import type { Actor, Command, LiveEvent } from '../../src/core/model';
 import { derive } from '../../src/core/results';
 import { companionView, controlView, publicRoundUpdate, publicView, refereeView } from '../../src/core/views';
-import { admin, blank, control, csvFor, ctx, ok, referee } from '../core/helpers';
+import { admin, blank, csvFor, ctx, ok, referee } from '../core/helpers';
+
+// Race control and admin are one role now.
+const control = admin;
 
 const PEOPLE = Number(process.env.R2F_PEOPLE ?? 1750);
 const TEAM_COUNTS = (process.env.R2F_TEAMS ?? '50,100,200').split(',').map(Number);
@@ -114,9 +117,9 @@ function connectMessage(e: LiveEvent): string {
 function tapWork(e: LiveEvent, tap: Command, station: number) {
   const next = ok(applyCommand(e, tap, ctx(referee(station), e.round.startedAt! + 600_000)));
   const d = derive(next);
-  JSON.stringify({ type: 'view', view: controlView(next, d, controlExtras(next)) });
+  JSON.stringify({ type: 'view', view: controlView(next, d, { ...controlExtras(next), roster: [] }) });
   JSON.stringify({ type: 'view', view: companionView(next, d) });
-  for (const s of Object.keys(next.stations)) JSON.stringify({ type: 'view', view: refereeView(next, d, Number(s)) });
+  for (const s of Object.keys(next.stations)) JSON.stringify({ type: 'view', view: refereeView(next, d, { station: Number(s) }) });
   JSON.stringify({ type: 'round', update: publicRoundUpdate(next, d) });
 }
 

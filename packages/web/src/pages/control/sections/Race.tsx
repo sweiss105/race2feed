@@ -31,7 +31,7 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
       </div>
 
       <Stations view={view} />
-      {view.outstanding.length > 0 && <Outstanding view={view} />}
+      {view.outstanding.length > 0 && <Outstanding view={view} serverNow={serverNow} />}
       {view.ties.length > 0 && <Ties view={view} />}
       {view.blockers.length > 0 && <p class="err" role="alert">{view.blockers.join(' · ')}</p>}
       <PenaltyReviews view={view} />
@@ -76,9 +76,10 @@ function Stations({ view }: { view: ControlView }) {
   );
 }
 
-function Outstanding({ view }: { view: ControlView }) {
+function Outstanding({ view, serverNow }: { view: ControlView; serverNow(): number }) {
   const runner = useRunner();
   const round = view.round.current;
+  const startedAt = view.round.phase === 'running' ? view.round.startedAt : null;
   return (
     <section class="panel" aria-label="Outstanding">
       <h3 class="headline">Waiting on {view.outstanding.length} team{view.outstanding.length === 1 ? '' : 's'}</h3>
@@ -89,6 +90,13 @@ function Outstanding({ view }: { view: ControlView }) {
               <td class="tabular" style={{ width: '4rem' }}>T{o.table}</td>
               <td class="headline">{teamName(view, o.teamId)}</td>
               <td><div class="actions">
+                {startedAt !== null && (
+                  // Stops this team's clock now, for a referee who can't: the time is the race clock at the press.
+                  <Button data-action="finish" aria-label={`Finish ${teamName(view, o.teamId)}`} busy={runner.busy(`result-${round}-${o.teamId}`)}
+                    onClick={() => void runner.run({ type: 'setResult', round, teamId: o.teamId, set: { kind: 'time', rawMs: Math.max(0, Math.round(serverNow() - startedAt)) } }, `result-${round}-${o.teamId}`)}>
+                    Finish
+                  </Button>
+                )}
                 {(['dnf', 'dns'] as const).map((status) => (
                   <Button key={status} kind="secondary" data-action={status} busy={runner.busy(`result-${round}-${o.teamId}`)}
                     onClick={() => void runner.run({ type: 'setResult', round, teamId: o.teamId, set: { kind: 'status', status } }, `result-${round}-${o.teamId}`)}>

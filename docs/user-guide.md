@@ -265,7 +265,7 @@ The room can follow along on the projector: on the **Tables** screen each team h
 - **Start** works only when every station that has teams is Ready (or overridden). Until then it's greyed out and the status line reads, for example, "Waiting on 2 referees to be ready".
 - **Finish now** works only when every team in the round has a time, DNF or DNS. Until then it's greyed out and the status line reads "Racing — waiting on *N* teams".
 
-While a round runs, the **Waiting on *N* teams** panel lists every team without a result yet, with **DNF** and **DNS** buttons for each one.
+While a round runs, the **Waiting on *N* teams** panel lists every team without a result yet, with **Finish**, **DNF** and **DNS** buttons for each one. **Finish** stops that team's clock at the moment you press it, exactly as the referee's tap would; use it when a referee's tablet has failed or they missed the tap. If you press it by mistake, correct the time in **Results**.
 
 ![A running round: the race clock, every station Ready, "Racing — waiting on 7 teams" with Finish now greyed out, and the teams still waiting for a result](guide/images/console-race-running.jpg)
 

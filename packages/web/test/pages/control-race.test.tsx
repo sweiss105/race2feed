@@ -166,6 +166,24 @@ describe('race section', () => {
     resolve({ ok: true });
   });
 
+  it('lets race control stop a team\'s clock from the waiting list while the race is running', async () => {
+    const send = vi.fn(async () => ({ ok: true }));
+    const e = start(openNext(lockedFour()), 1_000_000);
+    render(<ConsolePage me={me('admin')} view={ctlViewOf(e)} send={send} serverNow={() => 1_083_456.7} status="open" />);
+    const list = screen.getByRole('region', { name: 'Outstanding' });
+    const row = list.querySelector(`tr[data-team="${teamId(e, 'T1')}"]`)!;
+    const finish = within(row as HTMLElement).getByRole('button', { name: 'Finish T1' });
+    fireEvent.click(finish);
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setResult', round: 1, teamId: teamId(e, 'T1'), set: { kind: 'time', rawMs: 83_457 } }));
+  });
+
+  it('offers no Finish in the waiting list before the race has started', () => {
+    render(<ConsolePage me={me('admin')} view={ctlViewOf(openNext(lockedFour()))} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    const list = screen.getByRole('region', { name: 'Outstanding' });
+    expect(within(list).queryByRole('button', { name: /^Finish / })).toBeNull();
+    expect(list.querySelector('button[data-action="dns"]')).not.toBeNull();
+  });
+
   const askToUnlock = async (keptRounds: number[], bracketsKept = false) => {
     const sent: any[] = [];
     const send = vi.fn(async (cmd: any) => {

@@ -195,7 +195,7 @@ All times in this section are **official times**: the raw time plus any penaltie
     - Activating an event whose round is counting down (after **End event**, or after switching to another event and back) restarts the full delay from that moment, so time spent on another event never finishes the round at once.
     - When the time arrives the server runs the same finish as the button, logged with the actor "auto-finish". If that finish is refused, the time is cleared rather than retried.
     - The time is stored with the event and driven by the hub's single alarm, which also paces phone updates; the alarm is always set to the earlier of the two, so a countdown survives the server going idle.
-  - Race control sees the list of teams still outstanding and can mark them DNF or DNS.
+  - Race control sees the list of teams still outstanding and can mark them DNF or DNS, or press **Finish** to stop that team's clock itself: the time recorded is the race clock at the press (a `setResult` with that time), for a referee who cannot tap.
   - When finish succeeds, the clock stops and resets, and the round's results are locked.
 - **Next round:** race control reviews results, resolves any ties, then presses **Open round N** (§7.2).
   - Matchups for the next round are generated from the locked results and published at that moment, not before.

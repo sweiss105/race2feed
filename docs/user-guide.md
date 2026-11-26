@@ -524,7 +524,7 @@ The projector follows the event by itself:
 ![Projector: Tables, while a round is open. Table 1 is ready, so Alpha has a green dot; every other team still has a red dot](guide/images/projector-tables.jpg)
 
 ![Projector: the race has started and no team is in yet, so the big master clock fills the screen](guide/images/projector-clock-start.jpg)
-![Projector: part-way through the race. The clock has moved up; under Preliminary times the finished teams come first, fastest first, with a checkered-flag dot and their time, and the teams still racing follow with a green dot](guide/images/projector-clock.jpg)
+![Projector: part-way through the race. The clock has moved up; under Preliminary times the finished teams come first, fastest first, with a checkered-flag marker and their time, and the teams still racing follow with a green dot](guide/images/projector-clock.jpg)
 
 ![Projector: seeding results by category, coloured by bracket tier](guide/images/projector-seeding-results.jpg)
 ![Projector: a category's brackets](guide/images/projector-brackets.jpg)
@@ -532,7 +532,7 @@ The projector follows the event by itself:
 ![Projector: the Grand Champion and the bags packed](guide/images/projector-champion.jpg)
 
 **During the race**, once the first team is in, every team of the round is listed under the clock in two columns (down the first column, then the second):
-- Finished teams first, in the order they finished (fastest time first), each with a checkered-flag dot and its time: `3:41.20`, `3:46.20 (+5s)` with an approved penalty, `under review` while a penalty is pending. Then teams marked **DNF** (or **DQ**), then **DNS**.
+- Finished teams first, in the order they finished (fastest time first), each with a checkered-flag marker and its time: `3:41.20`, `3:46.20 (+5s)` with an approved penalty, `under review` while a penalty is pending. Then teams marked **DNF** (or **DQ**), then **DNS**.
 - Then the teams still racing, by table number, with a green dot and their race label.
 
 The times are preliminary until race control finishes the round. The list stays up for the rest of the race, even if a finish is undone.

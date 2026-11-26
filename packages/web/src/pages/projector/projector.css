@@ -19,11 +19,14 @@
 .proj-tables .lbl { color: var(--secondary-label); font-size: 0.75em; }
 .proj-tables .lbl:not(:empty) { font-variant-numeric: tabular-nums; }
 
-/* Status dots: a solid circle the size of a lowercase letter, centred on the name. */
-.proj .dot { display: inline-block; box-sizing: border-box; width: 0.6em; height: 0.6em; margin-right: 0.5em; vertical-align: 0.05em; border-radius: 50%; }
+/* Status markers: a 1em slot before the name; plain dots are a 0.6em circle, finished is a 1em checkered-flag tile. */
+/* The marker is positioned inside the slot (not in flow), so the slot's baseline, and so its height, is the same for every marker. */
+.proj .mark { position: relative; display: inline-block; width: 1em; height: 1em; margin-right: 0.5em; vertical-align: -0.15em; }
+.proj .dot { position: absolute; inset: 0; margin: auto; box-sizing: border-box; width: 0.6em; height: 0.6em; border-radius: 50%; }
 .proj .dot.not-ready { background: var(--danger); }
 .proj .dot.ready, .proj .dot.racing { background: var(--success); }
-.proj .dot.finished { background: repeating-conic-gradient(#000 0 25%, #fff 0 50%) 0 0 / 0.2em 0.2em; border: 0.06em solid rgba(255, 255, 255, 0.85); }
+/* A bold 3×3 checkerboard: each conic tile is 2×2 squares of a third of the marker. The outline keeps the squares whole. */
+.proj .dot.finished { width: 1em; height: 1em; border-radius: 0.12em; background: repeating-conic-gradient(#fff 0 25%, #111 0 50%) 0 0 / calc(2em / 3) calc(2em / 3); outline: 1px solid rgba(255, 255, 255, 0.8); }
 
 /*
  * Running: the big clock alone until the first team is in; then (.with-list) the clock shrinks to the top and the

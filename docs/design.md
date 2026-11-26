@@ -430,14 +430,14 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
   | Grand Championship finished | The champion, once no penalty is pending review (§4.1); brackets until then |
   | Event complete | Final standings, then the champion |
 
-- **Team rows and status dots.** The tables screen and the running screen share one row: table number, a round dot (about 0.6em, centred on the name) just left of the team name, and the race label or result at the right. The dot is one component taking a status, each with `role="img"` and a label:
+- **Team rows and status dots.** The tables screen and the running screen share one row: table number, a status marker in a fixed 1em slot just left of the team name (so names line up; plain dots are about 0.6em, centred on the name), and the race label or result at the right. The dot is one component taking a status, each with `role="img"` and a label:
 
   | Status | Look | Label | When |
   |---|---|---|---|
   | not ready | solid red (danger) | Not ready | round open, the team's table not ready yet |
   | ready | solid green (success) | Ready | round open, the referee pressed Ready for that table (or race control readied the station) |
   | racing | solid green | Racing | race running, the team has no result yet |
-  | finished | a small black-and-white checkerboard (checkered flag) in a circle with a thin light border | Finished | race running, the team has a time, DNF, DNS or DQ |
+  | finished | a checkered-flag tile: about 1em square with slightly rounded corners, a bold 3×3 white and near-black checkerboard, 1px light border | Finished | race running, the team has a time, DNF, DNS or DQ |
 
 - **Tables screen (open):** rows in table order. Each table's dot follows its own table, so the room can see which tables the start is waiting on. An excluded station's teams show not ready. Readiness travels in the small current-round update public screens get (at most one a second), so a dot turns green within about a second of the Ready.
 - **Running screen:** while no team has a result, the big master clock alone, as large as before. When the first team has a result (time, DNF, DNS or DQ), the clock shrinks and moves to the top (a 600 ms transition on a class change, so it keeps ticking; none under reduced motion) and the list fades in below it under a small "Preliminary times" heading (`aria-label="Teams"` on the list). The list then stays for the rest of the round, even if every result is undone; a projector that loads mid-race with results in starts in this layout. Every team of the round is listed, two columns filling down the first column first: teams with a time, fastest first (official time, ties by table), then DNF (DQ counts as DNF), then DNS, each by table, then teams still racing by table. A finished team shows its short result at the right (`3:41.20`, `3:46.20 (+5s)`, `3:41.20 · under review`, `DNF`, `DNS`, `DQ`); a team still racing shows its race label. Rows are keyed by team, so they move rather than being re-created. Two columns of 13 rows (26 tables) fit at 1920×1080.

@@ -68,7 +68,8 @@ export type DotStatus = 'not-ready' | 'ready' | 'racing' | 'finished';
 const DOT_LABEL: Record<DotStatus, string> = { 'not-ready': 'Not ready', ready: 'Ready', racing: 'Racing', finished: 'Finished' };
 
 export function StatusDot({ status }: { status: DotStatus }) {
-  return <span class={`dot ${status}`} role="img" aria-label={DOT_LABEL[status]} />;
+  // Every marker sits in the same fixed-width slot, so names line up whatever the status.
+  return <span class="mark"><span class={`dot ${status}`} role="img" aria-label={DOT_LABEL[status]} /></span>;
 }
 
 /** One row of the team list on the tables and clock screens: table, dot and name, and the race label or result. */

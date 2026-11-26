@@ -1,11 +1,11 @@
-import { formatMs, officialMs, rankRace, type DerivedEvent, type EntryResult } from '@race2feed/engine';
+import { formatMs, hundredths, officialMs, rankRace, type DerivedEvent, type EntryResult } from '@race2feed/engine';
 import { perStation, type Dismissal, type LiveEvent } from './model';
 import { buildProgress, recordedAt, seedTotals } from './results';
 import { refereeTeams, rotationOn } from './rotation';
 
 export type { Dismissal };
 
-/** A time this much faster than the fastest time recorded before it is flagged. */
+/** A time this much faster than the fastest time recorded before it is flagged (both taken at the hundredth, as shown). */
 export const FAST_MS = 30_000;
 /** A referee's tables keep winning: at least this many counted races… */
 export const WINS_MIN_RACES = 6;
@@ -21,7 +21,7 @@ export const OUTLIER_FROM_ROUND = 3;
 export const OUTLIER_MIN = 3;
 /** Too few: none, while the average is at least this. */
 export const OUTLIER_AVG_FOR_NONE = 2;
-/** Two teams at one referee finished this close together. */
+/** Two teams at one referee finished this close together (both times taken at the hundredth, as shown). */
 export const CLOSE_MS = 500;
 
 export type WarningKind = 'fast_time' | 'referee_wins' | 'repeat_team' | 'repeat_penalty' | 'penalty_outlier'
@@ -99,10 +99,11 @@ export function fairnessWarnings(e: LiveEvent, d: DerivedEvent): FairnessWarning
   for (const x of timed) {
     const before = timed.filter((y) => y.at < x.at).map((y) => y.ms);
     if (!before.length) continue;
-    const gain = Math.min(...before) - x.ms;
-    if (gain < FAST_MS) continue;
+    // Compared as the times are shown and ranked: at the hundredth.
+    const gain = hundredths(Math.min(...before)) - hundredths(x.ms);
+    if (gain < FAST_MS / 10) continue;
     warn('fast_time', x.round, judgeOf(x.round, x.teamId, x.table), [x.teamId],
-      `${team(x.teamId)}'s time of ${formatMs(x.ms, 'hundredths')} in round ${x.round} is ${(Math.floor(gain / 100) / 10).toFixed(1)} s faster than the fastest time before it.`);
+      `${team(x.teamId)}'s time of ${formatMs(x.ms, 'hundredths')} in round ${x.round} is ${(Math.floor(gain / 10) / 10).toFixed(1)} s faster than the fastest time before it.`);
   }
 
   // close_finish: two teams of one race, both judged by the same referee, almost level.
@@ -112,11 +113,12 @@ export function fairnessWarnings(e: LiveEvent, d: DerivedEvent): FairnessWarning
       const [msA, msB] = [official(round, a.teamId), official(round, b.teamId)];
       const judge = judgeOf(round, a.teamId, a.table);
       if (msA === null || msB === null || judge === null || judge !== judgeOf(round, b.teamId, b.table)) return;
-      const gap = Math.abs(msA - msB);
-      if (gap > CLOSE_MS) return;
+      // The gap between the two times as they are shown and ranked: at the hundredth.
+      const gap = Math.abs(hundredths(msA) - hundredths(msB));
+      if (gap > CLOSE_MS / 10) return;
       const who = nameOf(round, judge);
       warn('close_finish', round, judge, [a.teamId, b.teamId],
-        `${team(a.teamId)} and ${team(b.teamId)} finished ${(gap / 1000).toFixed(2)} s apart in round ${round}, both judged by ${who ?? 'one referee'}.`);
+        `${team(a.teamId)} and ${team(b.teamId)} finished ${(gap / 100).toFixed(2)} s apart in round ${round}, both judged by ${who ?? 'one referee'}.`);
     }));
   }
 

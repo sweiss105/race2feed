@@ -392,7 +392,7 @@ What each one means:
 
 | Warning | When you see it |
 |---|---|
-| **Very fast time** | A team's time is at least 30 seconds faster than the fastest time in the event before it. Check it wasn't a mistaken tap. |
+| **Very fast time** | A team's time is at least 30 seconds faster than the fastest time in the event before it, going by the times as shown (to the hundredth). Check it wasn't a mistaken tap. |
 | **One referee's teams keep doing well** | Over at least 6 bracket races, the teams one referee judged finished better than their seeding suggested far more often than worse. |
 | **Same referee, same team** | A referee has the same team for the third time, or two rounds running. It can't always be avoided with few referees, and a swap can cause it. |
 | **Same referee, same team penalised again** | A referee has given penalties to the same team in two or more rounds. |
@@ -633,7 +633,7 @@ The projector follows the event by itself:
 ![Projector: the Grand Champion and the bags packed](guide/images/projector-champion.jpg)
 
 **During the race**, once the first team is in, every team of the round is listed under the clock in two columns (down the first column, then the second):
-- The **red number is the finishing position** (1 for the fastest time so far). Teams still racing, and teams marked DNF, DNS or DQ, have no number. Two teams with exactly the same time share a position.
+- The **red number is the finishing position** (1 for the fastest time so far). Teams still racing, and teams marked DNF, DNS or DQ, have no number. Two teams showing the same time (equal to the hundredth of a second) share a position and are listed by table; the next team takes the position after them (1, 1, 3).
 - The team's **table** follows its name in grey, for example "Alpha (T1)".
 - Finished teams first, in the order they finished (fastest time first), each with a checkered-flag marker and its time: `3:41.20`, `3:46.20 (+5s)` with an approved penalty, `under review` while a penalty is pending. Then teams marked **DNF** (or **DQ**), then **DNS**.
 - Then the teams still racing, by table number, with a green dot and their race label.

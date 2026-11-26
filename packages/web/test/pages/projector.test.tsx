@@ -126,6 +126,15 @@ describe('projector', () => {
     expect([...list.querySelectorAll('.row .t')].map((t) => t.textContent)).toEqual(['1', '1', '', '']);
   });
 
+  it('times equal at the official hundredth share a position, by table, and the next team is third', () => {
+    // Heats: T1 v T4 on tables 1 and 2. Raw 60 008 ms and 60 001 ms both show 1:00.00; the engine calls them tied.
+    const e = withResults(start(heatsOpen(), 1_000_000), { T1: 60_008, T4: 60_001, T2: 60_010 });
+    show(viewOf(e), 1_000_000);
+    const list = screen.getByLabelText('Teams');
+    const rows = [...list.querySelectorAll('.row')].map((r) => [r.querySelector('.t')!.textContent, r.querySelector('.name')!.textContent, r.querySelector('.lbl')!.textContent]);
+    expect(rows.slice(0, 3)).toEqual([['1', 'T1', '1:00.00'], ['1', 'T4', '1:00.00'], ['3', 'T2', '1:00.01']]);
+  });
+
   it('keeps the list when a result is undone, and a new round starts big again', () => {
     const running = start(openNext(lockedFour()), 1_000_000);
     const { rerender } = show(viewOf(withResults(running, { T2: 221_200 })), 1_000_000);

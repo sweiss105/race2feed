@@ -80,8 +80,16 @@ describe('fast_time', () => {
     });
   });
 
-  it('stays quiet at 29 999 ms', () => {
-    expect(ofKind(play(lockedFour(), { T1: 200_000, T2: 170_001 }), 'fast_time')).toEqual([]);
+  it('stays quiet at 29.99 s on the times as shown', () => {
+    // 3:20.00 and 2:50.01.
+    expect(ofKind(play(lockedFour(), { T1: 200_000, T2: 170_010 }), 'fast_time')).toEqual([]);
+  });
+
+  it('compares the times staff see, at the hundredth', () => {
+    // 3:20.00 and 2:50.00 on every screen: 30.00 s apart, though the raw times are 29 991 ms apart.
+    expect(ofKind(play(lockedFour(), { T1: 200_000, T2: 170_009 }), 'fast_time').map((w) => w.message)).toEqual([
+      "T2's time of 2:50.00 in round 1 is 30.0 s faster than the fastest time before it.",
+    ]);
   });
 
   it('compares with times recorded earlier only, not with slower times that came later', () => {
@@ -147,8 +155,15 @@ describe('close_finish', () => {
     }]);
   });
 
-  it('stays quiet at 501 ms', () => {
-    expect(ofKind(close(501, roster(2)).e, 'close_finish')).toEqual([]);
+  it('stays quiet at 0.51 s on the times as shown', () => {
+    expect(ofKind(close(510, roster(2)).e, 'close_finish')).toEqual([]);
+  });
+
+  it('measures the gap between the times staff see, at the hundredth', () => {
+    // 3:40.00 and 3:40.50 on every screen, though the raw times are 509 ms apart.
+    expect(ofKind(close(509, roster(2)).e, 'close_finish').map((w) => w.message.includes('finished 0.50 s apart'))).toEqual([true]);
+    // 3:40.00 and 3:40.00: the same time on every screen, not "0.01 s apart".
+    expect(ofKind(close(8, roster(2)).e, 'close_finish').map((w) => w.message.includes('finished 0.00 s apart'))).toEqual([true]);
   });
 
   it('stays quiet when the two teams had different referees', () => {

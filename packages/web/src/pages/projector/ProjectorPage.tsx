@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'preact/hooks';
 import './projector.css';
 import '../participant/brackets.css';
-import { formatMs } from '@race2feed/engine';
+import { formatMs, hundredths } from '@race2feed/engine';
 import type { PublicView } from '../../lib/types';
 import { champions, rowsPerColumn, scheduleRows, teamName, tierOf } from '../../lib/selectors';
 import { buildBracketCards } from '../../lib/bracketModel';
@@ -113,12 +113,13 @@ function Clock({ state, serverNow }: { state: PublicView; serverNow: () => numbe
   const withList = anyIn || listRound === round;
   // A finished team (DNF, DNS and DQ included) shows its result. Order: times fastest first, then DNF (and DQ), then DNS,
   // then teams still racing; ties and each group by table. Keyed by team so rows move rather than being re-created.
+  // Times compare at the engine's official precision (hundredths), so two teams showing the same time are level.
   const rows = withList ? scheduleRows(state).map((r) => {
     const x = entrants.get(r.teamId);
     const done = Boolean(x && (x.status !== 'pending' || x.dq));
     const group = !x || !done ? 3 : x.dq || x.status === 'dnf' ? 1 : x.status === 'dns' ? 2 : 0;
     return {
-      ...r, group, ms: group === 0 ? x!.officialMs ?? Infinity : 0,
+      ...r, group, ms: group === 0 && x!.officialMs !== null ? hundredths(x!.officialMs) : group === 0 ? Infinity : 0,
       dot: (done ? 'finished' : 'racing') as DotStatus, right: done ? timeText(x!, { short: true }) : r.label,
     };
   }).sort((a, b) => a.group - b.group || a.ms - b.ms || a.table - b.table) : [];

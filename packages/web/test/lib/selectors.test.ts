@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { nextRaceFor, scheduleRows, seedingRow, teamSearch } from '../../src/lib/selectors';
+import { nextRaceFor, rowsPerColumn, scheduleRows, seedingRow, teamSearch } from '../../src/lib/selectors';
 import { heatsOpen, lockedFour, previousEvent, runRound, seedTimes, teamId, viewOf } from '../support/state';
 
 describe('teamSearch', () => {
@@ -48,5 +48,11 @@ describe('schedule and seeding', () => {
   it('gives seeding rank, total and both runs', () => {
     const e = heatsOpen();
     expect(seedingRow(viewOf(e), teamId(e, 'T2'))).toEqual({ rank: 2, totalMs: 220_000, runs: [110_000, 110_000] });
+  });
+});
+
+describe('rowsPerColumn', () => {
+  it('splits the teams over two columns', () => {
+    expect([1, 2, 8, 9, 26, 50].map(rowsPerColumn)).toEqual([1, 1, 4, 5, 13, 25]);
   });
 });

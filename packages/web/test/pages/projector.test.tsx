@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { handleLifecycle } from '../../../server/src/core/lifecycle';
-import { admin, ctx, ok, referee } from '../../../server/test/core/helpers';
+import { admin, blank, csvFor, ctx, ok, referee } from '../../../server/test/core/helpers';
+import { handleSetup } from '../../../server/src/core/setup';
 import type { LiveEvent } from '../../../server/src/core/model';
 import { render, screen, cleanup, within } from '@testing-library/preact';
 import { ProjectorPage } from '../../src/pages/projector/ProjectorPage';
@@ -51,6 +52,19 @@ describe('projector', () => {
     expect([...document.querySelectorAll('.proj-tables .row .t')].map((t) => t.textContent)).toEqual(['1', '2', '3', '4']);
     expect(screen.queryByRole('img', { name: 'Racing' })).toBeNull();
     expect(screen.queryByRole('img', { name: 'Finished' })).toBeNull();
+  });
+
+  it('sizes the team list for its rows per column: 8 teams, 4 rows', () => {
+    let e = ok(handleSetup(blank(8), { type: 'importTeams', csv: csvFor({ T: 8 }).replace(/T (\d)/g, 'T$1') }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'setGrandChampionship', enabled: false }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+    e = openNext(ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin))));
+    show(viewOf(e));
+    expect(document.querySelectorAll('.proj-tables .row').length).toBe(8);
+    expect((document.querySelector('.proj-tables') as HTMLElement).style.getPropertyValue('--rows')).toBe('4');
+    cleanup();
+    show(viewOf(withResults(start(e, 1_000_000), { T2: 221_200 })), 1_000_000);
+    expect(screen.getByLabelText('Teams').style.getPropertyValue('--rows')).toBe('4');
   });
 
   it('a single table ready turns only its own team green', () => {

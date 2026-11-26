@@ -543,6 +543,8 @@ The projector follows the event by itself:
 - Finished teams first, in the order they finished (fastest time first), each with a checkered-flag marker and its time: `3:41.20`, `3:46.20 (+5s)` with an approved penalty, `under review` while a penalty is pending. Then teams marked **DNF** (or **DQ**), then **DNS**.
 - Then the teams still racing, by table number, with a green dot and their race label.
 
+With fewer teams in a round, the team list on the **Tables** and **Clock** screens uses bigger text to fill the screen, as big as the longest team name allows on one line. A very long name may end in "…" on a full 26-table round.
+
 The times are preliminary until race control finishes the round. The list stays up for the rest of the race, even if a finish is undone.
 
 Race control can pin any screen, including **standings**, from the console (see [Projector control](#projector-control)). If the projector seems stuck on one screen, check whether it's been pinned.

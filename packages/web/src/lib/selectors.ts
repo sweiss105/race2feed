@@ -47,6 +47,9 @@ export function scheduleRows(state: PublicView): { table: number; teamId: string
     .sort((a, b) => a.table - b.table);
 }
 
+/** Rows in each of the projector's two team-list columns (filled down the first column, then the second). */
+export const rowsPerColumn = (teams: number): number => Math.max(1, Math.ceil(teams / 2));
+
 export function seedingRow(state: PublicView, teamId: string): { rank: number | null; totalMs: number | null; runs: (number | null)[] } {
   const runs = state.rounds
     .filter((r) => r.kind === 'seeding')

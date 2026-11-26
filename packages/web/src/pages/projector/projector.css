@@ -13,8 +13,26 @@
 
 .proj-welcome { flex: 1; display: grid; place-content: center; justify-items: center; text-align: center; gap: 4vh; }
 
-.proj-tables { columns: 2; column-gap: 4vw; font-size: clamp(1rem, 2.5vh, 2rem); }
-.proj-tables .row { break-inside: avoid; display: grid; grid-template-columns: 3.2em 1fr auto; gap: 1em; align-items: baseline; padding: 0.35em 0; border-bottom: 1px solid var(--separator); }
+/*
+ * Team lists (tables screen and running list) scale with the number of teams: .proj-fit is a size container holding the
+ * space left under the header, and the rows' font size is that height shared out over --rows rows per column (--k is a
+ * row's height in em). It is also capped by width, so the round's longest name (--name-ch characters) and right-hand
+ * text (--right-ch) fit on one line in a column: a row is about 6.7em of table number, marker and gaps plus ~0.55em a
+ * character. Never smaller than the base size (so 26 tables look as before; an ellipsis is the last resort) and at
+ * most 3× it. The screen is exactly one viewport tall so the container has a definite height.
+ */
+.proj:has(.proj-fit) { height: 100dvh; }
+.proj-fit { flex: 1; min-height: 0; container-type: size; }
+.proj-tables {
+  --rows: 13; --k: 2.2; --fs: clamp(1rem, 2.5vh, 2rem); --name-ch: 20; --right-ch: 15;
+  columns: 2; column-gap: 4vw;
+  font-size: clamp(var(--fs),
+    min(calc(90cqh / (var(--rows) * var(--k))), calc((100cqw - 4vw) / 2 / (6.7 + 0.55 * var(--name-ch) + 0.41 * var(--right-ch)))),
+    calc(3 * var(--fs)));
+}
+.proj-tables .row { break-inside: avoid; display: grid; grid-template-columns: 3.2em minmax(0, 1fr) auto; gap: 1em; align-items: baseline; padding: 0.35em 0; border-bottom: 1px solid var(--separator); }
+.proj-tables .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-tables .lbl { white-space: nowrap; }
 .proj-tables .t { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent); text-align: right; }
 .proj-tables .lbl { color: var(--secondary-label); font-size: 0.75em; }
 .proj-tables .lbl:not(:empty) { font-variant-numeric: tabular-nums; }
@@ -40,7 +58,8 @@
 .proj-race { min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 1vh; }
 .proj-clock.with-list .proj-race { padding-top: 2vh; animation: proj-fade 600ms ease-out; }
 .proj-race h3 { margin: 0; font-size: clamp(0.9rem, 2vh, 1.5rem); }
-.proj-race-list { font-size: clamp(0.9rem, 2.2vh, 1.7rem); }
+.proj-race .proj-fit { flex: 1; }
+.proj-race-list { --k: 2; --fs: clamp(0.9rem, 2.2vh, 1.7rem); }
 .proj-race-list .row { padding: 0.25em 0; }
 
 .proj-columns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3vw; font-size: clamp(1rem, 2.3vh, 1.9rem); }

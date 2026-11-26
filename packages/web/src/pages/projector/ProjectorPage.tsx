@@ -3,7 +3,7 @@ import './projector.css';
 import '../participant/brackets.css';
 import { formatMs } from '@race2feed/engine';
 import type { PublicView } from '../../lib/types';
-import { champions, scheduleRows, teamName, tierOf } from '../../lib/selectors';
+import { champions, rowsPerColumn, scheduleRows, teamName, tierOf } from '../../lib/selectors';
 import { buildBracketCards } from '../../lib/bracketModel';
 import { QR } from '../../ui/QR';
 import { timeText } from '../../ui/Time';
@@ -56,8 +56,10 @@ function Tables({ state, siteUrl }: { state: PublicView; siteUrl: string }) {
         </div>
         <div class="proj-qr"><span class="url">{host(siteUrl)}</span><QR value={siteUrl} size="13vh" /></div>
       </header>
-      <div class="proj-body proj-tables">
-        {rows.map((r) => <TeamRow key={r.teamId} table={r.table} name={r.name} dot={r.ready ? 'ready' : 'not-ready'} right={r.label} />)}
+      <div class="proj-body proj-fit">
+        <div class="proj-tables" style={listStyle(rows, rows.map((r) => r.label))}>
+          {rows.map((r) => <TeamRow key={r.teamId} table={r.table} name={r.name} dot={r.ready ? 'ready' : 'not-ready'} right={r.label} />)}
+        </div>
       </div>
     </>
   );
@@ -71,6 +73,16 @@ export function StatusDot({ status }: { status: DotStatus }) {
   // Every marker sits in the same fixed-width slot, so names line up whatever the status.
   return <span class="mark"><span class={`dot ${status}`} role="img" aria-label={DOT_LABEL[status]} /></span>;
 }
+
+/**
+ * For the team list's CSS: rows per column (to fill the height available) and the longest name and right-hand text in
+ * characters (so the text never grows past what fits on one line).
+ */
+const listStyle = (rows: { name: string }[], rights: string[]) => ({
+  '--rows': String(rowsPerColumn(rows.length)),
+  '--name-ch': String(Math.max(1, ...rows.map((r) => r.name.length))),
+  '--right-ch': String(Math.max(1, ...rights.map((t) => t.length))),
+}) as Record<string, string>;
 
 /** One row of the team list on the tables and clock screens: table, dot and name, and the race label or result. */
 function TeamRow({ table, name, dot, right }: { table: number; name: string; dot: DotStatus; right: string }) {
@@ -115,8 +127,11 @@ function Clock({ state, serverNow }: { state: PublicView; serverNow: () => numbe
           {withList && (
             <>
               <h3 class="proj-kicker">Preliminary times</h3>
-              <div class="proj-tables proj-race-list" aria-label="Teams">
-                {rows.map((r) => <TeamRow key={r.teamId} table={r.table} name={r.name} dot={r.dot} right={r.right} />)}
+              <div class="proj-fit">
+                <div class="proj-tables proj-race-list" aria-label="Teams"
+                  style={listStyle(rows, [...rows.map((r) => r.label), ...rows.map((r) => r.right), '3:46.20 (+5s)'])}>
+                  {rows.map((r) => <TeamRow key={r.teamId} table={r.table} name={r.name} dot={r.dot} right={r.right} />)}
+                </div>
               </div>
             </>
           )}

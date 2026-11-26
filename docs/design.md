@@ -102,6 +102,8 @@ Weaknesses this design fixes:
 
 ### 3.3 Round structure
 
+This is the **standard format**. The seeding rounds, the seeding rank and the bracket rounds can be set per event: see §3.10.
+
 - **Seeding rounds:** each seeding group races twice, and groups take turns (A, B, A, B; with three groups, A, B, C, A, B, C). This gives `2 × groups` seeding rounds.
 - **Bracket rounds:**
   - Brackets are split into a **lower set** (each category's brackets below Silver) and an **upper set** (Gold and Silver).
@@ -154,7 +156,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 - No later round can be opened, and the champion can't be shown, until every team in it has a time, DNF or DNS. The blocker names the round and the teams, e.g. "Round 3: Alpha and Delta have no result. Enter a time, DNF or DNS."
 - This applies to every kind of round, seeding included. Rounds already opened keep their saved line-ups.
 
-**Seeding rank within a category:**
+**Seeding rank within a category** (the standard rule, "total time"; the other rules are in §3.10):
 1. Teams with two finished runs rank above teams with fewer finished runs.
 2. Then by lowest total time.
 3. Then by fastest single run.
@@ -306,6 +308,41 @@ All times in this section are **official times**: the raw time plus any penaltie
   3. **Referee assignments**: `round,referee,station,tables,teams`. One row per referee per round that has saved assignments (§3.7), by round then station. Rounds opened with rotation off have no rows.
 - Team names in a cell are joined with `; `, as are tables. Times are ISO 8601 in UTC.
 - Text is escaped as in the event CSV: quoted where needed, and a cell that begins with `=`, `+`, `-` or `@` gets a leading apostrophe so a spreadsheet does not read it as a formula.
+
+### 3.10 Tournament format
+
+*Added 2026-11-26 (`docs/superpowers/specs/2026-11-26-tournament-format-design.md`).*
+
+The event's setup carries an optional `format`. Every field is optional, and a missing field (or a missing `format`, as on every event stored before this) has today's value, so such an event behaves exactly as before. The engine reads it only through `formatOf()`.
+
+| Field | Values | Default |
+|---|---|---|
+| `seedingRuns` | 1, 2, 3 | 2 |
+| `seedingRank` | `total`, `best`, `dropSlowest` | `total` |
+| `brackets` | `placement`, `finals`, `none`, `knockout` | `placement` |
+
+Combinations that are refused (`validateFormat()`, plain sentences): `best` with 1 run ("Best run needs at least two seeding rounds."), `dropSlowest` with fewer than 3 runs ("Drop the slowest needs three seeding rounds."), and any value not in the table.
+
+**Seeding rounds.** Every seeding group runs `seedingRuns` times: all groups' run 1, then all groups' run 2, then run 3. That is `seedingRuns × groups` seeding rounds. Tables are the same for every run.
+
+**Seeding rank.** Within a category, at the displayed hundredth, on official times:
+
+- **Total time (`total`):** more finished runs ranks higher; then the lower total; then the better single run; then team order. (The standard rule of §3.5, for 1–3 runs.)
+- **Best run (`best`):** the lower best single run ranks higher; a team with no finished run ranks last; ties by the lower total of finished runs, then team order.
+- **Drop the slowest (`dropSlowest`):** each team's slowest run is ignored, and a run that was not finished (DNF, DNS) counts as that slowest run. So with 3 runs a team is ranked on its best two: more counted runs ranks higher (a team with two unfinished runs has only one to count), then the lower total of the counted runs, then the better single run, then team order.
+
+The value a team is ranked on is its **seeding score** (`seedingScore()`): the total of its finished runs, its best run, or the total of its counted runs, cut to the hundredth; nothing when it has no run to count. Ranking and the score come from the same calculation, so they cannot disagree.
+
+**Bracket format.**
+
+- **Heats, then placement (`placement`):** §3.3 and §3.4, unchanged.
+- **Finals only (`finals`):** each bracket races once, all its teams in one race named "{category} {tier} · Final"; the finishing order is the bracket's result, and a tie is decided by race control as in any race. One `finals` round per table-sized chunk of brackets, chunked and ordered exactly as the heats are (lower set, then upper set). There is no placement round. Bracket sizes follow the same rules as the standard format.
+- **Seeding only (`none`):** no bracket rounds and no brackets in setup; a bracket left in the setup is a problem at lock ("Seeding only uses no brackets. Remove them, or suggest groups and brackets again."). Each category's final order is its seeding order. It is decided when every seeding round is finished and none of them is missing a result; until then every place is undecided. A seeding result cleared later makes the places undecided again until it is entered.
+- **Knockout (`knockout`):** not built yet; the round plan refuses it.
+
+**Category winners.** The engine reports each category's winner (`categoryWinners`): the first place of its standings, so the top bracket's winner, or the top seed in seeding only.
+
+**Grand Championship** works with every format: each category's winner races. With seeding only that is each category's top seed, and the round is scheduled when at least two categories have a team; with one such category there is no Grand Championship round and the event ends after the last seeding round.
 
 ### 4.1 Show champion and end the event
 

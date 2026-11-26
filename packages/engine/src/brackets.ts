@@ -1,16 +1,18 @@
-import type { BracketSpec, Category, EventInput, Team } from './types';
+import { formatOf, type BracketFormat, type BracketSpec, type Category, type EventInput, type Team } from './types';
 
 export const DEFAULT_TIERS = ['Gold', 'Silver', 'Bronze', 'Copper', 'Tin'];
 
 const tierName = (i: number, names: string[]) => names[i] ?? `Tier ${i + 1}`;
 
-/** Brackets of 4 by seed; 1–3 leftover teams fold into the last bracket. */
+/** Brackets of 4 by seed; 1–3 leftover teams fold into the last bracket. Seeding only ('none') has no brackets. */
 export function suggestBracketPlan(
   categories: Category[],
   teams: Team[],
   tierNames: string[] = DEFAULT_TIERS,
+  format: BracketFormat = 'placement',
 ): BracketSpec[] {
   const plan: BracketSpec[] = [];
+  if (format === 'none') return plan;
   for (const category of categories) {
     const n = teams.filter((t) => t.categoryId === category.id).length;
     if (n === 0) continue;
@@ -35,11 +37,14 @@ export function suggestBracketPlan(
 /**
  * The categories that send a winner to the Grand Championship: those whose top bracket holds at least one team.
  * A bracket whose category is gone or has no teams produces no winner.
+ * Seeding only has no brackets: every category with at least one team sends its top seed.
  */
-export function grandCategories(input: Pick<EventInput, 'categories' | 'teams' | 'brackets'>): string[] {
+export function grandCategories(input: Pick<EventInput, 'categories' | 'teams' | 'brackets' | 'format'>): string[] {
+  const seedingOnly = formatOf(input).brackets === 'none';
   return input.categories
     .filter((c) => {
       const n = input.teams.filter((t) => t.categoryId === c.id).length;
+      if (seedingOnly) return n >= 1;
       return input.brackets.some((b) => b.categoryId === c.id && b.tierIndex === 0 && n >= b.firstSeed);
     })
     .map((c) => c.id);
@@ -47,25 +52,29 @@ export function grandCategories(input: Pick<EventInput, 'categories' | 'teams' |
 
 export function validateBracketPlan(input: EventInput): string[] {
   const errors: string[] = [];
-  // A bracket left behind by a category that no longer exists (its last team was removed).
-  for (const b of input.brackets) {
-    if (!input.categories.some((c) => c.id === b.categoryId)) {
-      errors.push(`${b.tierName} bracket "${b.id}": its category has no teams. Remove it, or suggest groups and brackets again.`);
+  if (formatOf(input).brackets === 'none') {
+    if (input.brackets.length) errors.push('Seeding only uses no brackets. Remove them, or suggest groups and brackets again.');
+  } else {
+    // A bracket left behind by a category that no longer exists (its last team was removed).
+    for (const b of input.brackets) {
+      if (!input.categories.some((c) => c.id === b.categoryId)) {
+        errors.push(`${b.tierName} bracket "${b.id}": its category has no teams. Remove it, or suggest groups and brackets again.`);
+      }
     }
-  }
-  for (const category of input.categories) {
-    const n = input.teams.filter((t) => t.categoryId === category.id).length;
-    const brackets = input.brackets
-      .filter((b) => b.categoryId === category.id)
-      .sort((a, b) => a.tierIndex - b.tierIndex);
-    const total = brackets.reduce((sum, b) => sum + b.size, 0);
-    if (total !== n) errors.push(`${category.name}: brackets hold ${total} teams but the category has ${n}`);
-    let expected = 1;
-    for (const b of brackets) {
-      if (b.firstSeed !== expected) errors.push(`${category.name} ${b.tierName}: seeds must start at ${expected}`);
-      expected = b.firstSeed + b.size;
-      if (n >= 4 && (b.size < 4 || b.size > 7)) errors.push(`${category.name} ${b.tierName}: size must be 4–7`);
-      if (b.size > input.tableCount) errors.push(`${category.name} ${b.tierName}: larger than the ${input.tableCount} tables`);
+    for (const category of input.categories) {
+      const n = input.teams.filter((t) => t.categoryId === category.id).length;
+      const brackets = input.brackets
+        .filter((b) => b.categoryId === category.id)
+        .sort((a, b) => a.tierIndex - b.tierIndex);
+      const total = brackets.reduce((sum, b) => sum + b.size, 0);
+      if (total !== n) errors.push(`${category.name}: brackets hold ${total} teams but the category has ${n}`);
+      let expected = 1;
+      for (const b of brackets) {
+        if (b.firstSeed !== expected) errors.push(`${category.name} ${b.tierName}: seeds must start at ${expected}`);
+        expected = b.firstSeed + b.size;
+        if (n >= 4 && (b.size < 4 || b.size > 7)) errors.push(`${category.name} ${b.tierName}: size must be 4–7`);
+        if (b.size > input.tableCount) errors.push(`${category.name} ${b.tierName}: larger than the ${input.tableCount} tables`);
+      }
     }
   }
   if (input.grandChampionship) {

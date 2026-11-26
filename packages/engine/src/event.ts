@@ -1,4 +1,4 @@
-import type { BracketSpec, EventInput, EventProgress, RaceRole, SavedRace } from './types';
+import { formatOf, type BracketSpec, type EventInput, type EventProgress, type RaceRole, type SavedRace } from './types';
 import { rankRace, type RaceRanking } from './race';
 import { rankSeeding } from './seeding';
 import { buildHeats, buildPlacement } from './brackets';
@@ -24,12 +24,20 @@ export interface RoundView {
 
 export interface DerivedEvent {
   rounds: RoundView[];
-  /** null until every seeding round is locked */
+  /**
+   * Rank within category by the format's seeding rule; null until the first round after seeding is reached.
+   * Seeding only: null until every seeding round is locked with no result missing.
+   */
   seedRank: Record<string, number> | null;
-  /** categoryId → teamId per place (index 0 = 1st); null = undecided */
+  /**
+   * categoryId → teamId per place (index 0 = 1st); null = undecided.
+   * Seeding only: the category's teams in seed order, all null until seedRank is known.
+   */
   standings: Record<string, (string | null)[]>;
+  /** categoryId → the category's winner (standings[categoryId][0]); null while undecided or without teams. */
+  categoryWinners: Record<string, string | null>;
   grandChampion: string | null;
-  /** bracketId → team ids in seed order; null until the first non-seeding round is reached */
+  /** bracketId → team ids in seed order; null until the first bracket round is reached, and always in seeding only */
   bracketMembers: Record<string, string[]> | null;
   /** Why later rounds cannot open, in plain words: undecided ties and finished rounds missing a result. */
   blockers: string[];
@@ -46,6 +54,9 @@ type Draft = Omit<SavedRace, 'tables'>;
 
 export function deriveEvent(input: EventInput, progress: EventProgress): DerivedEvent {
   const plan = buildRoundPlan(input);
+  const format = formatOf(input);
+  /** Seeding only: no brackets, the seeding order is the result. */
+  const seedingOnly = format.brackets === 'none';
   const categoryName = new Map(input.categories.map((c) => [c.id, c.name]));
   const bracketById = new Map(input.brackets.map((b) => [b.id, b]));
   const bracketLabel = (b: BracketSpec) => `${categoryName.get(b.categoryId) ?? b.categoryId} ${b.tierName}`;
@@ -72,10 +83,11 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
       rounds.push({ spec, status: 'blocked', races: [] });
       continue;
     }
-    if (spec.kind !== 'seeding' && members === null) {
+    if (spec.kind !== 'seeding' && !seedingOnly && members === null) {
       seedRank = computeSeedRank();
       members = progress.bracketMembers ? new Map(Object.entries(progress.bracketMembers)) : computeMembers(seedRank);
     }
+    if (spec.kind !== 'seeding' && seedingOnly) seedRank ??= settledSeedRank();
 
     const results = progress.results[spec.round] ?? {};
     const laid: { race: Draft; tables: number[] }[] = saved
@@ -121,10 +133,13 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
     }
   }
 
+  if (seedingOnly) seedRank ??= settledSeedRank();
+  const standings = computeStandings();
   return {
     rounds,
     seedRank,
-    standings: computeStandings(),
+    standings,
+    categoryWinners: Object.fromEntries(input.categories.map((c) => [c.id, standings[c.id]?.[0] ?? null])),
     grandChampion: computeChampion(),
     bracketMembers: members ? Object.fromEntries(members) : null,
     blockers,
@@ -163,6 +178,7 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
     }
     if (spec.kind === 'grand') {
       const teams = input.categories.flatMap((c) => {
+        if (seedingOnly) return input.teams.filter((t) => t.categoryId === c.id && seedRank?.[t.id] === 1).map((t) => t.id);
         const top = input.brackets.find((b) => b.categoryId === c.id && b.tierIndex === 0);
         const winner = top ? bracketWinner(top.id) : null;
         return winner ? [winner] : [];
@@ -173,6 +189,9 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
       const bracket = bracketById.get(bracketId)!;
       const seeded = members!.get(bracketId) ?? [];
       const base = { bracketId, fallbackOrder: seeded };
+      if (spec.kind === 'finals') {
+        return [{ ...base, id: `${r}:${bracketId}:final`, label: `${bracketLabel(bracket)} · Final`, role: 'final', teams: seeded }];
+      }
       if (spec.kind === 'heats') {
         if (seeded.length < 4) {
           return [{ ...base, id: `${r}:${bracketId}:final`, label: `${bracketLabel(bracket)} · Race`, role: 'final', teams: seeded }];
@@ -195,7 +214,7 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
   }
 
   function computeSeedRank(): Record<string, number> {
-    const run = (n: 1 | 2) => {
+    const run = (n: number) => {
       const out: Record<string, EventProgress['results'][number][string] | undefined> = {};
       for (const spec of seedingRounds.filter((s) => s.run === n)) {
         const group = input.groups.find((g) => g.id === spec.groupId);
@@ -203,7 +222,18 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
       }
       return out;
     };
-    return rankSeeding(input.teams, run(1), run(2));
+    return rankSeeding(input.teams, Array.from({ length: format.seedingRuns }, (_, i) => run(i + 1)), format.seedingRank);
+  }
+
+  /**
+   * Seeding only: the seed rank once every seeding round is locked and none of them is missing a result
+   * (a seeding race has one team, so it cannot tie); null before that. Seeding rounds come first in the plan,
+   * so by the first later round, and after the last round, `missing` already covers all of them.
+   */
+  function settledSeedRank(): Record<string, number> | null {
+    const done = seedingRounds.length > 0
+      && seedingRounds.every((s) => s.round <= progress.finishedRounds && !missing.some((m) => m.round === s.round));
+    return done ? computeSeedRank() : null;
   }
 
   function computeMembers(rank: Record<string, number>): Map<string, string[]> {
@@ -237,6 +267,12 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
     for (const c of input.categories) {
       const n = input.teams.filter((t) => t.categoryId === c.id).length;
       const places: (string | null)[] = Array.from({ length: n }, () => null);
+      if (seedingOnly) {
+        const rank = seedRank;
+        if (rank) input.teams.filter((t) => t.categoryId === c.id).forEach((t) => (places[rank[t.id]! - 1] = t.id));
+        standings[c.id] = places;
+        continue;
+      }
       for (const b of input.brackets.filter((x) => x.categoryId === c.id)) {
         bracketOrder(b.id)?.forEach((teamId, i) => (places[b.firstSeed - 1 + i] = teamId));
       }

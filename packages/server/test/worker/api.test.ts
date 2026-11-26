@@ -337,8 +337,9 @@ describe('cross-site console requests', () => {
     expect((await call('/api/emergency/login', { password: EMERGENCY_PASSWORD }, { ip: '10.2.0.5' })).status).toBe(200);
   });
 
-  it('leaves referee, Companion and public routes alone', async () => {
-    const pub = await connect({ role: 'public', headers: FOREIGN });
+  it('refuses another origin on the public socket too; the site itself connects', async () => {
+    expect((await upgrade({ role: 'public', headers: FOREIGN })).status).toBe(403);
+    const pub = await connect({ role: 'public', headers: OWN });
     expect((await pub.next('snapshot', 0)).type).toBe('snapshot');
     pub.ws.close();
   });

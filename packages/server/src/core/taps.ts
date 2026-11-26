@@ -6,9 +6,18 @@ import { tablesFor } from './rotation';
 
 /** Clock skew allowed between a synced device and the server. */
 const FUTURE_TOLERANCE_MS = 2000;
+/** A finish that arrives this long after the time its device gave for it is recorded as late (fairness.ts flags it). */
+export const LATE_FINISH_MS = 10_000;
+/** Penalties one device may have waiting for race control on one team in one round. */
+export const MAX_PENDING_PENALTIES = 10;
 
 export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResult {
   const ok = (event: LiveEvent) => done(event, cmd, ctx);
+  /** The answer to a resend: success, so the device drops it from its queue, and nothing changes. */
+  const resent = (): CommandResult => {
+    const r = done(e, cmd, ctx);
+    return r.ok ? { ...r, unchanged: true } : r;
+  };
   const current = e.round.current;
 
   /**
@@ -55,7 +64,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
   switch (cmd.type) {
     case 'tapFinish': {
       if (!validId(cmd.clientTapId) || !Number.isFinite(cmd.atServerMs) || !validTapRound(cmd.round)) return fail('invalid', 'A tap needs an id and a time.');
-      if (isResend(cmd.clientTapId, cmd.teamId, 'finish')) return ok(e);
+      if (isResend(cmd.clientTapId, cmd.teamId, 'finish')) return resent();
       const denied = roundOver(cmd.round) ?? refereeCheck(cmd.teamId);
       if (denied) return denied;
       const startedAt = e.round.startedAt!;
@@ -66,15 +75,22 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       const tap = newTap({
         clientTapId: cmd.clientTapId, kind: 'finish', round: current, teamId: cmd.teamId,
         elapsedMs: cmd.atServerMs - startedAt, source: 'referee',
+        // The device's time decides the result (it may have been offline); how late it arrived is kept for race control.
+        ...(ctx.now - cmd.atServerMs >= LATE_FINISH_MS ? { lateMs: Math.round(ctx.now - cmd.atServerMs) } : {}),
       });
       return ok({ ...e, taps: [...e.taps, tap] });
     }
     case 'tapPenalty': {
       if (!validId(cmd.clientTapId) || !validTapRound(cmd.round)) return fail('invalid', 'A tap needs an id.');
-      if (isResend(cmd.clientTapId, cmd.teamId, 'penalty')) return ok(e);
+      if (isResend(cmd.clientTapId, cmd.teamId, 'penalty')) return resent();
       const denied = roundOver(cmd.round) ?? refereeCheck(cmd.teamId);
       if (denied) return denied;
       if (!e.settings.penaltiesEnabled) return fail('penalties_disabled', 'Time penalties are switched off.');
+      const waiting = e.taps.filter((t) => t.kind === 'penalty' && t.round === current && t.teamId === cmd.teamId
+        && t.deviceId === ctx.actor.deviceId && t.removedAt === null && reviewOf(t).status === 'pending').length;
+      if (waiting >= MAX_PENDING_PENALTIES) {
+        return fail('too_many_penalties', 'This team already has penalties waiting for race control. Ask race control to decide them first.');
+      }
       const tap = newTap({
         clientTapId: cmd.clientTapId, kind: 'penalty', round: current, teamId: cmd.teamId,
         amountMs: 0, source: 'referee',

@@ -76,8 +76,8 @@ Every page opens a WebSocket: `/api/ws` for phones, the projector, referee devic
 |---|---|
 | `GET /api/health` | Liveness check |
 | `GET /api/ws` | WebSocket upgrade for phones, the projector, referee devices and Companion (public, or authenticated by the device cookie or `Authorization: Bearer <key>`; `?role=public` forces public, `?role=referee` authenticates with the device cookie only). A session cookie signs no one in here. |
-| `POST /api/pair` | `{code, name}`. Pairs a referee device, stores the name (1–40 chars, else `400 name_required` with the code unspent) and sets the `r2f_device` cookie |
-| `POST /api/command` | `{cmd}`. Runs one command as the referee device (device cookie) or Companion (Bearer key) |
+| `POST /api/pair` | `{code, name}`. Pairs a referee device, stores the name (1–40 chars, else `400 name_required` with the code unspent) and sets the `r2f_device` cookie. A code that is not 8 characters of the pairing alphabet is refused (`400 invalid_code`) without asking the hub; after 10 wrong codes an address waits (`429 too_many_attempts`, one more try every 30 seconds) |
+| `POST /api/command` | `{cmd}`. Runs one command as the referee device (device cookie) or Companion (Bearer key). The hub checks the credential and runs the command in one step |
 | `GET /api/me` | Who the referee device or Companion is (role, label, station); `?as=referee` answers from the device cookie only |
 | `GET /api/control/me` | The console: who is signed in (`{role: 'admin', label: <email>}`) |
 | `POST /api/control/command` | The console: `{cmd}`, run as the signed-in email |
@@ -88,7 +88,21 @@ Every page opens a WebSocket: `/api/ws` for phones, the projector, referee devic
 | `POST /api/emergency/logout` | Ends the emergency session and closes its sockets |
 | `/api/emergency/me`, `/command`, `/events`, `/apikeys`, `/export`, `/ws` | The same as under `/api/control/`, signed in by the `r2f_session` cookie, as `emergency sign-in` |
 
-Every `/api/control/*` and `/api/emergency/*` route answers `403 {error: 'cross_site'}` when the request's `Origin` is another site's or `Sec-Fetch-Site` is `cross-site` (no `Origin` passes). Every `/api/control/*` route answers `401 {error: 'unauthorized'}` without a valid Access token and `503 {error: 'access_not_configured'}` when `ACCESS_TEAM_DOMAIN` or `ACCESS_AUD` is missing. Every `/api/emergency/*` route answers `404` while `EMERGENCY_PASSWORD` is unset, and `401` without a valid session.
+Every `/api/*` route but `/api/health` answers `403 {error: 'cross_site'}` when the request's `Origin` is not the site's own or `Sec-Fetch-Site` is `cross-site` or `same-site` (no `Origin` passes, so Companion and scripts are unaffected).
+
+A command answers `{ok: true, reply?}` or `{ok: false, code, message, detail?}` and nothing else, over HTTP and over a socket; the event itself only ever travels in a role's view.
+
+Limits, all enforced by the Worker or the hub:
+
+- **Request bodies:** 4 KB on `/api/pair`, `/api/command` and the emergency login, 1 MB on console commands (`413 too_large`).
+- **Socket messages:** 4 KB for phones, referee devices and Companion (the socket is closed with 1009), 1 MB for the console.
+- **Message rate:** a socket that is not the console's may send 80 messages at once and 10 a second after that, then it is closed (1008).
+- **Command rate:** each referee device and each Companion key may send 60 commands at once and 5 a second after that (`429` with code `rate_limited`; a referee's queue keeps the tap and sends it again).
+- **Public sockets:** at most 2,000 at once; more get `503` with `Retry-After`. Every phone gets the same snapshot, built once per change.
+
+These budgets are kept in the hub's memory and start again when it restarts. A flood from many addresses is still Cloudflare's to stop: add a rate-limiting rule for `/api/*` on the zone if you expect one.
+
+Every `/api/control/*` route answers `401 {error: 'unauthorized'}` without a valid Access token and `503 {error: 'access_not_configured'}` when `ACCESS_TEAM_DOMAIN` or `ACCESS_AUD` is missing. Every `/api/emergency/*` route answers `404` while `EMERGENCY_PASSWORD` is unset, and `401` without a valid session.
 
 Session, device and API-key tokens are stored only as SHA-256 hashes. There is one console role (`admin` in code); a hub start deletes any console password and `control` sessions stored by older versions.
 
@@ -96,7 +110,7 @@ Session, device and API-key tokens are stored only as SHA-256 hashes. There is o
 
 - **Cloudflare Access** (application "PRC console") covers `r2f.weiss-audio.com/control*` and `r2f.weiss-audio.com/api/control/*`, with an emailed one-time code and an allow list kept in Cloudflare's Zero Trust dashboard. Sessions last 14 days.
 - **The Worker checks Access's token** (`src/auth/access.ts`, `src/auth/console.ts`) on every `/api/control/*` request: the `Cf-Access-Jwt-Assertion` header must be an RS256 token signed by one of the team's keys (`https://{ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`, cached for an hour; if a later fetch fails the cached keys stay in use), from issuer `https://{ACCESS_TEAM_DOMAIN}`, for audience `ACCESS_AUD`, unexpired and with an email. The email is the actor in the log.
-- **Cross-site requests are refused** on the console routes, since Access's `CF_Authorization` cookie (SameSite Lax, set on the Access application) and the emergency session are cookies. A console socket that stays silent is still closed (4401) at the first update after its token expires.
+- **Requests from another origin are refused** on every API route, since Access's `CF_Authorization` cookie (SameSite Lax, set on the Access application), the emergency session and the referee device token are cookies, and a SameSite cookie still travels from another `weiss-audio.com` host. A console socket that stays silent is still closed (4401) at the first update after its Access token or its emergency session expires.
 - **Console sockets:** the Worker passes the signed-in name and token expiry to the hub in the internal `x-r2f-console` header (URI-encoded JSON, so any email fits in a header; a value that does not decode counts as absent). It deletes that header from every incoming request first, and the hub reads it only on `/api/control/ws` and `/api/emergency/ws`.
 - **Emergency sign-in** at `/emergency` is outside Access: one password, the Worker secret `EMERGENCY_PASSWORD`. Nothing links to it; the staff guide's troubleshooting section describes it.
 - **Local development and tests:** `DEV_CONSOLE_USER` signs every console request in as that name, except on the production hostname.
@@ -113,7 +127,8 @@ Content-Type: application/json
 {"cmd": {"type": "startRace"}}
 ```
 
-- **Accepted:** `200` with `{"ok": true, ...}`.
+- **Accepted:** `200` with `{"ok": true}`.
+- **Too many commands at once:** `429` with `{"ok": false, "code": "rate_limited", ...}` (60 at once, then 5 a second).
 - **Refused by a gate:** `400` with `{"ok": false, "code": "...", "message": "..."}`, for example `stations_not_ready` or `teams_outstanding`.
 - **Bad or revoked key:** `401`.
 
@@ -194,10 +209,10 @@ The app is deployed to Cloudflare Workers on the custom domain **r2f.weiss-audio
 | Workflow | Trigger | Steps |
 |---|---|---|
 | `.github/workflows/ci.yml` | Every pull request | `npm ci`, typecheck, `npm test`, install Chromium, `npm run e2e` |
-| `.github/workflows/deploy.yml` | Push to `main`, or run by hand (**Actions → Deploy → Run workflow**) | The same checks, then `npm run build` and `npx wrangler deploy -c packages/server/wrangler.jsonc` |
+| `.github/workflows/deploy.yml` | Push to `main`, or run by hand on `main` (**Actions → Deploy → Run workflow**; a run from any other branch or tag is skipped) | The same checks, then `npm run build` and `npx wrangler deploy -c packages/server/wrangler.jsonc` |
 
 - **Nothing deploys unless every check passes.** Deploys never overlap: a newer push waits for the current deploy.
-- **The deploy job uses the GitHub environment `production`.** You can add required reviewers there so each deploy waits for approval.
+- **The deploy job uses the GitHub environment `production`.** Limit its deployment branches to `main`, keep the Cloudflare secrets there, and add required reviewers so each deploy waits for approval (`packages/server/README.md`).
 
 **Cloudflare config** (`packages/server/wrangler.jsonc`):
 - Worker `race2feed`, entry `src/worker.ts`.

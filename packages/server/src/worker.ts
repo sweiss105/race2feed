@@ -1,5 +1,5 @@
 import { Hub } from './hub';
-import { CONSOLE_HEADER, credentials, DEVICE_COOKIE, SESSION_COOKIE, sessionToken } from './http';
+import { clientIp, CONSOLE_HEADER, credentials, DEVICE_COOKIE, SESSION_COOKIE, sessionToken } from './http';
 import { accessKeyFetcher } from './auth/access';
 import { consoleUser, encodeConsoleIdentity } from './auth/console';
 import type { Actor } from './core/model';
@@ -25,35 +25,84 @@ export const json = (body: unknown, status = 200, headers: HeadersInit = {}): Re
 const setCookie = (name: string, value: string, maxAgeSeconds: number) =>
   `${name}=${value}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAgeSeconds}`;
 
-async function body(request: Request): Promise<Record<string, unknown>> {
+/** Largest request body from a phone, a referee device or Companion: a pairing, a sign-in or one command. */
+const SMALL_BODY = 4 * 1024;
+/** Largest console body: a pasted team list is the biggest thing race control sends. */
+const CONSOLE_BODY = 1024 * 1024;
+
+/**
+ * The JSON object in the request body, `{}` when it is not one, or null when it is longer than
+ * `limit` bytes. Nothing past the limit is read.
+ */
+async function body(request: Request, limit: number): Promise<Record<string, unknown> | null> {
+  if (Number(request.headers.get('content-length') ?? 0) > limit) return null;
+  const chunks: Uint8Array[] = [];
+  let size = 0;
+  if (request.body) {
+    const reader = request.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) {
+        await reader.cancel();
+        return null;
+      }
+      chunks.push(value);
+    }
+  }
   try {
-    const parsed = await request.json();
+    const bytes = new Uint8Array(size);
+    let at = 0;
+    for (const c of chunks) { bytes.set(c, at); at += c.byteLength; }
+    const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
     return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
   } catch {
     return {};
   }
 }
 
+const tooLarge = () => json({ ok: false, code: 'too_large', message: 'That request is too large.' }, 413);
+
+/** A pairing code as the console shows it: 8 characters of the hub's alphabet (no I, O, 0 or 1). */
+const PAIRING_CODE = /^[A-HJ-NP-Z2-9]{8}$/;
+
 type HubStub = DurableObjectStub<Hub>;
 
 /**
- * A request another site's page made in the browser: an `Origin` that is not this site's, or
- * `Sec-Fetch-Site: cross-site`. The console's credentials are cookies (Access's and the emergency
- * session), so console routes refuse these. No `Origin` (curl, a same-origin navigation) passes.
+ * A request a page on another origin made in the browser: an `Origin` that is not this site's, or a
+ * `Sec-Fetch-Site` of `cross-site` or `same-site`. The console's and the referee devices' credentials
+ * are cookies, and SameSite cookies still travel from a sibling site (another weiss-audio.com host),
+ * so every API route refuses these. No `Origin` (curl, Companion, a same-origin GET) passes.
  */
-function crossSite(request: Request, url: URL): boolean {
+function crossOrigin(request: Request, url: URL): boolean {
   const origin = request.headers.get('origin');
-  return (origin !== null && origin !== url.origin) || request.headers.get('sec-fetch-site') === 'cross-site';
+  const site = request.headers.get('sec-fetch-site');
+  return (origin !== null && origin !== url.origin) || site === 'cross-site' || site === 'same-site';
 }
 
-async function runCommand(hub: HubStub, actor: Actor, request: Request): Promise<Response> {
-  const { cmd } = await body(request);
+type AnyCommand = Parameters<Hub['command']>[1];
+
+/** The `cmd` in a command request's body, or the response that refuses the request. */
+async function commandIn(request: Request, limit: number): Promise<{ cmd: AnyCommand } | { refused: Response }> {
+  const parsed = await body(request, limit);
+  if (!parsed) return { refused: tooLarge() };
+  const { cmd } = parsed;
   if (!cmd || typeof cmd !== 'object' || typeof (cmd as { type?: unknown }).type !== 'string') {
-    return json({ ok: false, code: 'invalid', message: 'Missing command.' }, 400);
+    return { refused: json({ ok: false, code: 'invalid', message: 'Missing command.' }, 400) };
   }
-  // RPC return types are erased for unions with `unknown` members; the shape is CommandResult.
-  const result = (await hub.command(actor, cmd as Parameters<Hub['command']>[1])) as { ok: boolean };
-  return json(result, result.ok ? 200 : 400);
+  return { cmd: cmd as AnyCommand };
+}
+
+/** The hub's answer to a command (`CommandAck`: never the event itself) as a response. */
+const ackResponse = (ack: { ok: boolean; code?: string }): Response =>
+  json(ack, ack.ok ? 200 : ack.code === 'rate_limited' ? 429 : 400);
+
+async function runCommand(hub: HubStub, actor: Actor, request: Request): Promise<Response> {
+  const read = await commandIn(request, CONSOLE_BODY);
+  if ('refused' in read) return read.refused;
+  // RPC return types are erased for unions with `unknown` members; the shape is CommandAck.
+  return ackResponse((await hub.command(actor, read.cmd)) as { ok: boolean });
 }
 
 /**
@@ -101,9 +150,7 @@ export default {
 
     if (path === '/api/health') return json({ ok: true });
 
-    if ((path.startsWith('/api/control/') || path.startsWith('/api/emergency/')) && crossSite(request, url)) {
-      return json({ error: 'cross_site' }, 403);
-    }
+    if (crossOrigin(request, url)) return json({ error: 'cross_site' }, 403);
 
     if (path.startsWith('/api/control/')) {
       const now = Date.now();
@@ -116,10 +163,11 @@ export default {
       if (!env.EMERGENCY_PASSWORD) return json({ error: 'not_found' }, 404);
       const route = path.slice('/api/emergency'.length);
       if (route === '/login' && post) {
-        const { password } = await body(request);
+        const sent = await body(request, SMALL_BODY);
+        if (!sent) return tooLarge();
+        const { password } = sent;
         if (typeof password !== 'string') return json({ error: 'invalid' }, 400);
-        const ip = request.headers.get('cf-connecting-ip') ?? 'local';
-        const r = await hub.login(password, ip);
+        const r = await hub.login(password, clientIp(request));
         if (!r.ok) return json({ error: r.status === 429 ? 'too_many_attempts' : 'invalid_login' }, r.status);
         return json({ ok: true, role: 'admin' }, 200, { 'set-cookie': setCookie(SESSION_COOKIE, r.token, 12 * 60 * 60) });
       }
@@ -136,22 +184,32 @@ export default {
     if (path === '/api/ws') return hub.fetch(request);
 
     if (path === '/api/pair' && post) {
-      const { code, name } = await body(request);
+      const sent = await body(request, SMALL_BODY);
+      if (!sent) return tooLarge();
+      const { code, name } = sent;
       if (typeof code !== 'string') return json({ error: 'invalid' }, 400);
+      // A code that cannot be one never reaches the hub.
+      const pairingCode = code.trim().toUpperCase();
+      if (!PAIRING_CODE.test(pairingCode)) return json({ error: 'invalid_code' }, 400);
       // Checked before the code is looked up, so a missing name never spends the code.
       // The name is shown to staff: one-space runs, no control or format characters.
       const refName = typeof name === 'string' ? name.replace(/\s+/gu, ' ').trim() : '';
       if (refName.length === 0 || refName.length > 40 || /[\p{Cc}\p{Cf}]/u.test(refName)) return json({ error: 'name_required' }, 400);
-      const r = await hub.pair(code, refName);
-      if (!r.ok) return json({ error: 'invalid_code' }, 400);
+      const r = await hub.pair(pairingCode, refName, clientIp(request));
+      if (!r.ok) return r.tooMany ? json({ error: 'too_many_attempts' }, 429) : json({ error: 'invalid_code' }, 400);
       return json({ ok: true, station: r.station }, 200, { 'set-cookie': setCookie(DEVICE_COOKIE, r.deviceToken, 30 * 24 * 60 * 60) });
     }
 
     // Referee devices (device cookie) and Companion (Bearer key) only; a session cookie signs no one in here.
+    // The hub checks the credential and runs the command in one step, so a device or key revoked
+    // while the request was on its way changes nothing.
     if (path === '/api/command' && post) {
-      const actor = await hub.authenticate(credentials(request));
-      if (!actor) return json({ error: 'unauthorized' }, 401);
-      return runCommand(hub, actor, request);
+      const cred = credentials(request);
+      if (!cred.device && !cred.apiKey) return json({ error: 'unauthorized' }, 401);
+      const read = await commandIn(request, SMALL_BODY);
+      if ('refused' in read) return read.refused;
+      const ack = (await hub.commandWith(cred, read.cmd)) as { ok: boolean } | null;
+      return ack ? ackResponse(ack) : json({ error: 'unauthorized' }, 401);
     }
 
     if (path === '/api/me' && request.method === 'GET') {

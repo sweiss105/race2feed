@@ -249,3 +249,46 @@ describe('race control results', () => {
     expect(names(ok(r), 3)).toEqual(names(e, 3));
   });
 });
+
+describe('resends, late finishes and waiting penalties', () => {
+  it('marks a resend as unchanged, through applyCommand too, and returns the same event', () => {
+    const e = ok(tapFinish(running(), 'T1', START + 200_000, 'same'));
+    const cmd = { type: 'tapFinish' as const, teamId: teamId(e, 'T1'), atServerMs: START + 200_000, clientTapId: 'same' };
+    for (const again of [handleTaps(e, cmd, ctx(referee(1), START + 300_000)), applyCommand(e, cmd, ctx(referee(1), START + 300_000))]) {
+      expect(again).toMatchObject({ ok: true, unchanged: true });
+      if (again.ok) expect(again.event).toBe(e);
+    }
+    const first = tapFinish(running(), 'T1', START + 200_000, 'new');
+    expect(first.ok && first.unchanged).toBeFalsy();
+  });
+
+  it('records how late a finish arrived, from 10 s; the time itself is the device’s', () => {
+    const onTime = ok(tapFinish(running(), 'T1', START + 200_000, 'a', START + 200_000 + 9_999));
+    expect(onTime.taps[0]).not.toHaveProperty('lateMs');
+    const late = ok(tapFinish(running(), 'T1', START + 200_000, 'b', START + 245_000));
+    expect(late.taps[0]).toMatchObject({ elapsedMs: 200_000, lateMs: 45_000, createdAt: START + 245_000 });
+    expect(result(late, 'T1')).toEqual({ status: 'finished', rawMs: 200_000, penaltiesMs: 0 });
+  });
+
+  it('refuses an eleventh penalty from one device on one team while ten wait for race control', () => {
+    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(admin, START)));
+    const pen = (ev: LiveEvent, name: string, id: string) =>
+      handleTaps(ev, { type: 'tapPenalty', teamId: teamId(ev, name), clientTapId: id }, ctx(referee(1), START + 100_000));
+    for (let i = 0; i < 10; i++) e = ok(pen(e, 'T1', `p${i}`));
+    expect(code(pen(e, 'T1', 'p10'))).toBe('too_many_penalties');
+    expect(code(pen(e, 'T2', 'other-team'))).toBe('ok');
+    // A resend of one already taken is still answered as done.
+    expect(pen(e, 'T1', 'p3')).toMatchObject({ ok: true, unchanged: true });
+    // Once race control has decided one, there is room again.
+    e = ok(handleTaps(e, { type: 'decidePenalty', tapId: e.taps.find((t) => t.clientTapId === 'p0')!.id, decision: 'reject' }, ctx(admin, START + 110_000)));
+    expect(code(pen(e, 'T1', 'p10'))).toBe('ok');
+  });
+
+  it('logs only the known fields of a referee command', () => {
+    const e = running();
+    const r = handleTaps(e, { type: 'tapPenalty', teamId: teamId(e, 'T1'), clientTapId: 'c'.repeat(300), junk: { deep: 'x'.repeat(5000) } } as never, ctx(referee(1), START));
+    expect(code(r)).toBe('invalid');
+    const fine = handleTaps(e, { type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: START + 5, clientTapId: 'k', junk: 'x'.repeat(5000) } as never, ctx(referee(1), START + 5));
+    expect(fine.ok && fine.audit.detail).toEqual({ type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: START + 5, clientTapId: 'k', round: undefined });
+  });
+});

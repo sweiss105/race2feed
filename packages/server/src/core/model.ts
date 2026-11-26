@@ -14,6 +14,11 @@ export interface Tap {
   teamId: string;
   /** finish only */
   elapsedMs?: number;
+  /**
+   * Referee finish taps only: how long after the time the device gave for the tap the server received it,
+   * when that is LATE_FINISH_MS or more (the device was offline and sent the tap from its queue).
+   */
+  lateMs?: number;
   /** penalty only */
   amountMs?: number;
   source: 'referee' | 'control';
@@ -155,9 +160,39 @@ export type Command = SetupCommand | LifecycleCommand | TapCommand;
 
 export interface AuditEntry { action: Command['type']; actor: string; detail: unknown }
 
+/** unchanged: the command was a resend of one already applied; there is nothing to save, record or broadcast. */
 export type CommandResult =
-  | { ok: true; event: LiveEvent; audit: AuditEntry; reply?: unknown }
+  | { ok: true; event: LiveEvent; audit: AuditEntry; reply?: unknown; unchanged?: true }
   | { ok: false; code: string; message: string; detail?: unknown };
+
+/** What the sender of a command is told, over HTTP and over a socket alike: never the event or the audit entry. */
+export type CommandAck =
+  | { ok: true; reply?: unknown }
+  | { ok: false; code: string; message: string; detail?: unknown };
+
+export function ackOf(result: CommandResult | CommandAck): CommandAck {
+  if (result.ok) return { ok: true, ...(result.reply === undefined ? {} : { reply: result.reply }) };
+  return { ok: false, code: result.code, message: result.message, ...(result.detail === undefined ? {} : { detail: result.detail }) };
+}
+
+const text = (v: unknown, max: number) => (typeof v === 'string' ? v.slice(0, max) : undefined);
+const whole = (v: unknown) => (Number.isFinite(v) ? (v as number) : undefined);
+
+/**
+ * What the audit log keeps of a command. A referee device's commands are cut down to their known,
+ * bounded fields, so a device cannot fill the log with anything else it adds to a command.
+ */
+function auditDetail(cmd: Command): unknown {
+  const c = cmd as unknown as Record<string, unknown>;
+  switch (cmd.type) {
+    case 'stationReady': return { type: cmd.type, table: whole(c.table) };
+    case 'tapFinish': return { type: cmd.type, teamId: text(c.teamId, 100), atServerMs: whole(c.atServerMs), clientTapId: text(c.clientTapId, 100), round: whole(c.round) };
+    case 'tapPenalty': return { type: cmd.type, teamId: text(c.teamId, 100), clientTapId: text(c.clientTapId, 100), round: whole(c.round) };
+    case 'undoTap': return { type: cmd.type, tapId: text(c.tapId, 100) };
+    case 'notePenalty': return { type: cmd.type, tapId: text(c.tapId, 100), reasonId: text(c.reasonId, 100), note: text(c.note, 200) };
+    default: return cmd;
+  }
+}
 
 /** roster: the paired referees, passed by the hub (the only code that knows the devices). */
 export interface Ctx { now: number; actor: Actor; newId: () => string; roster?: RosterEntry[] }
@@ -184,7 +219,7 @@ export function newEvent(id: string, name: string, date: string, tableCount: num
 
 /** Successful result; the dispatcher fills in the audit entry. */
 export function done(event: LiveEvent, cmd: Command, ctx: Ctx, reply?: unknown): CommandResult {
-  return { ok: true, event, audit: { action: cmd.type, actor: ctx.actor.label, detail: cmd }, ...(reply === undefined ? {} : { reply }) };
+  return { ok: true, event, audit: { action: cmd.type, actor: ctx.actor.label, detail: auditDetail(cmd) }, ...(reply === undefined ? {} : { reply }) };
 }
 
 export function fail(code: string, message: string, detail?: unknown): CommandResult {

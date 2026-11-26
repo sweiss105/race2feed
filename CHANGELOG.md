@@ -2,6 +2,20 @@
 
 Notable changes to PRC, newest first. Day-to-day detail is in the git history.
 
+## 2026-11-26 — Security review fixes
+
+Fixes for the ten findings of a whole-repository security scan (revision `204b990`).
+
+- **New fairness warning, Finish arrived late.** A referee's finish that reaches the server 10 seconds or more after the time the device gave for it is flagged for race control. The time still counts as tapped, as before.
+- **Switching events ends pairing for good.** Making a different event active now revokes every paired device and deletes unused pairing codes. Before, a device paired to an event worked again if that event was made active later. The staff guide already said devices must be paired again.
+- **Requests from another origin are refused on every API route,** not only the console's, including another host under `weiss-audio.com`. Companion and scripts (no `Origin` header) are unaffected.
+- **A command's answer is only `{ok, reply}` or `{ok, code, message}`.** `POST /api/command` used to answer a referee device or Companion with the whole event.
+- **A revoked device or Companion key can no longer slip one command through** `POST /api/command`: the credential is checked in the same step that runs the command.
+- **An emergency sign-in's socket closes when its 12 hours end,** even if it never sends anything.
+- **A resent tap writes nothing.** It is still answered as done, but the hub no longer saves, logs and broadcasts for it.
+- **New limits:** 4 KB bodies and socket messages for phones, referee devices and Companion; 60 commands at once then 5 a second per referee device or Companion key (`429 rate_limited`); 10 waiting penalties per device, team and round; 2,000 public sockets; an address waits after 10 wrong pairing codes. The README lists them under HTTP API.
+- **Deploys only from `main`.** A Deploy workflow run started by hand from another branch or tag is skipped. `packages/server/README.md` says how to lock the `production` environment to `main` and move the Cloudflare secrets into it.
+
 ## 2026-11-26 — Referee devices, not tablets
 
 Referees use their own phone or tablet; nothing is handed out. The screens and the staff guide said "tablet" for what a referee uses, which read as if tablets were supplied. They now say **device**.

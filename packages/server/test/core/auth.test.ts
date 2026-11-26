@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { hashPassword, randomToken, sha256Hex, verifyPassword } from '../../src/auth/crypto';
-import { loginAllowed } from '../../src/auth/ratelimit';
+import { Budget, loginAllowed } from '../../src/auth/ratelimit';
 
 describe('passwords', () => {
   it('verify the right password only', async () => {
@@ -44,5 +44,34 @@ describe('shouldTouch', () => {
     expect(shouldTouch(null, 1_000)).toBe(true);
     expect(shouldTouch(1_000, 60_999)).toBe(false);
     expect(shouldTouch(1_000, 61_000)).toBe(true);
+  });
+});
+
+describe('Budget', () => {
+  it('allows a burst, then one per interval, per key', () => {
+    const b = new Budget(3, 2);
+    expect([b.take('a', 0), b.take('a', 0), b.take('a', 0), b.take('a', 0)]).toEqual([true, true, true, false]);
+    expect(b.take('b', 0)).toBe(true);
+    expect(b.take('a', 400)).toBe(false);
+    expect(b.take('a', 500)).toBe(true);
+    expect(b.take('a', 500)).toBe(false);
+    expect(b.take('a', 60_000)).toBe(true);
+  });
+
+  it('has() looks without spending, and a refusal spends nothing', () => {
+    const b = new Budget(1, 1);
+    expect(b.has('a', 0)).toBe(true);
+    expect(b.has('a', 0)).toBe(true);
+    expect(b.take('a', 0)).toBe(true);
+    expect(b.has('a', 0)).toBe(false);
+    for (let i = 0; i < 5; i++) expect(b.take('a', 10)).toBe(false);
+    expect(b.take('a', 1000)).toBe(true);
+  });
+
+  it('forgets keys rather than growing without end', () => {
+    const b = new Budget(2, 1, 3);
+    for (const k of ['a', 'b', 'c', 'd', 'e']) expect(b.take(k, 0)).toBe(true);
+    // A forgotten key simply starts again with a full budget.
+    expect(b.take('a', 0)).toBe(true);
   });
 });

@@ -25,7 +25,7 @@ export const OUTLIER_AVG_FOR_NONE = 2;
 export const CLOSE_MS = 500;
 
 export type WarningKind = 'fast_time' | 'referee_wins' | 'repeat_team' | 'repeat_penalty' | 'penalty_outlier'
-  | 'close_finish' | 'undo_changed_winner' | 'final_one_referee';
+  | 'close_finish' | 'undo_changed_winner' | 'final_one_referee' | 'late_finish';
 
 /**
  * A pattern race control should look at. It never blocks anything.
@@ -51,7 +51,7 @@ const listed = (items: (string | number)[]): string =>
  * Who judged a team in a round: the referee whose saved assignment has the team's table; without one, the device
  * that made the team's finish tap (its name is known only if it has an assignment in some round).
  * Finished rounds count for every kind. The open or running round also counts for repeat_team and
- * final_one_referee (known when it opens) and for fast_time, close_finish and undo_changed_winner (as results arrive).
+ * final_one_referee (known when it opens) and for fast_time, close_finish, undo_changed_winner and late_finish (as results arrive).
  */
 export function fairnessWarnings(e: LiveEvent, d: DerivedEvent): FairnessWarning[] {
   const results = buildProgress(e).results;
@@ -120,6 +120,14 @@ export function fairnessWarnings(e: LiveEvent, d: DerivedEvent): FairnessWarning
       warn('close_finish', round, judge, [a.teamId, b.teamId],
         `${team(a.teamId)} and ${team(b.teamId)} finished ${(gap / 100).toFixed(2)} s apart in round ${round}, both judged by ${who ?? 'one referee'}.`);
     }));
+  }
+
+  // late_finish: a finish whose time comes from the device alone, because the server received it well after that time.
+  for (const tap of e.taps) {
+    if (tap.kind !== 'finish' || tap.source !== 'referee' || tap.removedAt !== null || tap.round > current) continue;
+    if (tap.deviceId === undefined || !Number.isFinite(tap.lateMs)) continue;
+    warn('late_finish', tap.round, tap.deviceId, [tap.teamId],
+      `${team(tap.teamId)}'s finish in round ${tap.round} reached the server ${Math.round((tap.lateMs as number) / 1000)} s after the time the referee's device gave for it.`);
   }
 
   // undo_changed_winner: a referee took back a finish tap, and with that tap another team would have won.

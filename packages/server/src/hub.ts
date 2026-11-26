@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './worker';
 import { applyCommand } from './core/apply';
-import { fail, newEvent, type Actor, type Command, type CommandResult, type LiveEvent, type RosterEntry } from './core/model';
+import { ackOf, fail, newEvent, type Actor, type Command, type CommandAck, type CommandResult, type LiveEvent, type RosterEntry } from './core/model';
 import { derive } from './core/results';
 import { backfillLineups } from './core/lineups';
 import { withLateReferee, withoutReferee } from './core/rotation';
@@ -12,7 +12,7 @@ import { needsSnapshot } from './core/broadcast';
 import { autoFinishDelay, nextAlarm } from './core/autofinish';
 import { CONSOLE_HEADER, credentials, hasCredentials, sessionToken, type Credentials } from './http';
 import { randomToken, sha256Hex } from './auth/crypto';
-import { LOCKOUT_WINDOW_MS, loginAllowed, shouldTouch } from './auth/ratelimit';
+import { Budget, LOCKOUT_WINDOW_MS, loginAllowed, shouldTouch } from './auth/ratelimit';
 import { decodeConsoleIdentity } from './auth/console';
 
 export type HubCommand =
@@ -29,7 +29,7 @@ export type { Credentials };
 
 /** Hashed credentials only: raw tokens never sit in socket attachments. */
 interface CredentialHashes { session?: string; device?: string; apiKey?: string }
-/** `exp`: when a console socket's Access sign-in ends (ms); absent or null for no end. */
+/** `exp`: when a console socket's sign-in ends (ms): the Access token's expiry, or the emergency session's; absent or null for no end. */
 interface Attachment { actor: Actor; cred: CredentialHashes; exp?: number | null }
 
 /** The console sockets: the Worker signs these in and says who in the CONSOLE_HEADER. */
@@ -61,6 +61,19 @@ function refereeLabel(name: string | null, station: number): string {
 }
 
 const PAIRING_MS = 10 * 60 * 1000;
+
+/** Phones and projectors connected at once; more are turned away so they cannot crowd out the event's staff. */
+export const MAX_PUBLIC_SOCKETS = 2000;
+/** Largest socket message from anyone but the console: a ping or one referee or Companion command. */
+const SMALL_FRAME = 4 * 1024;
+/** Largest console socket message: a pasted team list is the biggest thing race control sends. */
+const CONSOLE_FRAME = 1024 * 1024;
+/** Commands from one referee device or Companion key: a burst (an offline queue arriving at once), then a steady rate. */
+const COMMAND_BUDGET = { burst: 60, perSecond: 5 };
+/** Messages on one socket that is not the console's: clock pings, and a referee's or Companion's commands. */
+const FRAME_BUDGET = { burst: 80, perSecond: 10 };
+/** Wrong pairing codes from one address before it has to wait. */
+const PAIR_BUDGET = { burst: 10, perSecond: 1 / 30 };
 const PAIRING_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 const HUB_COMMANDS: Record<HubCommand['type'], Actor['role'][]> = {
@@ -93,6 +106,12 @@ export class Hub extends DurableObject<Env> {
   private lastPublicSent = 0;
   /** When the paced public round update is due, or null when none is waiting. In memory only, like lastPublicSent. */
   private publicDue: number | null = null;
+  /** The snapshot sent to a connecting phone, kept until the displayed event changes. */
+  private publicSnapshot: { event: LiveEvent | null; message: string } | null = null;
+  // Budgets live in memory only: they start again full when the hub restarts or wakes from hibernation.
+  private commandBudget = new Budget(COMMAND_BUDGET.burst, COMMAND_BUDGET.perSecond);
+  private pairBudget = new Budget(PAIR_BUDGET.burst, PAIR_BUDGET.perSecond);
+  private frameBudgets = new WeakMap<WebSocket, Budget>();
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -195,17 +214,31 @@ export class Hub extends DurableObject<Env> {
     return null;
   }
 
-  async pair(code: string, name: string): Promise<{ ok: true; deviceToken: string; station: number } | { ok: false }> {
-    const token = randomToken();
-    // Hashed first: nothing below waits, so the event cannot change between the checks and the save.
-    const tokenHash = await sha256Hex(token);
-    const now = Date.now();
-    const key = code.trim().toUpperCase();
+  /** The pairing code's station if the code can be used right now. Reads only. */
+  private usableCode(key: string, now: number): { event_id: string; station: number } | null {
     const row = this.sql.exec<{ event_id: string; station: number; expires_at: number }>(
       'SELECT event_id, station, expires_at FROM pairing_codes WHERE code = ?', key).toArray()[0];
+    return row && row.expires_at > now && this.active && row.event_id === this.active.id ? row : null;
+  }
+
+  /** `ip`: wrong codes are counted per address; `tooMany` once an address has sent too many. */
+  async pair(code: string, name: string, ip = 'local'):
+    Promise<{ ok: true; deviceToken: string; station: number } | { ok: false; tooMany?: true }> {
+    const key = code.trim().toUpperCase();
+    if (!this.pairBudget.has(ip, Date.now())) return { ok: false, tooMany: true };
+    // A wrong code costs one lookup: no token is made for it.
+    if (!this.usableCode(key, Date.now())) {
+      this.pairBudget.take(ip, Date.now());
+      return { ok: false };
+    }
+    const token = randomToken();
+    // Hashed before the code is spent: nothing below waits, so the event cannot change between the checks and the save.
+    const tokenHash = await sha256Hex(token);
+    const now = Date.now();
+    const row = this.usableCode(key, now);
     this.sql.exec('DELETE FROM pairing_codes WHERE code = ? OR expires_at <= ?', key, now);
     const before = this.active;
-    if (!row || row.expires_at <= now || !before || row.event_id !== before.id) return { ok: false };
+    if (!row || !before) return { ok: false };
     const id = crypto.randomUUID();
     // Paired while a round is open: the referee takes their station for this round if it has no referee.
     const d = this.safeDerive(before);
@@ -235,7 +268,28 @@ export class Hub extends DurableObject<Env> {
 
   // ---------- commands ----------
 
-  async command(actor: Actor, cmd: Command | HubCommand): Promise<CommandResult | { ok: true; reply: unknown }> {
+  /** A console command: the Worker has signed `actor` in. The answer never carries the event. */
+  async command(actor: Actor, cmd: Command | HubCommand): Promise<CommandAck> {
+    return ackOf(await this.run(actor, cmd));
+  }
+
+  /**
+   * A referee device's or Companion's command with its credential, or null when the credential is not
+   * valid right now. Nothing waits between that check and the change, so a revoked device or key, or
+   * one from an event that is no longer active, changes nothing.
+   */
+  async commandWith(cred: Credentials, cmd: Command | HubCommand): Promise<CommandAck | null> {
+    const hashed = await hashCredentials({ ...(cred.device ? { device: cred.device } : {}), ...(cred.apiKey ? { apiKey: cred.apiKey } : {}) });
+    const actor = this.authenticateHashed(hashed);
+    return actor ? ackOf(await this.run(actor, cmd)) : null;
+  }
+
+  private async run(actor: Actor, cmd: Command | HubCommand): Promise<CommandResult | { ok: true; reply: unknown }> {
+    if (actor.role === 'referee' || actor.role === 'companion') {
+      if (!this.commandBudget.take(actor.deviceId ?? actor.label, Date.now())) {
+        return fail('rate_limited', 'Too many commands at once. Wait a moment and try again.');
+      }
+    }
     if (Object.hasOwn(HUB_COMMANDS, cmd.type)) {
       const hubCmd = cmd as HubCommand;
       if (!HUB_COMMANDS[hubCmd.type].includes(actor.role)) return fail('forbidden', 'You are not allowed to do that.');
@@ -243,7 +297,8 @@ export class Hub extends DurableObject<Env> {
     }
     if (!this.active) return fail('no_active_event', 'Create or activate an event first.');
     const result = applyCommand(this.active, cmd as Command, { now: Date.now(), actor, newId: () => crypto.randomUUID(), roster: this.roster() });
-    if (!result.ok) return result;
+    // A resend of a command already applied: nothing to save, record or send.
+    if (!result.ok || result.unchanged) return result;
     const event = result.event;
     this.ctx.storage.transactionSync(() => {
       this.sql.exec('UPDATE events SET doc = ? WHERE id = ?', JSON.stringify(event), event.id);
@@ -277,7 +332,14 @@ export class Hub extends DurableObject<Env> {
       case 'activateEvent': {
         const exists = this.sql.exec('SELECT id FROM events WHERE id = ?', cmd.eventId).toArray().length;
         if (!exists) return fail('not_found', 'No such event.');
+        const switched = this.active?.id !== cmd.eventId;
         this.ctx.storage.transactionSync(() => {
+          if (this.active?.id !== cmd.eventId) {
+            // Pairing belongs to one activation of an event: devices and codes from before the switch
+            // never work again, even if their event is made active again later.
+            this.sql.exec('UPDATE devices SET revoked_at = ? WHERE revoked_at IS NULL', now);
+            this.sql.exec('DELETE FROM pairing_codes');
+          }
           this.sql.exec('UPDATE events SET active = CASE WHEN id = ? THEN 1 ELSE 0 END', cmd.eventId);
           const row = this.sql.exec<{ doc: string }>('SELECT doc FROM events WHERE id = ?', cmd.eventId).toArray()[0]!;
           let doc = JSON.parse(row.doc) as LiveEvent;
@@ -297,7 +359,7 @@ export class Hub extends DurableObject<Env> {
         this.active = this.loadActive();
         this.ended = this.loadEnded();
         // Referee devices are paired per event: disconnect the old event's referees.
-        this.closeSockets((a) => a.actor.role === 'referee');
+        if (switched) this.closeSockets((a) => a.actor.role === 'referee');
         await this.afterChange(cmd);
         return reply({ eventId: cmd.eventId });
       }
@@ -392,12 +454,13 @@ export class Hub extends DurableObject<Env> {
       actor = { role: 'admin', label: who.label };
       exp = who.exp;
       if (url.pathname === '/api/emergency/ws') {
-        // Emergency sockets keep their session, checked again on every message.
+        // Emergency sockets keep their session, checked again on every message, and end when it does.
         const session = sessionToken(request);
         cred = session ? await hashCredentials({ session }) : {};
         const found = session ? this.authenticateHashed(cred) : null;
         if (found?.role !== 'admin') return new Response('Unauthorized', { status: 401 });
         actor = found;
+        exp = this.sql.exec<{ expires_at: number }>('SELECT expires_at FROM sessions WHERE token_hash = ?', cred.session ?? '').toArray()[0]?.expires_at ?? Date.now();
       }
     } else if (role !== 'public') {
       const all = credentials(request);
@@ -411,6 +474,10 @@ export class Hub extends DurableObject<Env> {
         actor = found;
       }
     }
+    // Turned away before any view is built for them.
+    if (actor.role === 'public' && this.ctx.getWebSockets('public').length >= MAX_PUBLIC_SOCKETS) {
+      return new Response('Too many connections', { status: 503, headers: { 'retry-after': '30' } });
+    }
     const [client, server] = Object.values(new WebSocketPair()) as [WebSocket, WebSocket];
     this.ctx.acceptWebSocket(server, [tagFor(actor)]);
     server.serializeAttachment({ actor, cred, exp } satisfies Attachment);
@@ -420,6 +487,20 @@ export class Hub extends DurableObject<Env> {
 
   async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
     const att = ws.deserializeAttachment() as Attachment;
+    // Checked before the message is read: an oversized or too-frequent message costs nothing more.
+    const size = typeof message === 'string' ? message.length : message.byteLength;
+    if (size > (att.actor.role === 'admin' ? CONSOLE_FRAME : SMALL_FRAME)) {
+      ws.close(1009, 'message too large');
+      return;
+    }
+    if (att.actor.role !== 'admin') {
+      let budget = this.frameBudgets.get(ws);
+      if (!budget) this.frameBudgets.set(ws, budget = new Budget(FRAME_BUDGET.burst, FRAME_BUDGET.perSecond));
+      if (!budget.take('', Date.now())) {
+        ws.close(1008, 'too many messages');
+        return;
+      }
+    }
     let msg: { type?: string; t0?: unknown; id?: unknown; cmd?: unknown };
     try {
       msg = JSON.parse(typeof message === 'string' ? message : new TextDecoder().decode(message));
@@ -447,11 +528,8 @@ export class Hub extends DurableObject<Env> {
       const cmd = msg.cmd as { type?: unknown } | undefined;
       const result = actor.role === 'public' || !cmd || typeof cmd.type !== 'string'
         ? fail('forbidden', 'You are not allowed to do that.')
-        : await this.command(actor, cmd as Command);
-      const { ok } = result;
-      const extra = ok ? ('reply' in result && result.reply !== undefined ? { reply: result.reply } : {})
-        : { code: (result as { code: string }).code, message: (result as { message: string }).message, detail: (result as { detail?: unknown }).detail };
-      ws.send(JSON.stringify({ type: 'ack', id: msg.id, ok, ...extra }));
+        : await this.run(actor, cmd as Command);
+      ws.send(JSON.stringify({ type: 'ack', id: msg.id, ...ackOf(result) }));
     }
   }
 
@@ -468,7 +546,7 @@ export class Hub extends DurableObject<Env> {
 
   /** Finishes the running round when its auto-finish time arrives, exactly as the Finish button does. */
   private async autoFinish(): Promise<void> {
-    const result = await this.command(AUTO_FINISH, { type: 'finishRace' });
+    const result = await this.run(AUTO_FINISH, { type: 'finishRace' });
     if (result.ok || !this.active || this.active.round.autoFinishAt == null) return;
     // Refused (e.g. a team has no result after all): drop the time so the alarm does not fire again.
     console.error('auto-finish refused', 'code' in result ? result.code : '');
@@ -506,6 +584,13 @@ export class Hub extends DurableObject<Env> {
   }
 
   private initialMessage(actor: Actor): string {
+    if (actor.role !== 'public') return this.buildInitialMessage(actor);
+    // Every phone gets the same snapshot: built once per change, not once per connection.
+    if (this.publicSnapshot?.event !== this.display) this.publicSnapshot = { event: this.display, message: this.buildInitialMessage(actor) };
+    return this.publicSnapshot.message;
+  }
+
+  private buildInitialMessage(actor: Actor): string {
     const e = actor.role === 'public' ? this.display : this.active;
     const d = e ? this.safeDerive(e) : null;
     if (!e || !d) return JSON.stringify({ type: actor.role === 'public' ? 'snapshot' : 'view', view: null });
@@ -529,7 +614,7 @@ export class Hub extends DurableObject<Env> {
   private send(tag: string, message: string) {
     const now = Date.now();
     for (const ws of this.ctx.getWebSockets(tag)) {
-      // A console socket whose Access sign-in has ended gets nothing more, even if it never speaks.
+      // A console socket whose sign-in (Access or emergency) has ended gets nothing more, even if it never speaks.
       const { exp } = ws.deserializeAttachment() as Attachment;
       if (typeof exp === 'number' && now >= exp) {
         try { ws.close(4401, 'signed out'); } catch { /* already closed */ }

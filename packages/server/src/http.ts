@@ -34,3 +34,6 @@ export function sessionToken(request: Request): string | null {
 }
 
 export const hasCredentials = (c: Credentials) => Boolean(c.session || c.device || c.apiKey);
+
+/** The caller's address as Cloudflare reports it; `local` under `wrangler dev` and in tests. */
+export const clientIp = (request: Request): string => request.headers.get('cf-connecting-ip') ?? 'local';

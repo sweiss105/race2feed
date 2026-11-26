@@ -250,6 +250,32 @@ describe('undo_changed_winner', () => {
   });
 });
 
+describe('late_finish', () => {
+  const tapped = (lateBy: number) => {
+    const e = start(lockedFour());
+    const [a] = racesIn(e)[0]!.entrants;
+    const at = startOf(1) + 200_000;
+    const after = run(e, { type: 'tapFinish', teamId: a!.teamId, atServerMs: at, clientTapId: 'q' }, referee(1), at + lateBy);
+    return { e: after, a: a!.teamId };
+  };
+
+  it('flags a finish the server received well after the time its device gave, against that device', () => {
+    const { e, a } = tapped(45_400);
+    const deviceId = referee(1).deviceId!;
+    expect(ofKind(e, 'late_finish')).toEqual([{
+      id: `late_finish:1:${deviceId}:${a}`, kind: 'late_finish', round: 1, referee: null, refereeId: deviceId, teamIds: [a],
+      message: `${nameOf(e, a)}'s finish in round 1 reached the server 45 s after the time the referee's device gave for it.`,
+    }]);
+  });
+
+  it('says nothing for a finish that arrived on time, or one the referee took back', () => {
+    expect(ofKind(tapped(900).e, 'late_finish')).toEqual([]);
+    const { e } = tapped(45_000);
+    const undone = { ...e, taps: e.taps.map((t) => ({ ...t, removedAt: 5 })) };
+    expect(ofKind(undone, 'late_finish')).toEqual([]);
+  });
+});
+
 describe('repeat_team', () => {
   /**
    * All four rounds raced with no rotation, then `rounds` saved as if "Dana" (dev1) had T1's table in each;

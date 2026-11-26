@@ -34,9 +34,10 @@ Everything happens at **https://r2f.weiss-audio.com**:
 - **Table:** one numbered race spot. Each team races at one table per round.
 - **Station:** the table or tables one referee looks after. By default a referee covers **two tables** (1 & 2, 3 & 4, …). Race control can switch the event to **one referee per table** (see [Tables per referee](#tables-per-referee)).
 - **Round:** all the races that start together on one master clock.
-- **Seeding rounds:** each team races twice against the clock. Their total time ranks them within their category.
+- **Seeding rounds:** each team races against the clock, twice in the standard format. Their total time ranks them within their category.
 - **Brackets:** after seeding, teams are placed in brackets (Gold, Silver, Bronze, Copper, Tin, …) and race head-to-head.
 - **Grand Championship:** an optional final race between the top-bracket winners of each category.
+- **Tournament format:** how many seeding rounds there are, how seeding is ranked and what the brackets race. The standard format is the one described above; you can choose another in Setup (see [Tournament format](#3-tournament-format)).
 
 **How a round flows:**
 
@@ -105,11 +106,58 @@ Things to know about importing:
 
 **Add, rename or remove a team:** use **Add team** (name and category) at the top, or **Rename** and **Remove** on a team's row. Adding and removing are possible only until setup is locked. Removing a category's last team removes the category and its brackets too (and a seeding group left with no teams), so no race is scheduled for it; if you remove a team from a category that keeps other teams, press **Suggest groups and brackets** again before locking. Renaming works at any time. The 35-character limit applies here too. Teams already in an event with a longer name keep it until you rename them.
 
-### 3. Seeding groups, tables and brackets
+### 3. Tournament format
 
-Go to **Setup** and press **Suggest groups and brackets**. The app:
+Go to **Setup**. The **Tournament format** panel is at the top. It decides how the event runs. Choose it before you press **Suggest groups and brackets**, because the brackets are built for the format. You can change it until setup is locked.
+
+If you want the event to run the way Race to Feed has been run, leave it on **Standard** and go on to the next step.
+
+**Presets** set all three settings at once:
+
+| Preset | What it does |
+|---|---|
+| **Standard** | Two seeding rounds, then heats and a placement race in each bracket. This is how Race to Feed has been run. |
+| **Short** | One seeding round, then one final race per bracket. The quickest full event. |
+| **Seeding only** | Seeding rounds decide everything. No brackets. |
+| **Knockout** | Seeding rounds, then head-to-head knockout brackets down to a final. Marked **Coming soon**: it can't be chosen yet. |
+
+You can also change each setting on its own. The preset then reads **Custom**. Every choice has its explanation written under it in the panel; they are the same as here.
+
+| Setting | Choice | What it does |
+|---|---|---|
+| **Seeding rounds** | **1 round** | Every team races once to set the seeding. Quickest, but one bad run decides a team's seed. |
+| | **2 rounds** | Every team races twice. A slow run can be made up in the other. |
+| | **3 rounds** | Every team races three times. The fairest seeding and the longest evening. |
+| **Seeding rank** | **Total time** | Add up every run. Rewards teams that are consistently fast; a team that misses a run ranks below teams that finished them all. |
+| | **Best run** | Only each team's fastest run counts. One great run is enough, and a bad run costs nothing. |
+| | **Drop the slowest** | Each team's slowest run is ignored, so one bad run (or one DNF) is forgiven. Needs three seeding rounds. |
+| **Bracket format** | **Heats, then placement** | Teams race head-to-head in heats, top seed against bottom seed. Heat winners then race each other for the top places, and the rest race for the remaining places. |
+| | **Finals only** | Each bracket races once, all its teams together. The finishing order is the result. |
+| | **Seeding only** | No brackets. Each category's final order is its seeding order. |
+| | **Knockout** | Head-to-head rounds. Win and you go through; lose and you're out. The last two race the final, and the semi-final losers race for third. Marked **Coming soon**. |
+
+Good to know:
+- **"Seeding rounds" counts how many times each team races for seeding.** With more teams than tables the teams are split into groups, and each group races separately, so 2 seeding rounds with 2 groups is 4 rounds on the day.
+- **A choice that can't be used says why.** **Best run** needs at least two seeding rounds, and **Drop the slowest** needs three; until then they are greyed out with "Needs at least two seeding rounds." or "Needs three seeding rounds."
+- **If you lower the number of seeding rounds below what the seeding rank needs**, the rank goes back to **Total time** and the panel says "Seeding rank changed to Total time."
+- **This setup makes** at the bottom of the panel counts the rounds and races the event will have, for example "9 rounds, 30 races", and changes as you choose. A race is one start on the clock, so every team's seeding run counts as one. Before there are teams, groups or brackets it tells you what is still needed.
+- **The Grand Championship switch works with every format.** Each category's winner races; with **Seeding only** that is each category's top seed.
+- **If you change the bracket format after pressing Suggest groups and brackets**, the brackets may no longer fit. The panel says "Your brackets were set up for a different format. Press Suggest groups and brackets to rebuild them." Do that before locking.
+- **Once setup is locked** the panel is greyed out and says "Setup is locked. Unlock it to change the format." The format can't be changed after the first round has opened.
+
+**Which one to choose:**
+- **Short on time?** Use **Short**, or keep the brackets and drop to **1 round** of seeding.
+- **Worried that one bad run will ruin a team's evening?** Use **3 rounds** with **Drop the slowest**, or **2 rounds** with **Best run**.
+- **Want every team to race the same number of times, with no head-to-head races?** Use **Seeding only**.
+- **Not sure?** Stay on **Standard**.
+
+An event created before these settings existed runs as **Standard**, exactly as before.
+
+### 4. Seeding groups, tables and brackets
+
+In **Setup**, press **Suggest groups and brackets**. The app:
 - **Splits teams into seeding groups** that fit your tables (for example, 50 teams with 26 tables gives Group A with 26 and Group B with 24). It fills each group in category order, so categories stay together and only the last group is short. That last group can be much smaller (27 teams on 26 tables gives 26 and 1), so move teams between groups to even them out if you want. Each team gets a table.
-- **Suggests a bracket plan** for each category, in fours (Gold, Silver, Bronze, Copper, Tin). Leftover teams join the last bracket, making it 5, 6 or 7 teams.
+- **Suggests a bracket plan** for each category, in fours (Gold, Silver, Bronze, Copper, Tin). Leftover teams join the last bracket, making it 5, 6 or 7 teams. With the **Seeding only** format there are no brackets: the Brackets list says "Seeding only uses no brackets."
 
 ![Setup after Suggest groups and brackets: Lock setup, the Grand Championship switch, the Referees choice and each category's brackets](guide/images/console-setup.jpg)
 
@@ -131,11 +179,11 @@ In **Setup**, under **Referees**, choose how many tables each referee covers:
 
 You can change this until setup is locked. Station counts, pairing, the Ready check, the referee screen and the station labels in the console all follow the choice.
 
-### 4. Lock the setup
+### 5. Lock the setup
 
-When teams, groups and brackets look right, press **Lock setup** in **Setup**.
+When the format, teams, groups and brackets look right, press **Lock setup** in **Setup**.
 
-- **Locking checks everything first.** If something is wrong, you'll see a list of problems (for example, a team without a table, or brackets that don't add up, or **Grand Championship: 5 category winners but only 4 tables** when the Grand Championship is on and there are more categories than tables). Fix them and try again.
+- **Locking checks everything first.** If something is wrong, you'll see a list of problems under the buttons (for example, a team without a table, or brackets that don't add up, or **Grand Championship: 5 category winners but only 4 tables** when the Grand Championship is on and there are more categories than tables). Fix them and try again.
 - **Racing needs a locked setup:** race control can't open a round until it's locked.
 - **Unlock setup** is available only before the first round is opened.
 - **Some changes still work while locked:** renaming teams, settings, the penalty list and the bag total.
@@ -146,11 +194,11 @@ At the bottom of **Setup**, the **Screen links** panel lists the address of ever
 
 ![Setup: the Screen links panel with a Copy button for each screen's address](guide/images/console-screen-links.jpg)
 
-### 5. Who can sign in
+### 6. Who can sign in
 
 The console has no password. The list of email addresses allowed to sign in is kept in Cloudflare, not in the console: whoever manages the Cloudflare account adds or removes addresses in Cloudflare's Zero Trust dashboard, on the policy of the Access application **PRC console**. Ask them to add every member of race control well before the day, and have each person sign in once to check.
 
-### 6. Companion keys
+### 7. Companion keys
 
 Bitfocus Companion (the Stream Deck buttons) needs a key. Under **Settings → Companion keys**:
 
@@ -162,7 +210,7 @@ To stop a key working, press **Revoke** next to it. See [Bitfocus Companion](#bi
 
 ![Companion keys: name the key, then press Create key](guide/images/console-companion-keys.jpg)
 
-### 7. Pair the referee tablets
+### 8. Pair the referee tablets
 
 Go to **Referees**. There's one row per station.
 
@@ -180,7 +228,7 @@ About pairing:
 - **With Rotate referees on, the station you pair a referee to is only where they start.** The heading reads **Starting station**, and once a round is open each referee's row also says where they are now, for example "this round: Tables 3 & 4", or "no tables this round". See [Referees on each station](#referees-on-each-station).
 - **A referee paired while a round is open or running** takes the station they paired to if it has teams and no referee (so a replacement tablet can take over straight away). Otherwise they have no tables until the next round opens.
 
-### 8. Settings
+### 9. Settings
 
 **Settings** starts with the **Events** panel (see [Create the event](#1-create-the-event)), folded away while an event is active. Below it, for the active event:
 
@@ -452,7 +500,7 @@ While the champion is showing, the big button reads **Hide champion**. Pressing 
 
 ### Referees and Log
 
-- **Referees:** pair or revoke referee tablets (see [Pair the referee tablets](#7-pair-the-referee-tablets)). With Rotate referees on, it also shows each referee's tables this round.
+- **Referees:** pair or revoke referee tablets (see [Pair the referee tablets](#8-pair-the-referee-tablets)). With Rotate referees on, it also shows each referee's tables this round.
 - **Log:** the latest 50 changes, newest first, with who made each one. Every tap, penalty, undo, correction, override, tie decision and round change is recorded.
 
 ---
@@ -657,7 +705,7 @@ To put your own image or moving background behind the projector, add a **Browser
 Race control can start and finish races from Stream Deck buttons through Bitfocus Companion. The buttons follow exactly the same rules as the console's **Start** and **Finish now**: a refused press changes nothing.
 
 **What you need:**
-- A Companion key, made in **Settings → Companion keys** (see [Companion keys](#6-companion-keys)).
+- A Companion key, made in **Settings → Companion keys** (see [Companion keys](#7-companion-keys)).
 - The computer running Companion must have internet access.
 
 ### For whoever sets up the buttons
@@ -823,7 +871,7 @@ The name you typed doesn't match. Type it exactly as it appears in the list, wit
 It has already been deleted, perhaps from another laptop. Close the confirmation; the list updates when you reload Settings.
 
 **I don't get the email with the code, or Cloudflare says I'm not allowed.**
-Check the spam folder and that you typed the address on the allow list. Ask whoever manages the Cloudflare account to check the list (see [Who can sign in](#5-who-can-sign-in)).
+Check the spam folder and that you typed the address on the allow list. Ask whoever manages the Cloudflare account to check the list (see [Who can sign in](#6-who-can-sign-in)).
 
 **The console says "Console sign-in is not set up."**
 The app's Cloudflare Access settings are missing. Tell whoever deployed the app. Meanwhile, use the emergency sign-in below.

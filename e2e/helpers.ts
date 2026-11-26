@@ -64,7 +64,7 @@ export async function setUpEvent(browser: Browser, name: string) {
   await admin.getByRole('button', { name: 'Suggest groups and brackets' }).click();
   await expect(admin.getByLabel('Group for Alpha')).toBeVisible();
   await admin.getByRole('button', { name: 'Lock setup' }).click();
-  await expect(admin.getByText('Locked')).toBeVisible();
+  await expect(admin.getByText('Locked', { exact: true })).toBeVisible();
   return admin;
 }
 

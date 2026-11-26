@@ -5,6 +5,8 @@ import { useRunner } from '../runner';
 import { Switch } from '../../../ui/Switch';
 import { Problems } from './Problems';
 import { tierOf } from '../../../lib/selectors';
+import { NO_BRACKETS } from '../../../lib/formatCopy';
+import { TournamentFormat } from './TournamentFormat';
 
 type Bracket = ControlView['setup']['brackets'][number];
 
@@ -31,9 +33,11 @@ export function Setup({ view }: { view: ControlView }) {
         <Switch checked={view.setup.grandChampionship} label="Grand Championship" disabled={locked}
           onToggle={(enabled) => runner.run({ type: 'setGrandChampionship', enabled })} />
       </div>
-      <TablesPerReferee view={view} />
+      {/* Straight under the buttons that raise them, so they are never below the fold. */}
       {runner.error('suggestSetup') && <p class="err">{runner.error('suggestSetup')}</p>}
-      <div class="panel"><Problems items={problems} /></div>
+      {problems.length > 0 && <div class="panel"><Problems items={problems} /></div>}
+      <TournamentFormat view={view} />
+      <TablesPerReferee view={view} />
       <Brackets view={view} />
       <Groups view={view} />
       <ScreenLinks />
@@ -81,10 +85,13 @@ export function ScreenLinks({ origin = location.origin }: { origin?: string }) {
 function Brackets({ view }: { view: ControlView }) {
   const runner = useRunner();
   const locked = view.setupLocked;
+  const seedingOnly = view.format.brackets === 'none' && view.setup.brackets.length === 0;
   return (
     <section class="panel" aria-label="Brackets">
       <h3 class="headline">Brackets</h3>
-      {view.categories.map((c) => (
+      {/* Seeding only races no brackets. Any left in the setup still show, so they can be seen and Suggest clears them. */}
+      {seedingOnly && <p class="secondary callout" style={{ margin: 0 }}>{NO_BRACKETS}</p>}
+      {!seedingOnly && view.categories.map((c) => (
         <CategoryBrackets key={c.id} view={view} categoryId={c.id} name={c.name} locked={locked}
           onSave={(own) => void runner.run({ type: 'setBrackets', brackets: [...view.setup.brackets.filter((b) => b.categoryId !== c.id), ...own] }, `brackets-${c.id}`)}
           busy={runner.busy(`brackets-${c.id}`)} error={runner.error(`brackets-${c.id}`)} />

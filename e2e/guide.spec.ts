@@ -169,7 +169,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   });
   await region(admin, admin.getByRole('region', { name: 'Screen links' }), 'console-screen-links.jpg');
   await admin.getByRole('button', { name: 'Lock setup' }).click();
-  await expect(admin.getByText('Locked')).toBeVisible();
+  await expect(admin.getByText('Locked', { exact: true })).toBeVisible();
 
   // ── Settings: time penalties on ───────────────────────────────────────────
   await admin.getByRole('link', { name: 'Settings' }).click();

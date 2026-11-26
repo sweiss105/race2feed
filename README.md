@@ -67,7 +67,7 @@ Every page opens a WebSocket: `/api/ws` for phones, the projector, referee devic
 - **Commands** are sent over the socket as `{type: 'cmd', id, cmd}` and answered with an `ack`. The same commands are also accepted over HTTP at `POST /api/command`.
 - **Clock sync:** pages send `ping` and get `pong` with the server time, NTP-style, to estimate their offset from the server clock.
   - Referee taps are stamped on the device in server time.
-  - Taps made while offline are queued in local storage and sent later with their original timestamp.
+  - Taps made while offline are queued in local storage and sent later with their original timestamp. A finish that arrives 10 s or more after that timestamp is held until race control confirms it (`decideLateFinish`).
 - **Credentials are checked on every message**, so revoking a device or ending an emergency session takes effect immediately (close code `4401`). A console socket signed in through Access closes on the first message after the Access token expires.
 
 ### HTTP routes (`packages/server/src/worker.ts`)

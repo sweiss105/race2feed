@@ -407,8 +407,8 @@ describe('the referee view follows the assignment', () => {
       reasons: e.penaltyReasons,
       station: { number: 1, tables: [1, 2], ready: false, excluded: false, readyTables: [2], assigned: true, moved: false },
       teams: [
-        { teamId: atTable(e, 1), name: 'T1', table: 1, result: null, dq: null, ready: false, penaltyPending: false, taps: [] },
-        { teamId: atTable(e, 2), name: 'T2', table: 2, result: null, dq: null, ready: true, penaltyPending: false, taps: [] },
+        { teamId: atTable(e, 1), name: 'T1', table: 1, result: null, dq: null, ready: false, penaltyPending: false, finishHeld: false, taps: [] },
+        { teamId: atTable(e, 2), name: 'T2', table: 2, result: null, dq: null, ready: true, penaltyPending: false, finishHeld: false, taps: [] },
       ],
     });
     expect(refereeView(e, derive(e), referee(1))).toEqual(v);

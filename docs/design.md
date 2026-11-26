@@ -276,7 +276,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 - **Computed, not stored.** The server works the warnings out from the saved event (taps, results, line-ups, assignments) each time race control's view is built. So they are the same on every console and after a restart, and a corrected result removes a warning that no longer applies.
 - **Who judged a team in a round:** the referee whose saved assignment (§3.7) has the team's table that round. Without one (rotation off, an event stored before rotation, or a table whose referee was revoked), the device that made the team's finish tap. If neither exists, checks that need the referee skip that result.
 - **The referee's name** comes from the saved assignments. A referee who was never in one (rotation off) has no name here: the warning's `referee` is null and its message says "A referee".
-- **Which rounds count:** finished rounds, for every kind. The open or running round also counts for `repeat_team` and `final_one_referee` (known as soon as the round opens) and for `fast_time`, `close_finish`, `undo_changed_winner` and `late_finish` (as results arrive).
+- **Which rounds count:** finished rounds, for every kind. The open or running round also counts for `repeat_team` and `final_one_referee` (known as soon as the round opens) and for `fast_time`, `close_finish` and `undo_changed_winner` (as results arrive).
 - **The kinds.** The thresholds are constants in `packages/server/src/core/fairness.ts`, not settings.
 
   | Kind | Fires when | Constants |
@@ -288,7 +288,6 @@ All times in this section are **official times**: the raw time plus any penaltie
   | `penalty_outlier` | Once 3 rounds are finished. The referees are everyone with tables in a finished round's assignment and every device that tapped in one. Counting each referee's penalty taps that stand: fires for a referee with at least 3 and more than twice the average per referee, or with none while the average is at least 2. Race control's own penalties are not counted. | `OUTLIER_FROM_ROUND = 3`, `OUTLIER_MIN = 3`, `OUTLIER_AVG_FOR_NONE = 2` |
   | `close_finish` | Two teams of one race, both judged by the same referee, have official times 0.50 s apart or less, both taken at the hundredth as they are shown (two teams showing the same time are 0.00 s apart). | `CLOSE_MS = 500` |
   | `undo_changed_winner` | A referee undid a finish tap in a race with two or more teams, every team of the race has a result, and the race's winner would be a different team had the undone tap stood (with the team's current penalties). | |
-  | `late_finish` | A referee's finish tap that stands reached the server 10 s or more after the time the device gave for it (the tap stores that delay as `lateMs`). The device's time still decides the result (§5); the warning is against that device, one per team and round. | `LATE_FINISH_MS = 10_000` |
   | `final_one_referee` | Rotation is on, with one referee per two tables: a race that decides a bracket or the Grand Championship has two teams and one referee's assignment holds both tables, because no spare referee was free to split it (§3.7). | |
 
 - **Each warning** has: `id`, `kind`, `round`, `referee` (name or null), `refereeId` (the referee's device id, or null), `teamIds` and `message`, one plain sentence for staff naming the referee, the team(s) and the round. `referee_wins` and `penalty_outlier` cover the whole event: their `round` is the latest finished round and their `teamIds` are empty.
@@ -425,7 +424,12 @@ The small current-round update that public screens get while a round is open or 
 - **Times are stamped on the referee's device and synced to the server:**
   - Each referee device continually estimates its clock offset from the server, NTP-style: repeated ping round trips over the live connection, using a median of recent samples.
   - A tap is recorded as `device_time_at_touch + offset`, and elapsed time is that minus the round start.
-  - If a tap is made while Wi-Fi is down, the device **queues** it and sends it with its original timestamp when the connection comes back. The result is unaffected. Because that time is the device's word alone, a finish the server receives 10 seconds or more after the time given for it is recorded as late and raises a **Finish arrived late** fairness warning (§3.9) for race control to check.
+  - If a tap is made while Wi-Fi is down, the device **queues** it and sends it with its original timestamp when the connection comes back. The result is unaffected.
+  - **A late finish is held for race control.** A `tapFinish` the server receives 10 seconds or more after its `atServerMs` (`LATE_FINISH_MS = 10_000`) carries a time that is the device's word alone. The tap is stored with `lateMs` (the delay) and `hold: { status: 'pending' }`, and is answered as a success so the device drops it from its queue.
+    - While it is pending the team has no result: it stays outstanding, auto-finish does not start, and another `tapFinish` for the team is refused with `finish_held`. The referee's view marks the team `finishHeld` and its button reads "Sent late — waiting for race control". The referee can still undo the tap inside the undo window.
+    - Race control decides with `decideLateFinish { tapId, decision: 'confirm' | 'reject' }` (console role only). **Confirm** makes the device's time the team's result, counted from the moment of confirmation; it is refused (`already_finished`) if the team has been given a result meanwhile, and asks for the usual confirmation when it would change an earlier round (§6). **Reject** removes the tap, leaving the team without a result. Either way the hold records who decided and when; a confirmed tap can no longer be undone by its referee.
+    - The console lists them in a **Late finishes to confirm** panel on Race Control, above "Penalties to review" and styled like it: a card per pending tap (team, round, referee, time, how late) with **Reject** and **Confirm**, and a **Decided** list. The control view carries them as `heldFinishes`. Decisions appear in the log and under "Race control edits" in the fairness report. A rejected or undone held tap never raises `undo_changed_winner`.
+    - Penalty taps are not held: they already wait for review (§5).
   - **A tap belongs to the round it was made in.** `tapFinish` and `tapPenalty` carry the device's own tap id (`clientTapId`) and the round (`round`):
     - A tap the server already has from that device for that team and kind (same `clientTapId`), in any round and whether or not it was since undone, removed or rejected, is a resend: it is answered as a success and creates nothing. The hub saves, logs and broadcasts nothing for it.
     - Otherwise a tap whose `round` is not the current round is refused with `round_over` ("That tap was for round 1, which is over.") and creates nothing. The device drops it from its queue and shows the refusal.
@@ -593,7 +597,6 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
     | `close_finish` | Close finish |
     | `undo_changed_winner` | Undo changed the winner |
     | `final_one_referee` | Final judged by one referee |
-    | `late_finish` | Finish arrived late |
 
   - **Dismiss** reveals a required **Note** (at most 200 characters) with **Cancel** and **Save**; Save is disabled while the note is blank and sends `dismissWarning { id, note }` with the note trimmed. A refusal shows in the card. Dismiss is not offered once the event has ended (`ended`).
   - With no open warning: "Nothing to look at."

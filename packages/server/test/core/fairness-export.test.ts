@@ -97,6 +97,25 @@ describe('fairnessCsv', () => {
     expect(rows.filter((r) => r.endsWith(',open,,,'))).toHaveLength(all.length - 1);
   });
 
+  it('lists late finishes race control confirmed or rejected, not ones still waiting', () => {
+    const base = raced();
+    const tap = (id: string, name: string, hold: NonNullable<LiveEvent['taps'][number]['hold']>): LiveEvent['taps'][number] => ({
+      id, kind: 'finish', round: 1, teamId: base.setup.teams.find((t) => t.name === name)!.id, elapsedMs: 200_450, lateMs: 45_300,
+      source: 'referee', deviceId: 'dev1', createdAt: 3_000_000, removedAt: hold.status === 'rejected' ? 3_300_000 : null, hold,
+    });
+    const e = { ...base, taps: [...base.taps,
+      tap('h1', 'T1', { status: 'confirmed', decidedAt: 3_300_000, by: 'kim@example.com' }),
+      tap('h2', 'T3', { status: 'rejected', decidedAt: 3_310_000, by: 'kim@example.com' }),
+      tap('h3', 'T4', { status: 'pending' }),
+    ] };
+    const rows = sections(fairnessCsv(e))['Race control edits']!;
+    expect(rows.slice(-2)).toEqual([
+      `${iso(3_300_000)},kim@example.com,1,T1,"late finish confirmed (3:20.45, received 45 s late)"`,
+      `${iso(3_310_000)},kim@example.com,1,T3,"late finish rejected (3:20.45, received 45 s late)"`,
+    ]);
+    expect(rows.join()).not.toContain('T4,late');
+  });
+
   it('lists what race control entered, changed or removed by hand, in time order', () => {
     const rows = sections(fairnessCsv(raced()))['Race control edits']!;
     expect(rows).toEqual([

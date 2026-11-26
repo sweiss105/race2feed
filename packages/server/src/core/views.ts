@@ -187,6 +187,8 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, who: { station?: numb
       dq: pens.get(`${e.round.current}:${teamId}`)?.dq ?? null,
       ready: readyHere.includes(table),
       penaltyPending: pens.get(`${e.round.current}:${teamId}`)?.pending ?? false,
+      /** The team's finish arrived late and waits for race control: it has no result yet and cannot be tapped again. */
+      finishHeld: e.taps.some((t) => t.kind === 'finish' && t.round === e.round.current && t.teamId === teamId && t.removedAt === null && t.hold?.status === 'pending'),
       taps: e.taps
         .filter((t) => t.round === e.round.current && t.teamId === teamId)
         .map((t) => {
@@ -228,6 +230,18 @@ export function controlView(e: LiveEvent, d: DerivedEvent, extras: { devices: un
           reasonName: r.reasonName ?? null, dq: Boolean(r.dq), removed: t.removedAt !== null,
         };
       })
+      .reverse(),
+    /**
+     * Finish taps that arrived late (taps.ts), newest first: waiting for race control, confirmed or rejected.
+     * One its referee undid while it waited is left out. referee: the device's name, null when it is not known.
+     */
+    heldFinishes: e.taps
+      .filter((t) => t.kind === 'finish' && t.hold && !(t.removedAt !== null && t.hold.status === 'pending'))
+      .map((t) => ({
+        tapId: t.id, round: t.round, teamId: t.teamId, status: t.hold!.status, elapsedMs: t.elapsedMs ?? 0, lateMs: t.lateMs ?? 0,
+        referee: e.assignments?.[t.round]?.find((a) => a.deviceId === t.deviceId)?.name ?? extras.roster.find((r) => r.deviceId === t.deviceId)?.name ?? null,
+        by: t.hold!.by ?? null,
+      }))
       .reverse(),
     overrides: e.overrides,
     outstanding: outstanding(e, d),

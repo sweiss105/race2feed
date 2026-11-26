@@ -6,6 +6,7 @@ import { timeText } from '../../../ui/Time';
 import { stationLabel, teamName } from '../../../lib/selectors';
 import { useRunner } from '../runner';
 import { PenaltyReviews, reasonLabel } from './PenaltyReviews';
+import { HeldFinishes } from './HeldFinishes';
 import { RaceHeader } from './RaceHeader';
 import { Fairness } from './Fairness';
 import { buildBracketTrees } from '../../../lib/bracketModel';
@@ -38,6 +39,7 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
       {view.outstanding.length > 0 && <Outstanding view={view} serverNow={serverNow} />}
       {view.ties.length > 0 && <Ties view={view} />}
       {view.blockers.length > 0 && <p class="err" role="alert">{view.blockers.join(' · ')}</p>}
+      <HeldFinishes view={view} />
       <PenaltyReviews view={view} />
       <Fairness view={view} />
       <KnockoutBrackets view={view} />

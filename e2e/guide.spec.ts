@@ -503,10 +503,43 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
     // Semi-finals.
     { 'Northside Scouts': '3:08.41', 'Lincoln High Seniors': '3:14.07', 'Maple Street Church': '3:11.63', 'Fire Station 4': '3:12.95' },
   ];
+  // A referee for the late-finish picture: paired to Tables 1 & 2 of this event.
+  await admin.getByRole('link', { name: 'Referees', exact: true }).click();
+  await admin.getByRole('button', { name: 'Pair device for Tables 1 & 2' }).click();
+  const lateCode = (await admin.locator('[data-qr]').getAttribute('data-qr'))!.split('code=')[1]!;
+  const lateRef = await context(browser, TABLET);
+  await lateRef.goto(`/ref?code=${lateCode}`);
+  await lateRef.getByLabel('Your name').fill('Dana');
+  await lateRef.getByRole('button', { name: 'Start' }).click();
+  await lateRef.getByLabel("I've turned off auto-lock on this device").check();
+  await lateRef.getByRole('button', { name: 'Continue' }).click();
+  await admin.getByRole('button', { name: 'Done' }).click();
+  await admin.getByRole('link', { name: 'Race Control', exact: true }).click();
+
   for (const [i, times] of knockoutTimes.entries()) {
     await admin.getByRole('button', { name: `Open round ${i + 1}`, exact: true }).click();
     await expect(admin.locator('.pill')).toHaveText('open');
     await readyAndStart(admin);
+    if (i === 0) {
+      // ── Late finishes: a tap saved on the referee's device 11 seconds ago arrives now ──
+      const first = lateRef.locator('.ref-tap').first();
+      await expect(first).toBeEnabled();
+      const team = (await first.locator('span').first().textContent())!;
+      await lateRef.waitForTimeout(12_000);
+      const teamId = await admin.getByRole('region', { name: 'Outstanding' }).locator('tr', { hasText: team }).getAttribute('data-team');
+      await lateRef.evaluate(({ teamId }) => {
+        const cmd = { type: 'tapFinish', teamId, atServerMs: Date.now() - 11_000, clientTapId: 'saved-offline', round: 1 };
+        localStorage.setItem('r2f.tapQueue', JSON.stringify([{ clientTapId: cmd.clientTapId, cmd, round: 1 }]));
+      }, { teamId });
+      await lateRef.reload();
+      await expect(first).toContainText('waiting for race control');
+      const held = admin.getByRole('region', { name: 'Late finishes to confirm' });
+      await expect(held).toContainText(team);
+      await region(admin, held, 'console-late-finish.jpg', 24);
+      await held.getByRole('button', { name: /^Confirm/ }).click();
+      await expect(held).toContainText('All late finishes decided.');
+      await lateRef.context().close();
+    }
     await timeEveryone(admin, times);
     await admin.getByRole('button', { name: 'Finish now' }).click();
     await expect(admin.locator('.pill')).toHaveText('finished');

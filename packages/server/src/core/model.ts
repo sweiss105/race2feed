@@ -19,6 +19,11 @@ export interface Tap {
    * when that is LATE_FINISH_MS or more (the device was offline and sent the tap from its queue).
    */
   lateMs?: number;
+  /**
+   * Late referee finish taps only: the tap is held until race control decides it. `pending` gives the team no
+   * result; `confirmed` counts as any finish tap; `rejected` also sets removedAt and removedBy.
+   */
+  hold?: { status: 'pending' | 'confirmed' | 'rejected'; decidedAt?: number; by?: string };
   /** penalty only */
   amountMs?: number;
   source: 'referee' | 'control';
@@ -154,7 +159,9 @@ export type TapCommand =
   | { type: 'removePenalty'; tapId: string; confirmUnlock?: boolean }
   | { type: 'setPenaltiesEnabled'; enabled: boolean }
   | { type: 'notePenalty'; tapId: string; reasonId: string; note?: string }
-  | { type: 'decidePenalty'; tapId: string; decision: 'approve' | 'reject'; reasonId?: string; confirmUnlock?: boolean };
+  | { type: 'decidePenalty'; tapId: string; decision: 'approve' | 'reject'; reasonId?: string; confirmUnlock?: boolean }
+  /** tapId: a held finish tap still waiting (Tap.hold). confirm: the device's time becomes the team's result. */
+  | { type: 'decideLateFinish'; tapId: string; decision: 'confirm' | 'reject'; confirmUnlock?: boolean };
 
 export type Command = SetupCommand | LifecycleCommand | TapCommand;
 

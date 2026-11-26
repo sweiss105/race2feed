@@ -31,6 +31,10 @@ export function fairnessCsv(e: LiveEvent): string {
     edits.push({ at: o.at, by: o.by, round: o.round, teamId: o.teamId, change });
   }
   for (const t of e.taps) {
+    if (t.kind === 'finish' && t.hold && t.hold.status !== 'pending') {
+      const late = `${formatMs(t.elapsedMs ?? 0, 'hundredths')}, received ${Math.round((t.lateMs ?? 0) / 1000)} s late`;
+      edits.push({ round: t.round, teamId: t.teamId, at: t.hold.decidedAt ?? t.createdAt, by: t.hold.by, change: `late finish ${t.hold.status} (${late})` });
+    }
     if (t.kind !== 'penalty') continue;
     const base = { round: t.round, teamId: t.teamId };
     if (t.source === 'control') edits.push({ ...base, at: t.createdAt, by: t.by, change: `penalty added: ${t.review?.reasonName ?? ''}` });

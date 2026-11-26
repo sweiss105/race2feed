@@ -197,6 +197,7 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
         <div class="ref-teams">
           {view.teams.map((t) => {
             const done = t.result !== null;
+            const held = t.finishHeld && !done;
             const busy = sending.has(`finish:${t.teamId}`);
             const mineQueued = queued.filter((q) => (q.cmd as { teamId?: string }).teamId === t.teamId);
             const waiting = mineQueued.some((q) => (q.cmd as { type: string }).type === 'tapFinish');
@@ -205,12 +206,13 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
               + mineQueued.filter((q) => (q.cmd as { type: string }).type === 'tapPenalty' && !sentIds.has(q.clientTapId)).length;
             return (
               <div class="ref-team" key={t.teamId}>
-                <button type="button" class={`ref-tap${canTap ? '' : ' syncing'}`} disabled={!canTap || done || busy || waiting}
+                <button type="button" class={`ref-tap${canTap ? '' : ' syncing'}`} disabled={!canTap || done || held || busy || waiting}
                   onClick={() => void tap(t, 'finish')}>
                   <span>{t.name}</span>
                   <span class="table">Table {t.table}</span>
                   {done && <span class="time">{timeText({ status: t.result!.status, officialMs: t.result!.rawMs === null ? null : t.result!.rawMs + t.result!.penaltiesMs, penaltiesMs: t.result!.penaltiesMs, dq: t.dq, penaltyPending: t.penaltyPending })}</span>}
-                  {busy && !done && !waiting && <span class="table">Sending…</span>}
+                  {held && <span class="table">Sent late — waiting for race control</span>}
+                  {busy && !done && !held && !waiting && <span class="table">Sending…</span>}
                   {waiting && !done && <span class="table">Waiting to send</span>}
                 </button>
                 {settings.penaltiesEnabled && (

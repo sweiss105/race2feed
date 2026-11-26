@@ -15,7 +15,6 @@ const TITLES: Record<Warning['kind'], string> = {
   close_finish: 'Close finish',
   undo_changed_winner: 'Undo changed the winner',
   final_one_referee: 'Final judged by one referee',
-  late_finish: 'Finish arrived late',
 };
 
 /** These two look at the whole event, so the round they carry is not when anything happened. */

@@ -15,7 +15,7 @@ function running(): LiveEvent {
   for (const station of [1, 2]) e = ok(handleLifecycle(e, { type: 'overrideStation', station, state: 'ready' }, ctx(admin, START)));
   return ok(handleLifecycle(e, { type: 'startRace' }, ctx(admin, START)));
 }
-const tapFinish = (e: LiveEvent, name: string, atServerMs: number, clientTapId = `c-${name}-${atServerMs}`, now = START + 300_000) =>
+const tapFinish = (e: LiveEvent, name: string, atServerMs: number, clientTapId = `c-${name}-${atServerMs}`, now = atServerMs) =>
   handleTaps(e, { type: 'tapFinish', teamId: teamId(e, name), atServerMs, clientTapId }, ctx(referee(1), now));
 const names = (e: LiveEvent, round: number) =>
   derive(e).rounds[round - 1]!.races.map((r) => r.entrants.map((x) => e.setup.teams.find((t) => t.id === x.teamId)!.name).join(' v '));
@@ -262,12 +262,70 @@ describe('resends, late finishes and waiting penalties', () => {
     expect(first.ok && first.unchanged).toBeFalsy();
   });
 
-  it('records how late a finish arrived, from 10 s; the time itself is the device’s', () => {
+  const lateTap = (e: LiveEvent = running(), name = 'T1', lateBy = 45_000) => ok(tapFinish(e, name, START + 200_000, `late-${name}`, START + 200_000 + lateBy));
+  const decide = (e: LiveEvent, decision: 'confirm' | 'reject', now = START + 260_000) =>
+    handleTaps(e, { type: 'decideLateFinish', tapId: e.taps.find((t) => t.hold)!.id, decision }, ctx(admin, now));
+
+  it('holds a finish that arrives 10 s or more after its time: the team has no result yet', () => {
     const onTime = ok(tapFinish(running(), 'T1', START + 200_000, 'a', START + 200_000 + 9_999));
-    expect(onTime.taps[0]).not.toHaveProperty('lateMs');
-    const late = ok(tapFinish(running(), 'T1', START + 200_000, 'b', START + 245_000));
-    expect(late.taps[0]).toMatchObject({ elapsedMs: 200_000, lateMs: 45_000, createdAt: START + 245_000 });
-    expect(result(late, 'T1')).toEqual({ status: 'finished', rawMs: 200_000, penaltiesMs: 0 });
+    expect(onTime.taps[0]).not.toHaveProperty('hold');
+    expect(result(onTime, 'T1')).toBeDefined();
+    const late = lateTap();
+    expect(late.taps[0]).toMatchObject({ elapsedMs: 200_000, lateMs: 45_000, createdAt: START + 245_000, hold: { status: 'pending' } });
+    expect(result(late, 'T1')).toBeUndefined();
+  });
+
+  it('refuses another finish tap for the team while one is held, and still answers a resend as done', () => {
+    const late = lateTap();
+    expect(code(tapFinish(late, 'T1', START + 250_000, 'again', START + 250_000))).toBe('finish_held');
+    expect(tapFinish(late, 'T1', START + 200_000, 'late-T1', START + 250_000)).toMatchObject({ ok: true, unchanged: true });
+    expect(code(tapFinish(late, 'T2', START + 250_000, 'other', START + 250_000))).toBe('ok');
+  });
+
+  it('confirming gives the team the device’s time; only race control may decide, and only once', () => {
+    const late = lateTap();
+    expect(code(applyCommand(late, { type: 'decideLateFinish', tapId: late.taps[0]!.id, decision: 'confirm' }, ctx(referee(1), START + 260_000)))).toBe('forbidden');
+    expect(code(handleTaps(late, { type: 'decideLateFinish', tapId: late.taps[0]!.id, decision: 'maybe' } as never, ctx(admin, START + 260_000)))).toBe('invalid');
+    const e = ok(decide(late, 'confirm'));
+    expect(result(e, 'T1')).toEqual({ status: 'finished', rawMs: 200_000, penaltiesMs: 0 });
+    expect(e.taps[0]).toMatchObject({ createdAt: START + 245_000, removedAt: null, hold: { status: 'confirmed', decidedAt: START + 260_000, by: admin.label } });
+    expect(code(decide(e, 'confirm'))).toBe('not_found');
+    expect(code(decide(e, 'reject'))).toBe('not_found');
+    // Confirmed, it is race control's: the referee cannot take it back.
+    expect(code(handleTaps(e, { type: 'undoTap', tapId: e.taps[0]!.id }, ctx(referee(1), START + 246_000)))).toBe('already_decided');
+  });
+
+  it('rejecting removes it: the team has no result and can be tapped or entered again', () => {
+    const e = ok(decide(lateTap(), 'reject'));
+    expect(e.taps[0]).toMatchObject({ removedAt: START + 260_000, removedBy: admin.label, hold: { status: 'rejected' } });
+    expect(result(e, 'T1')).toBeUndefined();
+    expect(code(tapFinish(e, 'T1', START + 270_000, 'fresh', START + 270_000))).toBe('ok');
+  });
+
+  it('will not confirm over a result entered meanwhile, but confirms once that is cleared', () => {
+    const late = lateTap();
+    const id = teamId(late, 'T1');
+    const entered = ok(handleTaps(late, { type: 'setResult', round: 1, teamId: id, set: { kind: 'time', rawMs: 230_000 } }, ctx(admin, START + 250_000)));
+    expect(code(decide(entered, 'confirm'))).toBe('already_finished');
+    expect(code(decide(entered, 'reject'))).toBe('ok');
+    const cleared = ok(handleTaps(entered, { type: 'setResult', round: 1, teamId: id, set: { kind: 'clear' } }, ctx(admin, START + 255_000)));
+    expect(result(ok(decide(cleared, 'confirm')), 'T1')).toEqual({ status: 'finished', rawMs: 200_000, penaltiesMs: 0 });
+  });
+
+  it('the referee can undo a held finish inside the undo window; then nothing waits', () => {
+    const late = lateTap();
+    const undone = ok(handleTaps(late, { type: 'undoTap', tapId: late.taps[0]!.id }, ctx(referee(1), START + 246_000)));
+    expect(code(decide(undone, 'confirm'))).toBe('not_found');
+    expect(code(tapFinish(undone, 'T1', START + 250_000, 'fresh', START + 250_000))).toBe('ok');
+  });
+
+  it('the round cannot be finished while a team’s finish is held', () => {
+    let e = lateTap();
+    for (const name of ['T2', 'T3', 'T4']) {
+      e = ok(handleTaps(e, { type: 'setResult', round: 1, teamId: teamId(e, name), set: { kind: 'time', rawMs: 210_000 } }, ctx(admin, START + 250_000)));
+    }
+    expect(code(handleLifecycle(e, { type: 'finishRace' }, ctx(admin, START + 300_000)))).not.toBe('ok');
+    expect(code(handleLifecycle(ok(decide(e, 'confirm')), { type: 'finishRace' }, ctx(admin, START + 300_000)))).toBe('ok');
   });
 
   it('refuses an eleventh penalty from one device on one team while ten wait for race control', () => {

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { handleLifecycle } from '../../src/core/lifecycle';
 import { handleSetup } from '../../src/core/setup';
+import { handleTaps } from '../../src/core/taps';
 import { derive } from '../../src/core/results';
 import { admin, blank, csvFor, ctx, lockedFour, ok, referee, runRound, teamId } from './helpers';
 
@@ -94,6 +95,50 @@ describe('round lifecycle', () => {
     const confirmed = ok(handleLifecycle(next, { type: 'decideTie', raceId, order: [teamId(e, 'T1'), teamId(e, 'T4')], confirmUnlock: true }, ctx(admin)));
     expect(derive(confirmed).rounds[3]!.races.map((r) => r.entrants)).toEqual(derive(next).rounds[3]!.races.map((r) => r.entrants));
     expect(code(handleLifecycle(next, { type: 'decideTie', raceId, order: 'x' } as never, ctx(admin)))).toBe('invalid');
+  });
+
+  it('a finished heat with both results cleared blocks the placement round until results are entered', () => {
+    let e = runRound(lockedFour(), seedTimes);
+    e = runRound(e, seedTimes);
+    // Heats: T1 v T4 and T2 v T3.
+    e = runRound(e, { T1: 200_000, T4: 210_000, T2: 200_000, T3: 210_000 });
+    for (const name of ['T1', 'T4']) {
+      e = ok(handleTaps(e, { type: 'setResult', round: 3, teamId: teamId(e, name), set: { kind: 'clear' }, confirmUnlock: true }, ctx(admin, 3_000_000)));
+    }
+    const blocked = handleLifecycle(e, { type: 'openNextRound' }, ctx(admin));
+    expect(code(blocked)).toBe('blocked');
+    if (!blocked.ok) expect(blocked.detail).toEqual(['Round 3: T1 and T4 have no result. Enter a time, DNF or DNS.']);
+    expect(derive(e).standings.t).toEqual([null, null, null, null]);
+    // One result is not enough.
+    e = ok(handleTaps(e, { type: 'setResult', round: 3, teamId: teamId(e, 'T4'), set: { kind: 'time', rawMs: 190_000 } }, ctx(admin, 3_000_001)));
+    const still = handleLifecycle(e, { type: 'openNextRound' }, ctx(admin));
+    if (!still.ok) expect(still.detail).toEqual(['Round 3: T1 has no result. Enter a time, DNF or DNS.']);
+    expect(code(still)).toBe('blocked');
+    e = ok(handleTaps(e, { type: 'setResult', round: 3, teamId: teamId(e, 'T1'), set: { kind: 'status', status: 'dnf' } }, ctx(admin, 3_000_002)));
+    e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin)));
+    // The entered results decide the heat: T4 won it.
+    const winners = derive(e).rounds[3]!.races.find((r) => r.role === 'winners')!;
+    expect(winners.entrants.map((x) => x.teamId)).toEqual([teamId(e, 'T4'), teamId(e, 'T2')]);
+  });
+
+  it('a cleared seeding result blocks the next round', () => {
+    let e = runRound(lockedFour(), seedTimes);
+    e = ok(handleTaps(e, { type: 'setResult', round: 1, teamId: teamId(e, 'T3'), set: { kind: 'clear' } }, ctx(admin, 3_000_000)));
+    const blocked = handleLifecycle(e, { type: 'openNextRound' }, ctx(admin));
+    expect(code(blocked)).toBe('blocked');
+    if (!blocked.ok) expect(blocked.detail).toEqual(['Round 1: T3 has no result. Enter a time, DNF or DNS.']);
+  });
+
+  it('the champion cannot be shown while a finished round is missing a result', () => {
+    let e = lockedFour();
+    for (let i = 0; i < 4; i++) e = runRound(e, seedTimes);
+    const winner = derive(e).standings.t![0]!;
+    e = ok(handleTaps(e, { type: 'setResult', round: 4, teamId: winner, set: { kind: 'clear' } }, ctx(admin, 3_000_000)));
+    expect(derive(e).standings.t![0]).toBeNull();
+    const r = handleLifecycle(e, { type: 'showChampion', bagTotal: '' }, ctx(admin));
+    expect(code(r)).toBe('blocked');
+    e = ok(handleTaps(e, { type: 'setResult', round: 4, teamId: winner, set: { kind: 'status', status: 'dns' } }, ctx(admin, 3_000_001)));
+    expect(code(handleLifecycle(e, { type: 'showChampion', bagTotal: '' }, ctx(admin)))).toBe('ok');
   });
 
   it('reports when the event is complete', () => {

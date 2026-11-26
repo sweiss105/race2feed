@@ -31,8 +31,15 @@ export interface DerivedEvent {
   grandChampion: string | null;
   /** bracketId → team ids in seed order; null until the first non-seeding round is reached */
   bracketMembers: Record<string, string[]> | null;
+  /** Why later rounds cannot open, in plain words: undecided ties and finished rounds missing a result. */
   blockers: string[];
+  /** Finished rounds in which a team has no result (it was cleared); such a round decides nothing until it has one. */
+  missing: { round: number; teamIds: string[] }[];
 }
+
+/** "A", "A and B", "A, B and C". */
+const listNames = (names: string[]) =>
+  names.length <= 1 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
 
 /** A race before tables are assigned. */
 type Draft = Omit<SavedRace, 'tables'>;
@@ -45,6 +52,8 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
 
   const rounds: RoundView[] = [];
   const blockers: string[] = [];
+  const missing: DerivedEvent['missing'] = [];
+  const teamName = new Map(input.teams.map((t) => [t.id, t.name]));
   /** Final rankings of every race in a locked, tie-free round. */
   const settled = new Map<string, RaceRanking>();
   /** bracketId → race ids that decide it (heats, final, winners/others). */
@@ -94,11 +103,19 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
       open = false;
       continue;
     }
+    // A finished round is settled only when every entrant has a result (a cleared one leaves a team without).
+    const noResult = (teamId: string) => (results[teamId]?.status ?? 'pending') === 'pending';
+    const waiting = races.flatMap((race) => race.entrants.map((x) => x.teamId).filter(noResult));
+    if (waiting.length) {
+      missing.push({ round: spec.round, teamIds: waiting });
+      blockers.push(`Round ${spec.round}: ${listNames(waiting.map((id) => teamName.get(id) ?? id))} ${waiting.length === 1 ? 'has' : 'have'} no result. Enter a time, DNF or DNS.`);
+      open = false;
+    }
     for (const race of races) {
       if (race.ranking.ties.length) {
         blockers.push(`Round ${spec.round}: tie in ${race.id}`);
         open = false;
-      } else {
+      } else if (!race.entrants.some((x) => noResult(x.teamId))) {
         settled.set(race.id, race.ranking);
       }
     }
@@ -111,6 +128,7 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
     grandChampion: computeChampion(),
     bracketMembers: members ? Object.fromEntries(members) : null,
     blockers,
+    missing,
   };
 
   function layRaces(spec: RoundSpec, drafts: Draft[]): { race: Draft; tables: number[] }[] {

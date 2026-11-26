@@ -142,6 +142,11 @@ All times in this section are **official times**: the raw time plus any penaltie
 - The race is flagged **TIE**, and race control must pick the order.
 - A round can't be advanced while any tie is unresolved.
 
+**A finished round with a missing result** (race control cleared a result after the round finished, so a team's status is pending again):
+- The round is not settled: none of its races with such a team decides a heat winner, a place, a standing or the champion.
+- No later round can be opened, and the champion can't be shown, until every team in it has a time, DNF or DNS. The blocker names the round and the teams, e.g. "Round 3: Alpha and Delta have no result. Enter a time, DNF or DNS."
+- This applies to every kind of round, seeding included. Rounds already opened keep their saved line-ups.
+
 **Seeding rank within a category:**
 1. Teams with two finished runs rank above teams with fewer finished runs.
 2. Then by lowest total time.
@@ -198,6 +203,7 @@ All times in this section are **official times**: the raw time plus any penaltie
   - Race control sees the list of teams still outstanding and can mark them DNF or DNS, or press **Finish** to stop that team's clock itself: the time recorded is the race clock at the press (a `setResult` with that time), for a referee who cannot tap.
   - When finish succeeds, the clock stops and resets, and the round's results are locked.
 - **Next round:** race control reviews results, resolves any ties, then presses **Open round N** (§7.2).
+  - It is refused (`blocked`) while a tie is undecided or a finished round is missing a result.
   - Matchups for the next round are generated from the locked results and published at that moment, not before.
 - **Late corrections:**
   - Race control can edit a finished round's results until a later round that depends on them is opened.
@@ -299,6 +305,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 *Added after the first live test, at the user's request.*
 
 **Show champion** (race control, once the last round is finished and no penalty is still pending review, so the announced champion is final):
+- It is refused (`blocked`) while any finished round is missing a result (§3.5).
 - Race control enters or confirms the bags-packed number. Leaving it blank keeps the previously saved number.
 - The projector and **every participant phone** switch to a champion screen showing the Grand Champion, the bag total and the final standings by category.
 - Without a Grand Championship, the screen shows each category's winner instead.
@@ -454,7 +461,8 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
   | Open, N stations not ready | Start | no | no | Waiting on N referee(s) to be ready; Waiting on N table(s) to be ready with one table per referee (§3.6) |
   | Open, all ready | Start | yes | yes | All referees ready; All tables ready with one table per referee |
   | N penalties pending review | Open round M (Show champion after the last round) | no | no | Waiting on N penalty/penalties to be reviewed |
-  | Undecided tie or other blocker | as the row above | no | no | Waiting on a tie to be decided |
+  | Undecided tie | as the row above | no | no | Waiting on a tie to be decided |
+  | A finished round is missing a result (§3.5; the blocker itself is shown on the page) | as the row above | no | no | Waiting on a missing result to be entered |
   | Last round finished | Show champion | yes | yes | Event complete |
   | Setup not locked (only before round 1) | Open round 1 | no | no | Waiting on setup to be locked |
   | Otherwise | Open round M | yes | yes | Ready to open round M |

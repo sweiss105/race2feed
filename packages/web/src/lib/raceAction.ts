@@ -43,7 +43,9 @@ export function raceAction(view: ControlView, now: number): RaceAction {
 
   const pending = view.penaltyReviews.filter((p) => p.status === 'pending').length;
   if (pending) return act(label, kind, false, false, `Waiting on ${count(pending, 'penalty', 'penalties')} to be reviewed`);
-  if (view.ties.length || view.blockers.length) return act(label, kind, false, false, 'Waiting on a tie to be decided');
+  if (view.ties.length) return act(label, kind, false, false, 'Waiting on a tie to be decided');
+  // The only other blocker: a finished round with a cleared result (the message itself is shown on the page).
+  if (view.blockers.length) return act(label, kind, false, false, 'Waiting on a missing result to be entered');
   if (lastDone) return act(label, kind, true, true, 'Event complete');
   // The server refuses to open a round until setup is locked (which is only ever before round 1).
   if (!view.setupLocked) return act(label, kind, false, false, 'Waiting on setup to be locked');

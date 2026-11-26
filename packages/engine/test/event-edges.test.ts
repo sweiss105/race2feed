@@ -20,6 +20,34 @@ describe('deriveEvent edge cases', () => {
     expect(decided.rounds[3]!.races[0]!.entrants.map((e) => e.teamId)).toEqual(['c3', 'c1']);
   });
 
+  it('a finished round with a missing result is not settled and blocks later rounds', () => {
+    // Heat 1 is c0 vs c3; neither has a result (both were cleared after the round finished).
+    const heats = { 3: { c1: fin(200), c2: fin(210) } };
+    const ev = deriveEvent(four, progress(3, { ...seeded, ...heats }));
+    expect(ev.rounds[3]!.status).toBe('blocked');
+    expect(ev.blockers).toEqual(['Round 3: c0 and c3 have no result. Enter a time, DNF or DNS.']);
+    expect(ev.missing).toEqual([{ round: 3, teamIds: ['c0', 'c3'] }]);
+
+    const pending = { 3: { ...heats[3], c0: { status: 'pending' as const, rawMs: null, penaltiesMs: 0 }, c3: fin(190) } };
+    expect(deriveEvent(four, progress(3, { ...seeded, ...pending })).blockers).toEqual(['Round 3: c0 has no result. Enter a time, DNF or DNS.']);
+
+    const entered = deriveEvent(four, progress(3, { ...seeded, 3: { ...heats[3], c0: dns, c3: fin(250) } }));
+    expect(entered.blockers).toEqual([]);
+    expect(entered.rounds[3]!.races[0]!.entrants.map((e) => e.teamId)).toEqual(['c3', 'c1']);
+  });
+
+  it('a missing seeding result blocks the heats; a missing final result leaves the standings undecided', () => {
+    const { c2: _cleared, ...run2 } = seeded[2]!;
+    const seeding = deriveEvent(four, progress(2, { 1: seeded[1]!, 2: run2 }));
+    expect(seeding.rounds[2]!.status).toBe('blocked');
+    expect(seeding.blockers).toEqual(['Round 2: c2 has no result. Enter a time, DNF or DNS.']);
+
+    const results = { ...seeded, 3: { c0: fin(200), c3: fin(210), c1: fin(200), c2: fin(210) }, 4: { c1: fin(190), c3: fin(200), c2: fin(200) } };
+    const ev = deriveEvent(four, progress(4, results));
+    expect(ev.standings.c).toEqual([null, null, null, null]);
+    expect(ev.missing).toEqual([{ round: 4, teamIds: ['c0'] }]);
+  });
+
   it('a 3-team category races once and still reaches the Grand Championship', () => {
     // Categories a(4) and b(3) on 8 tables: one seeding group.
     // Rounds: 1–2 seeding, 3 heats (upper: a Gold heats + b Gold final), 4 placement (a only), 5 grand.

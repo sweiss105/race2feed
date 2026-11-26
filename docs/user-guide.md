@@ -229,6 +229,7 @@ At the top of **Race Control** you'll see:
 | Racing, every team in, auto-finish off | **Finish now** | yes | "All teams in" |
 | Penalties still to review | **Open round N** or **Show champion** (greyed out) | no | "Waiting on N penalties to be reviewed" |
 | A tie to decide | **Open round N** or **Show champion** (greyed out) | no | "Waiting on a tie to be decided" |
+| A finished round has a team with no result | **Open round N** or **Show champion** (greyed out) | no | "Waiting on a missing result to be entered" |
 | Last round finished | **Show champion** | yes | "Event complete" |
 | Champion showing | **Hide champion** | no | "Champion is showing" |
 
@@ -246,14 +247,14 @@ On a device set to reduce motion, the button doesn't pulse.
 
 **Before you open the first bracket round, check the seeding results.** Brackets become final the moment that round opens: later bracket rounds are built from those brackets, and a correction to seeding won't move a team to another bracket.
 
-The button is greyed out while penalties or a tie are waiting (the status line says which). If the server still refuses, the message appears under the button. It goes away by itself once the round moves on (for example, if you press **Finish now** just as auto-finish finishes the race, you won't see an error):
+The button is greyed out while penalties, a tie or a missing result are waiting (the status line says which). If the server still refuses, the message appears under the button. It goes away by itself once the round moves on (for example, if you press **Finish now** just as auto-finish finishes the race, you won't see an error):
 
 | Message | What to do |
 |---|---|
 | "Lock the setup before opening a round." | Lock the setup under **Setup**. |
 | "Finish the current round first." | Finish the round that's open or running. |
 | "*N* penalties need a decision first." | Decide the pending penalties (see [Penalty review](#penalty-review)). |
-| "The next round is waiting on a decision." | Usually a tie that needs deciding (see [Ties](#ties)). |
+| "The next round is waiting on a decision." | A tie that needs deciding (see [Ties](#ties)), or a finished round where a team has no result. The Race Control page says which in red, for example "Round 3: Alpha and Delta have no result. Enter a time, DNF or DNS." |
 
 When every round has been raced, the button reads **Show champion** and the status line says "Event complete". That's your cue to [show the champion](#show-the-champion).
 
@@ -327,7 +328,7 @@ The **Results** panel lists every team in the round, with its table, race and ti
 
 - **Enter a time:** type it as `m:ss` or `m:ss.hh` (for example `3:41.20`) and press **Set**.
 - **DNF** or **DNS:** mark the team.
-- **Clear:** remove the result.
+- **Clear:** remove the result. In a finished round, a team left without a result holds everything up: the next round can't be opened, and the champion can't be shown, until you enter a time or mark the team DNF or DNS. The Race Control page says which round and teams, for example "Round 3: Alpha and Delta have no result. Enter a time, DNF or DNS."
 - **Add a penalty:** pick a reason from the penalty list and press **Add**. Penalties you add count straight away, with no review needed.
 - **Remove a penalty:** take away the team's most recent penalty. The button shows what it removes: the seconds (for example **−10s**), **−DQ**, or **−Penalty** for a referee's penalty that is still waiting for review.
 
@@ -760,7 +761,7 @@ Look at the **Stations** panel. Ask those referees to press Ready, or use **Read
 Use the **Waiting on *N* teams** panel: wait for the referee's tap, press **Finish** to stop that team's clock yourself, enter a time in **Results**, or mark the team **DNF** or **DNS**.
 
 **Open round N is greyed out or refused.**
-Read the status line or the message under the button: lock the setup, finish the current round, decide pending penalties, or decide a tie. See [Open a round](#open-a-round).
+Read the status line or the message under the button: lock the setup, finish the current round, decide pending penalties, decide a tie, or enter a result for a team that has none in a finished round (choose that round in **Results**, then enter a time or mark DNF or DNS). See [Open a round](#open-a-round).
 
 **A referee's tablet says "No tables this round".**
 There are more referees than stations in use this round, so that referee has a round off; or they paired after the round opened and their station already had a referee. They get tables when the next round opens. To use them now, while the round is still open, press **Swap…** next to another referee's name in the **Stations** panel and choose them. See [Swap two referees](#swap-two-referees).

@@ -14,6 +14,7 @@ It covers the whole day: setup, seeding rounds, brackets, the Grand Championship
 - **Spec:** [`docs/design.md`](docs/design.md). It is the source of truth for the rules.
 - **Guide for event staff:** [`docs/PRC-User-Guide.pdf`](docs/PRC-User-Guide.pdf) (printable, with screenshots), built from [`docs/user-guide.md`](docs/user-guide.md).
 - **History of notable changes:** [`CHANGELOG.md`](CHANGELOG.md).
+- **License:** GPL-3.0 ([`LICENSE`](LICENSE)). To contribute, see [`CONTRIBUTING.md`](CONTRIBUTING.md), [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) and, for security problems, [`SECURITY.md`](SECURITY.md).
 - **Explainer video for event planners:** [`docs/PRC-Race2Feed-Event-Planner-Guide.mp4`](docs/PRC-Race2Feed-Event-Planner-Guide.mp4) (about 4½ minutes; a walk-through of running an event with PRC).
 
 ## How it works
@@ -41,16 +42,16 @@ It covers the whole day: setup, seeding rounds, brackets, the Grand Championship
 - **The server is the single source of truth.** Each event is stored as one JSON document (`LiveEvent`) holding setup, settings, round state, taps, overrides and tie decisions. Seeding ranks, race places and standings are never stored. They are recomputed each time by the engine's `deriveEvent(setup, progress)`. The one exception is line-ups: when a round opens, the hub saves its races (`lineups`) and, at the first bracket round, each bracket's teams (`bracketMembers`), so a late correction re-tabulates but never rewrites a round that has been opened (`packages/server/src/core/lineups.ts`).
 - **Commands go through a pure core.** `applyCommand(event, cmd, ctx)` in `core/apply.ts` checks permissions, applies the rules and returns a new event plus an audit entry, or a refusal with a `code` and a readable `message`. The hub saves the event and the audit entry in one transaction, then broadcasts.
   - The `PERMISSIONS` table in `core/apply.ts` says which role can send each command.
-  - Rules and error messages live in `core/setup.ts`, `core/lifecycle.ts`, `core/taps.ts` and `core/corrections.ts`.
-  - Commands that aren't about one event's rules (create, activate or end an event, API keys, pairing codes, revoking a device) are handled in `hub.ts`.
+  - Rules and error messages live in `core/setup.ts`, `core/lifecycle.ts`, `core/taps.ts` and `core/corrections.ts`. Referee rotation is in `core/rotation.ts`, the fairness warnings in `core/fairness.ts` and the fairness report in `core/fairnessExport.ts`.
+  - Commands that aren't about one event's rules (create, activate, end or delete an event, API keys, pairing codes, revoking a device) are handled in `hub.ts`.
 
 ### The pages
 
 | Address | Page | Who | How they sign in |
 |---|---|---|---|
-| `/` | Participants: team search, next table, schedule, brackets, results | Public | None (read-only) |
+| `/` | Participants: team search, next table, schedule, brackets (standings in a seeding-only event), results | Public | None (read-only) |
 | `/projector` | Full-screen projector that follows the round state (`?bg=transparent` removes the background, for OBS) | Public | None (read-only) |
-| `/ref` | Referee device: Ready, finish taps, penalties, undo | Referees | Device cookie from a pairing QR code (`/ref?code=…`) |
+| `/ref` | Referee device: where to go this round, Ready, finish taps, penalties and penalty notes, undo | Referees | Device cookie from a pairing QR code (`/ref?code=…`) |
 | `/control` | Race control console, PRC (Packing Race Coordinator; all sections) | Race control | Cloudflare Access: emailed one-time code |
 | `/emergency` | The same console, for when Access or email is down (not linked anywhere) | Race control | The `EMERGENCY_PASSWORD` secret |
 
@@ -127,12 +128,13 @@ npm workspaces (`packages/*`), TypeScript throughout.
 
 | Path | What it is |
 |---|---|
-| `packages/engine` | **Pure race rules, no I/O.** Time parsing and formatting, stations, race ranking and ties, seeding rank, bracket plans and formats, seeding groups, round schedule, table layout, and `deriveEvent`. |
+| `packages/engine` | **Pure race rules, no I/O.** Time parsing and formatting, stations, race ranking and ties, seeding rank, the tournament format (seeding runs, rank rule, bracket format), bracket plans, knockout draws, seeding groups, round schedule, table layout, and `deriveEvent`. |
 | `packages/server` | **Cloudflare Worker + the `Hub` Durable Object.** `src/worker.ts` (routes), `src/hub.ts` (storage, auth, sockets, broadcasts), `src/core/` (pure command handlers and views), `src/auth/` (Cloudflare Access token check, console sign-in, token hashing, rate limiting). Config is in `wrangler.jsonc`. |
 | `packages/web` | **Vite multi-page Preact app.** Entry points are `index.html` (participants), `projector/`, `ref/`, `control/`, `emergency/` and `404.html`. Pages are in `src/pages/`, and the console sections are in `src/pages/control/sections/`. Shared code is in `src/lib/` (live connection, clock sync, tap queue, selectors, the console's light/dark preference in `theme.ts`) and `src/ui/`. Builds to `packages/web/dist`. |
 | `e2e/` | **Playwright tests.** `event.spec.ts` runs a seeding round across every page. `finale.spec.ts` covers penalty review, the champion and ending the event. `rotation.spec.ts` covers referee rotation, swapping referees, a fairness warning and the fairness report. `format.spec.ts` runs three events in other tournament formats to the champion screen: Short, Seeding only with three runs and Drop the slowest, and a six-team Knockout with two byes. `screens.spec.ts` captures screens for visual review. `guide.spec.ts` (run only by `guide.config.ts`) takes the user guide's screenshots. |
 | `scripts/` | `build-guide.mjs` turns the user guide into the PDF. |
-| `docs/` | The design spec, the staff user guide (Markdown, its screenshots in `docs/guide/images/`, and the PDF), and implementation plans (`docs/superpowers/plans/`). |
+| `docs/` | The design spec, the staff user guide (Markdown, its screenshots in `docs/guide/images/`, and the PDF), the explainer video, and the historical feature specs and implementation plans (`docs/superpowers/specs/`, `docs/superpowers/plans/`). |
+| `.github/ISSUE_TEMPLATE/` | The bug report form, and a link to private security reporting. |
 | `.github/workflows/` | CI (`ci.yml`) and deploy (`deploy.yml`). |
 
 ## Local development
@@ -169,8 +171,8 @@ npm run deploy           # wrangler deploy (normally done by GitHub Actions; see
 | Project | Where | What it covers |
 |---|---|---|
 | `@race2feed/engine` | `packages/engine/test` | The rules, including `acceptance.test.ts`, which replays the previous event from `test/fixtures/previous-event.json` and must reproduce the sheet's seeding, brackets, standings and Grand Champion. |
-| `server-core` | `packages/server/test/core` | Command handlers, permissions, penalties and reviews, the champion, views, CSV. Runs in Node. |
-| `server-worker` | `packages/server/test/worker` | The Worker and Hub in the Workers runtime (`@cloudflare/vitest-plugin`): API, WebSockets, pairing, ending an event. |
+| `server-core` | `packages/server/test/core` | Command handlers, permissions, penalties and reviews, tournament formats and knockout, referee rotation, fairness warnings and the fairness report, the champion, views, CSV. Runs in Node. |
+| `server-worker` | `packages/server/test/worker` | The Worker and Hub in the Workers runtime (`@cloudflare/vitest-plugin`): API, WebSockets, pairing, auto-finish, referee rotation, ending and deleting an event. |
 | `web` | `packages/web/test` | Pages and libraries in happy-dom, plus build and colour-contrast checks. |
 
 - **Run one project:** for example `npx vitest run --project server-core`.

@@ -9,7 +9,7 @@ It's served at **https://r2f.weiss-audio.com**.
 | Address | Page |
 |---|---|
 | `/` | Participants: find your team, next table, brackets, results |
-| `/projector` | Projector screens |
+| `/projector` | Projector screens (`/projector/?bg=transparent` has no background, for OBS) |
 | `/ref` | Referees (open it by scanning a station QR code from the console) |
 | `/control` | Race control console (signed in through Cloudflare Access) |
 | `/emergency` | Emergency sign-in to the same console, for when Access or email is down |
@@ -61,4 +61,4 @@ For local development, put `DEV_CONSOLE_USER=you@example.com` in `packages/serve
 
 ## Backups
 
-The hub's storage keeps 30 days of point-in-time recovery. Admin can also export any event as JSON or CSV from the console's **Events** section.
+The hub's storage keeps 30 days of point-in-time recovery. Race control can also export any event as JSON or CSV, and its fairness report, from the **Events** panel on the console's **Settings** page.

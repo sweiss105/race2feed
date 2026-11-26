@@ -2,7 +2,7 @@
 
 PRC is the app; Race to Feed is the event it runs.
 
-Status: **Implemented; kept current with the code** · 2026-11-23
+Status: **Implemented; kept current with the code** · 2026-11-26
 
 This app replaces the `Race_to_Feed_Final_Bracket` Google Sheet that we used to run the event. It handles seeding, brackets, live timing, referee input, race control, participant lookup and projector screens. It runs on Cloudflare (Workers + a Durable Object) at `r2f.weiss-audio.com`.
 
@@ -75,21 +75,21 @@ Weaknesses this design fixes:
 | **Category** | A division such as High School, Community or Corporate. Teams are ranked within their category. |
 | **Team** | Name and category. |
 | **Table** | One physical race station, numbered 1..T. One team per table per round. |
-| **Station** | A fixed **pair of adjacent tables** (1&2, 3&4, …) covered by one referee device. With an odd table count, the last station is a single table. |
+| **Station** | A fixed **pair of adjacent tables** (1&2, 3&4, …) covered by one referee device. With an odd table count, the last station is a single table. An event can instead use one table per referee (§3.6); with referee rotation (§3.7) the referee at a station can change every round. |
 | **Seeding group** | A set of teams that race in the same seeding rounds. |
-| **Bracket** | A seeded set of 4–7 teams within a category (Gold, Silver, Bronze, Copper, Tin, …). |
+| **Bracket** | A seeded set of 4–7 teams within a category (Gold, Silver, Bronze, Copper, Tin, …). In the knockout format a bracket has 2 teams up to the number of tables (§3.10). |
 | **Round** | One start-to-finish run of the master clock. All races in a round start together. |
-| **Race** | A group of 1–3 teams whose finish times are compared: a seeding run, a head-to-head or a 3-team race. One race can span two stations. |
+| **Race** | A group of one or more teams whose finish times are compared: a seeding run (one team), a head-to-head, or a race of three or more (a 3-team heat, the 4-team others race of a 7-team bracket, or a whole bracket in the finals-only format, §3.10). One race can span several stations. |
 
 ### 3.2 Setup (admin)
 
-1. **Create the event.** Enter the name, date and **venue table count** (e.g. 26).
-2. **Import teams from CSV** (`team,category`), then add, edit or remove teams in the admin page. The paste box starts with the `team,category` header row already in it; a pasted list that brings its own header is accepted too. A team name is at most 35 characters (what fits on one projector line in two columns at 26 tables): the import lists each longer name with its line number and imports nothing, and add and rename refuse one. Names stored before the limit are left as they are. Late entries are allowed until seeding starts.
+1. **Create the event.** Enter the name, date and **venue table count** (e.g. 26). The table count is required (the console's box starts empty) and can be changed in Setup until setup is locked (§3.6).
+2. **Import teams from CSV** (`team,category`), then add, edit or remove teams in the admin page. The paste box starts with the `team,category` header row already in it; a pasted list that brings its own header is accepted too. A team name is at most 35 characters (what fits on one projector line in two columns at 26 tables): the import lists each longer name with its line number and imports nothing, and add and rename refuse one. Names stored before the limit are left as they are. Teams can be added and removed until setup is locked; renaming works at any time.
 3. **Seeding groups (auto-suggested, editable):**
    - The app creates the fewest groups that fit the table count (e.g. 50 teams with 26 tables gives A = 26 and B = 24).
    - It keeps categories together within a group where possible, and assigns tables in order.
    - Admin can move teams between groups and tables. Duplicate table assignments are rejected.
-4. **Bracket plan (auto-suggested per category, editable until seeding locks):**
+4. **Bracket plan (auto-suggested per category, editable until setup is locked):**
    - Split the category's seeds into brackets of 4, in tier order: Gold, Silver, Bronze, Copper, Tin, then generic names.
    - Leftover teams (1–3) are folded into the **last** bracket, which becomes 5, 6 or 7 teams. For example, HS 14 teams gives 4 + 4 + 6.
    - Admin can change bracket sizes (4–7) and rename tiers.
@@ -168,65 +168,11 @@ All times in this section are **official times**: the raw time plus any penaltie
 **Grand Championship:**
 - Ranked by time in its single race. The winner is the **Grand Champion**.
 
----
-
-## 4. Round and race lifecycle
-
-```
-            Open next round                 all stations Ready
- [Draft] ─────────────────▶ [Open] ───────────────────────────▶ [Armed]
-                              ▲  │                                  │
-                              │  │ race control overrides a station │ Companion START
-                              │  ▼                                  ▼
-                              │  (station: Ready / Excluded)    [Running]  ← master clock
-                              │                                     │  referees tap finishes
-                              │                                     │  race control: DNF / DNS / edit
-                              │                                     ▼
-                              │                       Companion FINISH (only when every team
-                              │                       has a time, DNF or DNS)
-                              │                                     ▼
-                              └────── Open next round ◀──────── [Finished] (results locked,
-                                       (blocked while ties          clock stopped/reset)
-                                        are unresolved)
-```
-
-- **Open:**
-  - Assignments for the round go out to referees, participants and the projector.
-  - Stations with no teams this round are excluded automatically.
-  - Every station starts with no table ready.
-  - **Ready is per table.** The referee presses **Ready** for each of their tables that has a team this round (`stationReady` with `table`); each locks in. A station is Ready once every one of its tables that has a team is ready. `stationReady` without a table (an older referee page) readies all of the station's occupied tables at once. A table that is not the referee's, or has no team this round, is refused (`not_your_table`).
-  - The station record keeps `readyTables` and the `ready` flag together. A station stored before per-table Ready, with `ready: true` and no `readyTables`, counts every one of its tables as ready.
-- **Start gate:**
-  - Companion **START** is refused until every active station is Ready (every occupied table ready) or overridden.
-  - Race control can override any station: force it Ready (all its tables), set it back to not ready (clears all its tables), or exclude it.
-- **Running:**
-  - The server starts the master clock.
-  - Referee devices show one button per team at their tables.
-- **Finish gate:**
-  - Companion **RACE FINISHED** is refused until every team in the round has a time, DNF or DNS.
-  - **Auto-finish:** once every team in the running round has a result, the server sets `round.autoFinishAt` to now plus the event's **Auto-finish delay (seconds)** (default 30; never shorter than the referee undo window; 0 turns it off).
-    - Any later tap, undo, penalty or correction, or a change to the event settings (the undo window or the delay), restarts the delay. If a team loses its result, the time is cleared.
-    - Activating an event whose round is counting down (after **End event**, or after switching to another event and back) restarts the full delay from that moment, so time spent on another event never finishes the round at once.
-    - When the time arrives the server runs the same finish as the button, logged with the actor "auto-finish". If that finish is refused, the time is cleared rather than retried.
-    - The time is stored with the event and driven by the hub's single alarm, which also paces phone updates; the alarm is always set to the earlier of the two, so a countdown survives the server going idle.
-  - Race control sees the list of teams still outstanding and can mark them DNF or DNS, or press **Finish** to stop that team's clock itself: the time recorded is the race clock at the press (a `setResult` with that time), for a referee who cannot tap.
-  - When finish succeeds, the clock stops and resets, and the round's results are locked.
-- **Next round:** race control reviews results, resolves any ties, then presses **Open round N** (§7.2).
-  - It is refused (`blocked`) while a tie is undecided or a finished round is missing a result.
-  - Matchups for the next round are generated from the locked results and published at that moment, not before.
-- **Late corrections:**
-  - Race control can edit a finished round's results until a later round that depends on them is opened.
-  - Each round's line-up is saved when the round is opened, and bracket membership when the first bracket round is opened.
-  - Bracket membership becomes final when the first bracket round is opened: bracket rounds not yet opened are built from those saved brackets, not re-seeded from corrected seeding results.
-  - After a later round has opened, an edit needs an explicit **unlock**, which names any opened rounds that keep a line-up the corrected results no longer match, and warns when the saved brackets differ from those the corrected seeding would set.
-  - Opened rounds are never rebuilt; rounds not yet opened are built from the corrected results.
-  - If a correction leaves an undecided tie in an earlier round, opened rounds keep their races; only rounds not yet opened wait for the tie decision.
-
 ### 3.6 Tables per referee
 
-- **Number of tables.** Set when the event is created and changeable in Setup (the **Tables** box) until setup is locked, with `setTableCount` (a whole number, at least 1; the console accepts 1–99). A change to a different number clears `groups`, `tableOf` and `brackets`, which were built for the old number; `suggestSetup` rebuilds them. Sending the current number changes nothing.
-
 *Added after the first live test, at the user's request.*
+
+- **Number of tables.** Set when the event is created and changeable in Setup (the **Tables** box) until setup is locked, with `setTableCount` (a whole number, at least 1; the console accepts 1–99). A change to a different number clears `groups`, `tableOf` and `brackets`, which were built for the old number; `suggestSetup` rebuilds them. Sending the current number changes nothing.
 
 - Admin chooses per event, in Setup, either **One referee per two tables** (the default, as in §3.1) or **One referee per table**. It can be changed until setup is locked.
 - **One per table:**
@@ -387,7 +333,62 @@ The small current-round update that public screens get while a round is open or 
 
 **Projector.** After a finished `finals` round the automatic screen is the brackets, as after a placement round, and so it is after every finished `knockout` round, where the brackets screen is the knockout tree (§7.5). In seeding only it is never the brackets: after every seeding round, and after a Grand Championship that is not decided yet, it shows the seeding results, until the champion is decided or shown.
 
-**Everything else.** Saved line-ups and saved bracket members work the same for `finals` and `knockout` rounds; seeding only saves no bracket members. Referee rotation splits a two-team final of a finals-only bracket as it does any final, and the final of a knockout bracket; the knockout third-place race and the earlier knockout races are not split. Exports list every round of any format. The "tables keep winning" fairness warning predicts each race from the value the teams were seeded on (the total under the standard rule, otherwise the seeding score).
+**Everything else.** Saved line-ups and saved bracket members work the same for `finals` and `knockout` rounds; seeding only saves no bracket members. Referee rotation splits a two-team final of a finals-only bracket as it does any final, and the final of a knockout bracket; the knockout third-place race and the earlier knockout races are not split. Exports list every round of any format. The `referee_wins` fairness warning ("One referee's teams keep doing well", §3.8) predicts each race from the value the teams were seeded on (the total under the standard rule, otherwise the seeding score).
+
+---
+
+## 4. Round and race lifecycle
+
+```
+            Open next round                 all stations Ready
+ [Draft] ─────────────────▶ [Open] ───────────────────────────▶ [Armed]
+                              ▲  │                                  │
+                              │  │ race control overrides a station │ Companion START
+                              │  ▼                                  ▼
+                              │  (station: Ready / Excluded)    [Running]  ← master clock
+                              │                                     │  referees tap finishes
+                              │                                     │  race control: DNF / DNS / edit
+                              │                                     ▼
+                              │                       Companion FINISH (only when every team
+                              │                       has a time, DNF or DNS)
+                              │                                     ▼
+                              └────── Open next round ◀──────── [Finished] (results locked,
+                                       (blocked while ties          clock stopped/reset)
+                                        are unresolved)
+```
+
+- **Phases in code:** `idle` (Draft: before round 1), `open`, `running` and `finished`. "Armed" is not stored: it is an open round whose active stations are all Ready. Start and Finish are the same commands (`startRace`, `finishRace`) from Companion and from the console's action button (§7.2).
+- **Open:**
+  - Assignments for the round go out to referees, participants and the projector.
+  - Stations with no teams this round are excluded automatically.
+  - Every station starts with no table ready.
+  - **Ready is per table.** The referee presses **Ready** for each of their tables that has a team this round (`stationReady` with `table`); each locks in. A station is Ready once every one of its tables that has a team is ready. `stationReady` without a table (an older referee page) readies all of the station's occupied tables at once. A table that is not the referee's, or has no team this round, is refused (`not_your_table`).
+  - The station record keeps `readyTables` and the `ready` flag together. A station stored before per-table Ready, with `ready: true` and no `readyTables`, counts every one of its tables as ready.
+- **Start gate:**
+  - Companion **START** is refused until every active station is Ready (every occupied table ready) or overridden.
+  - Race control can override any station: force it Ready (all its tables), set it back to not ready (clears all its tables), or exclude it.
+- **Running:**
+  - The server starts the master clock.
+  - Referee devices show one button per team at their tables.
+- **Finish gate:**
+  - Companion **RACE FINISHED** is refused until every team in the round has a time, DNF or DNS.
+  - **Auto-finish:** once every team in the running round has a result, the server sets `round.autoFinishAt` to now plus the event's **Auto-finish delay (seconds)** (default 30; never shorter than the referee undo window; 0 turns it off).
+    - Any later tap, undo, penalty or correction, or a change to the event settings (the undo window or the delay), restarts the delay. If a team loses its result, the time is cleared.
+    - Activating an event whose round is counting down (after **End event**, or after switching to another event and back) restarts the full delay from that moment, so time spent on another event never finishes the round at once.
+    - When the time arrives the server runs the same finish as the button, logged with the actor "auto-finish". If that finish is refused, the time is cleared rather than retried.
+    - The time is stored with the event and driven by the hub's single alarm, which also paces phone updates; the alarm is always set to the earlier of the two, so a countdown survives the server going idle.
+  - Race control sees the list of teams still outstanding and can mark them DNF or DNS, or press **Finish** to stop that team's clock itself: the time recorded is the race clock at the press (a `setResult` with that time), for a referee who cannot tap.
+  - When finish succeeds, the clock stops and resets, and the round's results are locked.
+- **Next round:** race control reviews results, resolves any ties, then presses **Open round N** (§7.2).
+  - It is refused (`blocked`) while a tie is undecided or a finished round is missing a result, and (`penalties_pending`) while a referee's penalty is waiting for review (§5.2).
+  - Matchups for the next round are generated from the locked results and published at that moment, not before.
+- **Late corrections:**
+  - Race control can edit a finished round's results until a later round that depends on them is opened.
+  - Each round's line-up is saved when the round is opened, and bracket membership when the first bracket round is opened.
+  - Bracket membership becomes final when the first bracket round is opened: bracket rounds not yet opened are built from those saved brackets, not re-seeded from corrected seeding results.
+  - After a later round has opened, an edit needs an explicit **unlock**, which names any opened rounds that keep a line-up the corrected results no longer match, and warns when the saved brackets differ from those the corrected seeding would set.
+  - Opened rounds are never rebuilt; rounds not yet opened are built from the corrected results.
+  - If a correction leaves an undecided tie in an earlier round, opened rounds keep their races; only rounds not yet opened wait for the tie decision.
 
 ### 4.1 Show champion and end the event
 
@@ -401,7 +402,7 @@ The small current-round update that public screens get while a round is open or 
 - Without a Grand Championship, the screen shows each category's winner instead.
 - **Hide champion** returns everyone to the normal screens. It is available whenever the champion is showing. The bag number can be changed at any time.
 
-**End event** (admin, Events page, after a confirmation that warns if rounds remain unraced or penalties are still pending):
+**End event** (admin, Settings → Events, after a confirmation that warns if rounds remain unraced or penalties are still pending):
 - The event is marked **Ended** and is no longer active.
 - Its results are locked: no further commands are accepted for it.
 - All referee devices are signed out and their pairings revoked.
@@ -447,7 +448,7 @@ The small current-round update that public screens get while a round is open or 
   - seeding totals and seeding rank
 - **When a referee can add one:** from **START** until the round finishes (race control presses **RACE FINISHED**, or auto-finish fires, §4). That includes before or after the team's finish tap, since infractions are often spotted at the end. Each penalty tap restarts the auto-finish delay, so referees have that long after the last finish.
   - After the round is finished, only race control can add or remove penalties. This is subject to the same late-correction rules as times (§4).
-- **On/off switch:** one **event-wide** switch on race control.
+- **On/off switch:** one **event-wide** switch in the console's Settings, in the event's panel.
   - Flipping it shows or hides the penalty buttons on every referee device **immediately**, even mid-race.
   - Turning it off **never removes** penalties already given. Race control can still remove those one at a time, and can still add penalties while the switch is off.
   - The switch is off by default for a new event.
@@ -498,8 +499,8 @@ The small current-round update that public screens get while a round is open or 
 - **One undo per tap:** each of the referee's recent taps has its own undo row, including taps that reached the server after a dropout. A failed undo is reported and the row stays until the window ends.
 - **After the undo window:** only **race control** can edit a time, clear it, set DNF or DNS, or add or remove a penalty.
 - **Audit log:** every state change goes in an append-only log, viewable in race control:
-  - taps, penalties, undos, edits, overrides, tie decisions, penalty-switch changes, round transitions and logins
-  - each entry records who, which device, when, and the old and new values
+  - taps, penalties, undos, edits, overrides, tie decisions, penalty-switch and other setting changes, round transitions, event and key management, and device pairings (console and emergency sign-ins are not logged; each console action carries the signed-in name)
+  - each entry records who (for a referee, their name and station), when, the command and its contents; the console's Log page shows the latest 50 entries of the active event, and the JSON export has them all
   - **Delete event** (§4.1) is the one exception to append-only: it removes the deleted event's log with it, leaving a single `deleteEvent` entry that belongs to no event.
 
 ---
@@ -534,9 +535,9 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
 
 **Appearance** is a per-browser preference for the console and the emergency console only: Automatic (follow the device), Light or Dark, as a small three-way segmented control pinned to the bottom right corner of the console window on every section (it is not a Settings panel). It is kept in `localStorage` under `prc.theme` (`auto` | `light` | `dark`; missing or unreadable means `auto`) and applied before the first paint by setting `theme-light` / `theme-dark` on `<html>` (`auto` sets neither). It never reaches the server; phones, referee devices and the projector are unaffected.
 
-- Manage events (Settings → Events), import and edit teams, set the venue table count.
+- Manage events (Settings → Events), import and edit teams, set the venue table count (when creating the event, and in Setup's **Tables** box: a number from 1 to 99 and **Save tables**, disabled once setup is locked; §3.6).
 - Edit seeding groups and table assignments.
-- **Tournament format** (§3.10): a panel in **Setup**, above the Referees choice. All of its wording lives in `packages/web/src/lib/formatCopy.ts`.
+- **Tournament format** (§3.10): a panel in **Setup**, the first one, above the **Tables** box (§3.6) and the Referees choice. All of its wording lives in `packages/web/src/lib/formatCopy.ts`.
   - Heading "Tournament format" and the line "Choose how the event runs. You can change this until setup is locked."
   - Four groups of choices, each a radio group of cards: **Preset**, **Seeding rounds** (1 round, 2 rounds, 3 rounds), **Seeding rank** (Total time, Best run, Drop the slowest) and **Bracket format** (Heats, then placement; Finals only; No brackets; Knockout). Every card shows its name and, under it, one or two sentences saying what it does. The explanations are always visible, never tooltips. Cards sit side by side while the panel is wide enough to read them, then four become two by two and three stack.
   - **Presets**: Standard (2 rounds, total time, heats then placement), Short (1, total, finals only), Seeding only (2, total, no brackets), Knockout (2, total, knockout). The preset whose three settings match is selected; when none matches, a **Custom** tag shows beside the group's heading and no preset is selected.
@@ -555,7 +556,7 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
 - Type the **bag total** shown on the champion screen.
 
 ### 7.2 Console: running the race
-- **Grid of every station:** each shows not ready / Ready / excluded, the teams with their times and status, and any overrides. A two-table station with one table ready reads "1 of 2 tables ready" (still not ready; the Start count counts stations not fully ready).
+- **Grid of every station** (the Stations panel): each card shows the station's tables, Not ready / Ready / No teams (an excluded station), and the override buttons Ready, Unready, Exclude and Include. A two-table station with one table ready reads "1 of 2 tables ready" (still not ready; the Start count counts stations not fully ready).
 - **Race Control page header:** round title, state, master clock, a status line (`role="status"`) and **one large action button** that always shows the next step. It is about three times a normal button (min-height 6rem, min-width 16rem, title-sized text). It **pulses** (a 2-second scale-and-glow loop, off under `prefers-reduced-motion: reduce`) only when pressing it will work and is the expected next step; it never pulses while the server would refuse. A refused command's message shows under the header until the round moves on (its number or phase changes); a refusal that arrives after that, such as a Finish now that lands just after auto-finish, is not shown. The first matching row wins:
 
   | Condition | Button | Enabled | Pulses | Status line |
@@ -599,7 +600,7 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
 - **Fairness count in the sidebar:** the number of open warnings as a badge beside **Race Control**, on every section (accessible name "{n} fairness warning(s)"); hidden at 0.
 - **"Waiting on N teams" list** with one-click Finish (while running: records the race clock at the press), DNF and DNS.
 - **Time penalties on/off switch** in Settings, in the event's panel (event-wide, takes effect immediately, §5.1).
-- **Penalties per team:** each team shows `raw + penalties = official`, with buttons to add or remove a penalty.
+- **Results panel:** every team of the chosen round with its table, race and official time as on phones (e.g. `3:46.20 (incl. +10s · False Start)`), a time box with **Set**, **DNF**, **DNS**, **Clear**, a reason list with **Add** for a penalty, and a button that removes the team's latest penalty (`−10s`, `−DQ`, or `−Penalty` for one still pending review).
 - **Tie resolution**, time edits and clears, and the audit log.
 - **Rename a team** at any time during the event (e.g. a misspelling spotted on the projector). Other setup changes stay locked once setup is locked.
 - **Open round N** (the action button), with a results review first.
@@ -634,7 +635,7 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
 ### 7.4 Participant (public, read-only, phone-first)
 - **Team search** highlights the team in every bracket and list where it appears.
 - The phone **remembers the team** (local storage), so later visits open straight to it.
-- **"Your next race":** round, table number and opponent(s). Before the round is opened it says "waiting for Round N to finish".
+- **"Your next race":** round, table number and opponent(s). Before the round is opened it says "Round N — your table appears here when it opens."; after the last round, "All rounds are done. Thanks for racing!".
 - **Brackets:** all categories and tiers, live-updating.
   - **Finals only** (§3.10): each bracket is one stage, "Round {n} · Final", holding its one race in seed order with each team's place; there is no "Final places" stage, as the race's finishing order is the result.
   - **Knockout** (§3.10): each bracket is a **tree** (`buildBracketTrees` in `bracketModel.ts`, `KnockoutTree.tsx`), and there is no Cards / Diagram choice.
@@ -657,9 +658,12 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
   |---|---|
   | Open | Table assignments for the round, with a ready dot per team |
   | Running | Large master clock alone until the first team has a result; then a smaller clock at the top and the team list under it, headed "Preliminary times" |
-  | Finished | Updated seeding results, brackets or standings |
+  | Before round 1 | Welcome: the event's name and the QR code |
+  | Finished | Seeding results after a seeding round; brackets after a bracket round (in seeding only, the seeding results, §3.10) |
   | Grand Championship finished | The champion, once it is decided: no penalty pending review, no undecided tie and no missing result (§4.1); brackets until then |
-  | Event complete | Final standings, then the champion |
+  | Race control shows the champion, or the event has ended | The champion (§4.1) |
+
+  The final standings screen is never chosen automatically: race control pins it (below).
 
 - **Team rows and status dots.** The tables screen and the running screen share one row: table number, a status marker in a fixed 1em slot just left of the team name (so names line up; plain dots are about 0.6em, centred on the name), and the race label or result at the right. The dot is one component taking a status, each with `role="img"` and a label:
 
@@ -687,7 +691,7 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
 
 ## 8. Bitfocus Companion module
 
-A custom Companion module (`companion-module-race2feed`) connects to the server with the API key over a live (WebSocket) connection.
+A custom Companion module (`companion-module-race2feed`) connects to the server with the API key over a live (WebSocket) connection. **The module is not in this repository and has not been built**: this section is its design. Until it exists, Companion's generic HTTP request buttons send `startRace`, `finishRace` and `pinProjector` to `POST /api/command` (the staff guide gives the settings), and the server already offers what the module needs: the Companion role's commands and the `companionView` over `/api/ws` (`state`, `round`, `startedAt`, `autoFinishAt`, `readyCount`, `stationCount`, `outstanding`, `penaltiesEnabled`, `projector`).
 
 - **Actions:** Start race, Race finished, and optionally Pin projector screen and Return projector to automatic.
 - **Feedbacks** (button colours):

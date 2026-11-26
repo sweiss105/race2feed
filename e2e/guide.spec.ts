@@ -84,6 +84,17 @@ async function shot(page: Page, name: string) {
 /** Captures just the area around one or more elements, with some padding. */
 async function region(page: Page, targets: Locator | Locator[], name: string, pad = 20, padBottom = pad) {
   const list = Array.isArray(targets) ? targets : [targets];
+  // The console's Appearance switch is pinned to the corner of the window, so in a cropped picture it would sit on
+  // top of whatever is being shown. It is left out here; the full-window pictures and its own picture show it.
+  const hidden = await page.addStyleTag({ content: '.appearance-switch { visibility: hidden !important; }' });
+  try {
+    await capture(page, list, name, pad, padBottom);
+  } finally {
+    await hidden.evaluate((el) => (el as Element).remove());
+  }
+}
+
+async function capture(page: Page, list: Locator[], name: string, pad: number, padBottom: number) {
   await list[0]!.scrollIntoViewIfNeeded();
   await page.waitForTimeout(600);
   const boxes = await Promise.all(list.map((l) => l.evaluate((el) => {
@@ -194,7 +205,14 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await keys.getByLabel('Key name').blur();
   await region(admin, keys, 'console-companion-keys.jpg');
   await keys.getByLabel('Key name').fill('');
-  await region(admin, admin.getByRole('radiogroup', { name: 'Appearance' }), 'console-appearance.jpg');
+  // The Appearance switch is pinned to the window, not the page: capture the bottom right corner of the window.
+  await admin.evaluate(() => window.scrollTo(0, 0));
+  await admin.waitForTimeout(600);
+  const corner = (await admin.getByRole('radiogroup', { name: 'Appearance' }).boundingBox())!;
+  const view = admin.viewportSize()!;
+  const left = Math.max(0, corner.x - 360);
+  const top = Math.max(0, corner.y - 140);
+  await admin.screenshot({ ...file('console-appearance.jpg'), clip: { x: left, y: top, width: view.width - left, height: view.height - top } });
 
   // ── Referee: an unpaired device ───────────────────────────────────────────
   const unpaired = await context(browser, TABLET);

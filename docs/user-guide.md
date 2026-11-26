@@ -71,9 +71,9 @@ If the console says **"You are not signed in. Reload this page to sign in."**, p
 ### 1. Create the event
 
 1. Go to **Settings**. The **Events** panel is at the top of the page, open when no event is active. (Settings works even when no event is active yet.) While an event is active the panel is folded away to one line, **Events** with **Active:** and the event's name under it; click that line to open it, and click it again to fold it.
-2. Fill in the three labelled boxes: **Event name**, **Date** and **Tables** (how many packing tables the venue has). The Tables box starts empty, and **Create event** stays greyed out until you've typed a name and a number of tables. (You can change the number of tables later in **Setup**, until setup is locked.)
+2. Fill in the three labelled boxes: **Event name**, **Date** and **Tables** (how many packing tables the venue has, from 1 to 99). The Tables box starts empty, and **Create event** stays greyed out until you've typed a name and a number of tables. (You can change the number of tables later in **Setup**, until setup is locked.)
 3. Press **Create event**.
-4. If no event is active and none has just ended, the new event becomes **Active** straight away. Otherwise, press **Make active** on its row when you're ready. (Creating next year's event right after ending this one doesn't take the champion off everyone's phones.)
+4. If no event is active and no ended event is in the list, the new event becomes **Active** straight away. Otherwise, press **Make active** on its row when you're ready. (Phones and the projector keep showing the last ended event's champion until you do, so creating next year's event doesn't take the champion off everyone's phones.)
 
 ![Settings → Events: the form for a new event, the active event with End event, and last year's ended event with Make active and Delete](guide/images/console-events.jpg)
 
@@ -106,11 +106,11 @@ Things to know about importing:
 - **Team names can be at most 35 characters**, so every name fits on one line on the projector. Shorten longer ones before importing, for example "High School" to "HS".
 - If something's wrong (a missing name, a duplicate team, a name over 35 characters, a wrong header), the app lists each problem with its line number and imports nothing.
 
-**Add, rename or remove a team:** use **Add team** (name and category) at the top, or **Rename** and **Remove** on a team's row. Adding and removing are possible only until setup is locked. Removing a category's last team removes the category and its brackets too (and a seeding group left with no teams), so no race is scheduled for it; if you remove a team from a category that keeps other teams, press **Suggest groups and brackets** again before locking. Renaming works at any time. The 35-character limit applies here too. Teams already in an event with a longer name keep it until you rename them.
+**Add, rename or remove a team:** use **Add team** (name and category) above the team list, or **Rename** and **Remove** on a team's row. Adding and removing are possible only until setup is locked. Removing a category's last team removes the category and its brackets too (and a seeding group left with no teams), so no race is scheduled for it; if you remove a team from a category that keeps other teams, press **Suggest groups and brackets** again before locking. Renaming works at any time. The 35-character limit applies here too. Teams already in an event with a longer name keep it until you rename them.
 
 ### 3. Tournament format
 
-Go to **Setup**. The **Tournament format** panel is at the top. It decides how the event runs. Choose it before you press **Suggest groups and brackets**, because the brackets are built for the format. You can change it until setup is locked.
+Go to **Setup**. The **Tournament format** panel is the first panel, under the buttons at the top. It decides how the event runs. Choose it before you press **Suggest groups and brackets**, because the brackets are built for the format. You can change it until setup is locked.
 
 If you want the event to run the way Race to Feed has been run, leave it on **Standard** and go on to the next step.
 
@@ -192,7 +192,7 @@ You can then adjust:
 
 ### Number of tables
 
-In **Setup**, under **Tables**, you can change how many packing tables the venue has: type the number and press **Save tables**.
+In **Setup**, under **Tables**, you can change how many packing tables the venue has: type the number (1 to 99) and press **Save tables**.
 
 - **Tables are how many teams can race at once**, not how many teams you can have. Fewer tables means more rounds; more tables means fewer rounds, but more room and more referees.
 - **Changing the number clears the seeding groups, table assignments and brackets**, because they were built for the old number. Press **Suggest groups and brackets** afterwards to rebuild them.
@@ -210,7 +210,7 @@ In **Setup**, under **Referees**, choose how many tables each referee covers:
 - **One referee per two tables** (the default). Each referee looks after a pair of tables.
 - **One referee per table.** Each referee looks after a single table and gets one big team button. Head-to-heads are judged by two referees, both on the same master clock, so times still decide the winner.
 
-You can change this until setup is locked. Station counts, pairing, the Ready check, the referee screen and the station labels in the console all follow the choice.
+You can change this until setup is locked. Station counts, pairing, the Ready check, the referee screen and the station labels in the console all follow the choice. If referee devices are already paired, pair them again after changing it.
 
 ### 5. Lock the setup
 
@@ -287,9 +287,9 @@ About pairing:
 
   ![The penalty list editor: a name, Time or DQ, and the seconds for each reason](guide/images/console-penalty-list.jpg)
 
-- **Appearance:** a small **Automatic / Light / Dark** switch sits in the bottom right corner of the console, on every page (it is not under Settings). Choose **Automatic** (follow the computer's light or dark setting), **Light** or **Dark**. It only changes this browser: phones, referee devices and the projector are not affected.
+**Appearance (light or dark)** is not on the Settings page. A small **Automatic / Light / Dark** switch sits in the bottom right corner of the console, on every page. Choose **Automatic** (follow the computer's light or dark setting), **Light** or **Dark**. It only changes this browser: phones, referee devices and the projector are not affected.
 
-  ![The Appearance switch in the bottom right corner of the console: Automatic, Light or Dark](guide/images/console-appearance.jpg)
+![The Appearance switch in the bottom right corner of the console window: Automatic, Light or Dark](guide/images/console-appearance.jpg)
 
 ---
 
@@ -298,7 +298,7 @@ About pairing:
 Sign in at `/control` with your email address and the one-time code (see [Setup before the day](#setup-before-the-day)). Most of your work happens in the **Race Control** section.
 
 At the top of **Race Control** you'll see:
-- the round number and its state: **idle**, **open**, **running** or **finished**
+- the round number ("Not started" before round 1) and its state: **Idle**, **Open**, **Running** or **Finished**
 - the race clock, while running
 - a **status line** that says what the room is waiting for
 - **one large button** that always shows the next step. It **pulses** when pressing it will work and is what you should do next. When it's greyed out, the status line says why.
@@ -392,7 +392,7 @@ Good to know:
 - **Start** works only when every station that has teams is Ready (or overridden). Until then it's greyed out and the status line reads, for example, "Waiting on 2 referees to be ready".
 - **Finish now** works only when every team in the round has a time, DNF or DNS. Until then it's greyed out and the status line reads "Racing — waiting on *N* teams".
 
-While a round runs, the **Waiting on *N* teams** panel lists every team without a result yet, with **Finish**, **DNF** and **DNS** buttons for each one. **Finish** stops that team's clock at the moment you press it, exactly as the referee's tap would; use it when a referee's device has failed or they missed the tap. If you press it by mistake, correct the time in **Results**.
+While a round runs, the **Waiting on *N* teams** panel lists every team without a result yet, with **Finish**, **DNF** and **DNS** buttons for each one. **Finish** stops that team's clock at the moment you press it, exactly as the referee's tap would; use it when a referee's device has failed or they missed the tap. If you press it by mistake, correct the time in **Results**. (The panel is there before the start too, with **DNF** and **DNS** only.)
 
 ![A running round: the race clock, every station Ready, "Racing — waiting on 7 teams" with Finish now greyed out, and the teams still waiting for a result](guide/images/console-race-running.jpg)
 
@@ -643,7 +643,7 @@ On each card:
 2. Add a short note if it helps (optional).
 3. Press **Send to race control**. The card then shows **Sent ✓**.
 
-If the round finishes while you're filling in a card, what you've picked and typed stays; just press **Send**. Sending a note restarts the auto-finish delay, which gives you time for the next one.
+If the round finishes while you're filling in a card, what you've picked and typed stays; just press **Send to race control**. Sending a note restarts the auto-finish delay, which gives you time for the next one.
 
 Your note goes only to race control, who makes the final decision.
 
@@ -739,7 +739,7 @@ The projector follows the event by itself:
 **During the race**, once the first team is in, every team of the round is listed under the clock in two columns (down the first column, then the second):
 - The **red number is the finishing position** (1 for the fastest time so far). Teams still racing, and teams marked DNF, DNS or DQ, have no number. Two teams showing the same time (equal to the hundredth of a second) share a position and are listed by table; the next team takes the position after them (1, 1, 3).
 - The team's **table** follows its name in grey, for example "Alpha (T1)".
-- Finished teams first, in the order they finished (fastest time first), each with a checkered-flag marker and its time: `3:41.20`, `3:46.20 (+5s)` with an approved penalty, `under review` while a penalty is pending. Then teams marked **DNF** (or **DQ**), then **DNS**.
+- Finished teams first, in the order they finished (fastest time first), each with a checkered-flag marker and its time: `3:41.20`, `3:46.20 (+5s)` with an approved penalty, `3:41.20 · under review` while a penalty is pending. Then teams marked **DNF** (or **DQ**), then **DNS**.
 - Then the teams still racing, by table number, with a green dot and their race label.
 
 With fewer teams in a round, the team list on the **Tables** and **Clock** screens uses bigger text to fill the screen, as big as the longest team name allows on one line. A very long name may end in "…" on a full 26-table round.

@@ -674,6 +674,8 @@ Your phone remembers your team, so next time it opens straight to it. Tap **Not 
 - **"Winner of Quarter-final 2"** (or "Loser of Semi-final 1" in the third-place race) stands in for a team that isn't known yet. The team's name appears there when race control opens that round.
 - **The tree is wider than the phone:** swipe it sideways. Your team is highlighted, and the tab opens on your team's current race.
 
+![A knockout bracket on a phone after the semi-finals: the quarter-finals to the left, the two semi-finals with their times, and the final and third-place race waiting for their teams. Your team is highlighted](guide/images/phone-knockout.png)
+
 Times include penalties. For example, `3:46.20 (incl. +10s · False Start)` means the time already includes a 10-second penalty. **pending: under review** after a time means a referee has flagged the team and race control hasn't decided yet; the time may still change. **DQ** means the team was disqualified from that race.
 
 ![My team while a referee's penalty waits for race control: the time is marked "pending: under review"](guide/images/phone-results-pending.png)
@@ -708,6 +710,7 @@ The projector follows the event by itself:
 
 ![Projector: seeding results by category after both seeding rounds, with Run 1, Run 2 and the Total each team is ranked on](guide/images/projector-seeding-results.jpg)
 ![Projector: a category's brackets](guide/images/projector-brackets.jpg)
+![Projector: a knockout bracket of six teams after the semi-finals. The top two seeds had a bye in the quarter-finals; the final and the third-place race wait for the next round to open](guide/images/projector-knockout.jpg)
 
 ![Projector: the Grand Champion and the bags packed](guide/images/projector-champion.jpg)
 

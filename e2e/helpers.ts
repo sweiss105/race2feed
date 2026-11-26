@@ -31,17 +31,17 @@ export async function waitForActive(page: Page, name: string) {
 }
 
 /**
- * Creates, activates and locks a 4-team event on 4 tables. Returns the console page.
+ * Creates, activates and locks a one-category event: the four TEAMS on 4 tables unless told otherwise. Returns the console page.
  * The console asks for reduced motion: Playwright never clicks the Race page's pulsing button
  * while it moves, so it would wait forever.
  */
-export async function setUpEvent(browser: Browser, name: string) {
+export async function setUpEvent(browser: Browser, name: string, teams: string[] = TEAMS, tables = 4) {
   const admin = await (await browser.newContext({ reducedMotion: 'reduce' })).newPage();
   await signInAdmin(admin);
   await admin.getByRole('link', { name: 'Settings', exact: true }).click();
   await openEvents(admin);
   await admin.getByLabel('Event name').fill(name);
-  await admin.getByLabel('Tables').fill('4');
+  await admin.getByLabel('Tables').fill(String(tables));
   await admin.getByRole('button', { name: 'Create event' }).click();
   // The list reloads after the server confirms, so it says whether the new event went active by itself.
   const listed = admin.locator('details.events-panel tr', { hasText: name });
@@ -56,13 +56,13 @@ export async function setUpEvent(browser: Browser, name: string) {
   await expect(row.getByText('Active')).toBeVisible();
 
   await admin.getByRole('link', { name: 'Teams' }).click();
-  await admin.getByLabel('Paste CSV').fill(['team,category', ...TEAMS.map((t) => `${t},Open`)].join('\n'));
+  await admin.getByLabel('Paste CSV').fill(['team,category', ...teams.map((t) => `${t},Open`)].join('\n'));
   await admin.getByRole('button', { name: 'Import' }).click();
-  await expect(admin.getByRole('button', { name: 'Rename Delta' })).toBeVisible();
+  await expect(admin.getByRole('button', { name: `Rename ${teams.at(-1)}` })).toBeVisible();
 
   await admin.getByRole('link', { name: 'Setup' }).click();
   await admin.getByRole('button', { name: 'Suggest groups and brackets' }).click();
-  await expect(admin.getByLabel('Group for Alpha')).toBeVisible();
+  await expect(admin.getByLabel(`Group for ${teams[0]}`)).toBeVisible();
   await admin.getByRole('button', { name: 'Lock setup' }).click();
   await expect(admin.getByText('Locked', { exact: true })).toBeVisible();
   return admin;

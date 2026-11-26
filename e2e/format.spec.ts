@@ -2,15 +2,16 @@ import { test, expect, type Browser, type Page } from '@playwright/test';
 import { readyAndStart, setUpEvent, timeEveryone } from './helpers';
 
 /**
- * A 4-team, one-category event in another tournament format: setUpEvent locks it as Standard, so unlock,
+ * A one-category event (4 teams unless told otherwise) in another tournament format: setUpEvent locks it as Standard, so unlock,
  * choose the format in Setup's Tournament format panel, rebuild the groups and brackets for it, and lock again.
  */
-async function setUpWithFormat(browser: Browser, name: string, choose: string[], summary: string) {
-  const admin = await setUpEvent(browser, name);
+async function setUpWithFormat(browser: Browser, name: string, choose: string[], summary: string, teams?: string[], tables?: number) {
+  const admin = await setUpEvent(browser, name, teams, tables);
   await admin.getByRole('button', { name: 'Unlock setup' }).click();
   const panel = admin.getByRole('region', { name: 'Tournament format' });
   for (const choice of choose) {
-    const option = panel.getByRole('radio', { name: choice, exact: true });
+    // "Knockout" is both a preset and a bracket format: the preset comes first.
+    const option = panel.getByRole('radio', { name: choice, exact: true }).first();
     await option.click();
     await expect(option).toHaveAttribute('aria-checked', 'true');
     await admin.waitForTimeout(200);
@@ -122,4 +123,67 @@ test('Seeding only with three runs and Drop the slowest', async ({ browser }) =>
   await expect(projector.getByRole('heading', { name: 'Open champion' })).toBeVisible();
   await expect(projector.locator('.proj-champion .name')).toHaveText('Alpha');
   await expect(phone.getByRole('region', { name: 'Champion' })).toContainText('Alpha');
+});
+
+test('Knockout: six teams, two byes, to the champion', async ({ browser }) => {
+  test.setTimeout(240_000);
+  const SIX = ['Alpha', 'Bravo', 'Charlie', 'Delta', 'Echo', 'Foxtrot'];
+  const admin = await setUpWithFormat(browser, 'E2E Knockout', ['Knockout', '1 round'], '4 rounds, 12 races', SIX, 6);
+  await admin.getByRole('link', { name: 'Setup' }).click();
+  await expect(admin.getByRole('region', { name: 'Brackets' })).toContainText('A knockout bracket has 2 to 6 teams (as many as there are tables).');
+  await expect(admin.getByLabel('Open tier 1 size')).toHaveValue('6');
+  await admin.getByRole('link', { name: 'Race Control', exact: true }).click();
+  const projector = await projectorPage(browser);
+  const phone = await phonePage(browser, 'Bravo');
+  const match = (page: Page, name: string) => page.getByRole('group', { name, exact: true });
+  const rows = (page: Page, name: string) => match(page, name).locator('.ko-row');
+
+  // Seeding: Alpha is seed 1 … Foxtrot seed 6.
+  await raceRound(admin, 1, { Alpha: '3:00.00', Bravo: '3:01.00', Charlie: '3:02.00', Delta: '3:03.00', Echo: '3:04.00', Foxtrot: '3:05.00' });
+  await phone.getByRole('tab', { name: 'Brackets' }).click();
+  await expect(phone.getByText('Brackets appear once seeding is done and the first bracket round opens.')).toBeVisible();
+  // Race control already has the tree, with the top two seeds' byes.
+  const consoleTree = admin.getByRole('region', { name: 'Brackets' });
+  await expect(consoleTree.getByText('Bye')).toHaveCount(2);
+
+  // Quarter-finals: only seeds 3 to 6 race; Alpha and Bravo have a bye. The lower seeds win both.
+  await raceRound(admin, 2, { Delta: '3:12.00', Echo: '3:06.00', Charlie: '3:10.00', Foxtrot: '3:07.00' });
+  await expect(projector.getByRole('heading', { name: 'Open Gold' })).toBeVisible();
+  await expect(projector.locator('.ko-tree h5')).toHaveText(['Quarter-finals', 'Semi-finals', 'Final']);
+  await expect(projector.getByText('Bye')).toHaveCount(2);
+  await expect(rows(projector, 'Quarter-final 1')).toHaveText(['4Delta3:12.00', '5Echo3:06.00']);
+  await expect(match(projector, 'Quarter-final 1').locator('.ko-row.win')).toHaveText('5Echo3:06.00');
+  // The semi-final names its teams when its round opens: until then it waits for the quarter-final's winner.
+  await expect(rows(phone, 'Semi-final 1')).toHaveText(['1Alpha', 'Winner of Quarter-final 1']);
+  await expect(rows(phone, 'Third place')).toHaveText(['Loser of Semi-final 1', 'Loser of Semi-final 2']);
+
+  // Semi-finals: the teams with a bye come in against the quarter-final winners.
+  await admin.getByRole('button', { name: 'Open round 3', exact: true }).click();
+  await expect(rows(phone, 'Semi-final 1')).toHaveText(['1Alpha—', '5Echo—']);
+  await expect(rows(phone, 'Semi-final 2')).toHaveText(['2Bravo—', '6Foxtrot—']);
+  await expect(phone.locator('.ko-row.me')).toHaveCount(2);
+  await readyAndStart(admin);
+  await timeEveryone(admin, { Alpha: '3:00.00', Echo: '3:08.00', Bravo: '3:01.00', Foxtrot: '3:09.00' });
+  await admin.getByRole('button', { name: 'Finish now' }).click();
+  await expect(admin.locator('.pill')).toHaveText('finished');
+
+  // The final and the third-place race, in the same round.
+  await admin.getByRole('button', { name: 'Open round 4', exact: true }).click();
+  await expect(rows(phone, 'Final')).toHaveText(['1Alpha—', '2Bravo—']);
+  await expect(rows(phone, 'Third place')).toHaveText(['5Echo—', '6Foxtrot—']);
+  await expect(admin.getByRole('region', { name: 'Results' })).toContainText('Open Gold · Third place');
+  await readyAndStart(admin);
+  await timeEveryone(admin, { Alpha: '3:02.00', Bravo: '2:59.00', Echo: '3:11.00', Foxtrot: '3:05.00' });
+  await admin.getByRole('button', { name: 'Finish now' }).click();
+  await expect(admin.locator('.pill')).toHaveText('finished');
+  await expect(match(projector, 'Final').locator('.ko-row.win')).toHaveText('2Bravo2:59.00');
+  await expect(match(projector, 'Third place').locator('.ko-row.win')).toHaveText('6Foxtrot3:05.00');
+
+  await showChampion(admin);
+  await expect(projector.getByRole('heading', { name: 'Open champion' })).toBeVisible();
+  await expect(projector.locator('.proj-champion .name')).toHaveText('Bravo');
+  await expect(phone.getByRole('region', { name: 'Champion' })).toContainText('Bravo');
+  // Final, third place, then the quarter-final losers by their time in that round.
+  await expect(phone.getByRole('region', { name: 'Final standings' }).locator('li'))
+    .toHaveText(['1Bravo', '2Alpha', '3Foxtrot', '4Echo', '5Charlie', '6Delta']);
 });

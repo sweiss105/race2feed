@@ -2,7 +2,8 @@
  * Screenshots for the staff user guide (docs/user-guide.md → docs/PRC-User-Guide.pdf).
  * Run with `npm run guide:shots` (or `npm run guide` for screenshots and PDF). Not part of `npm run e2e`.
  *
- * Drives a whole fake event, "Race to Feed 2026", with made-up teams, on a throwaway local server.
+ * Drives a whole fake event, "Race to Feed 2026", with made-up teams, on a throwaway local server, and then a
+ * second small event in the Knockout format for the bracket-tree pictures.
  * Public pages (phone, projector) are opened at r2f.weiss-audio.com so the projector shows the real
  * site address, but every request and WebSocket is answered by the local server (see `publicPage`).
  */
@@ -98,7 +99,7 @@ async function region(page: Page, targets: Locator | Locator[], name: string, pa
 }
 
 test('screenshots for the user guide', async ({ browser, baseURL }) => {
-  test.setTimeout(480_000);
+  test.setTimeout(590_000);
   rmSync(OUT, { recursive: true, force: true });
   mkdirSync(OUT, { recursive: true });
 
@@ -469,4 +470,60 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await deleteSheet.getByRole('button', { name: 'Delete event' }).click();
   await expect(deleteSheet).toBeHidden();
   await expect(throwaway).toHaveCount(0);
+
+  // ── A second, small event in the Knockout format, for the bracket tree ────
+  // Six teams in one bracket: the top two seeds have a bye, then semi-finals, the final and third place.
+  const KNOCKOUT = ['Northside Scouts', 'Maple Street Church', 'Harbor Rotary Club', 'Lincoln High Seniors', 'Library Friends', 'Fire Station 4'];
+  await create('Winter Knockout 2026', '2026-12-05', '6');
+  await admin.getByRole('row', { name: /Winter Knockout 2026/ }).getByRole('button', { name: 'Make active' }).click();
+  await waitForActive(admin, 'Winter Knockout 2026');
+  await admin.getByRole('link', { name: 'Teams' }).click();
+  await admin.getByLabel('Paste CSV').fill(['team,category', ...KNOCKOUT.map((t) => `${t},Open`)].join('\n'));
+  await admin.getByRole('button', { name: 'Import' }).click();
+  await expect(admin.getByRole('button', { name: `Rename ${KNOCKOUT.at(-1)}` })).toBeVisible();
+  await admin.getByRole('link', { name: 'Setup' }).click();
+  const knockoutFormat = admin.getByRole('region', { name: 'Tournament format' });
+  for (const choice of ['Knockout', '1 round']) {
+    await knockoutFormat.getByRole('radio', { name: choice, exact: true }).first().click();
+    await expect(knockoutFormat.getByRole('radio', { name: choice, exact: true }).first()).toHaveAttribute('aria-checked', 'true');
+    await admin.waitForTimeout(200);
+  }
+  await admin.getByRole('button', { name: 'Suggest groups and brackets' }).click();
+  await expect(knockoutFormat.getByTestId('format-summary')).toHaveText('4 rounds, 12 races');
+  await admin.getByRole('button', { name: 'Lock setup' }).click();
+  await expect(admin.getByText('Locked', { exact: true })).toBeVisible();
+  await admin.getByRole('link', { name: 'Race Control', exact: true }).click();
+
+  const knockoutTimes = [
+    // Seeding: the list order is the seed order.
+    Object.fromEntries(KNOCKOUT.map((t, i) => [t, `3:${String(10 + i * 3).padStart(2, '0')}.${String(40 + i * 7)}`])),
+    // Quarter-finals: seeds 3 to 6 (seeds 1 and 2 have a bye).
+    { 'Lincoln High Seniors': '3:17.52', 'Library Friends': '3:20.18', 'Harbor Rotary Club': '3:19.30', 'Fire Station 4': '3:15.84' },
+    // Semi-finals.
+    { 'Northside Scouts': '3:08.41', 'Lincoln High Seniors': '3:14.07', 'Maple Street Church': '3:11.63', 'Fire Station 4': '3:12.95' },
+  ];
+  for (const [i, times] of knockoutTimes.entries()) {
+    await admin.getByRole('button', { name: `Open round ${i + 1}`, exact: true }).click();
+    await expect(admin.locator('.pill')).toHaveText('open');
+    await readyAndStart(admin);
+    await timeEveryone(admin, times);
+    await admin.getByRole('button', { name: 'Finish now' }).click();
+    await expect(admin.locator('.pill')).toHaveText('finished');
+  }
+
+  // After the semi-finals: the projector shows the tree, and so does the Brackets tab on a phone.
+  const knockoutProjector = await publicPage(browser, PROJECTOR, baseURL!);
+  await knockoutProjector.goto('/projector');
+  await expect(knockoutProjector.getByRole('heading', { name: 'Open Gold' })).toBeVisible();
+  await expect(knockoutProjector.getByRole('group', { name: 'Semi-final 2' }).locator('.ko-row.win')).toContainText('Maple Street Church');
+  await shot(knockoutProjector, 'projector-knockout.jpg');
+  const knockoutPhone = await publicPage(browser, PHONE, baseURL!);
+  await knockoutPhone.goto('/');
+  await knockoutPhone.getByRole('searchbox').fill('maple');
+  await knockoutPhone.getByRole('button', { name: /Maple Street Church/ }).click();
+  await knockoutPhone.getByRole('tab', { name: 'Brackets' }).click();
+  await expect(knockoutPhone.getByRole('group', { name: 'Semi-final 2' }).locator('.ko-row.me')).toBeVisible();
+  // The tab scrolls the team's current race into view.
+  await knockoutPhone.waitForTimeout(1500);
+  await shot(knockoutPhone, 'phone-knockout.png');
 });

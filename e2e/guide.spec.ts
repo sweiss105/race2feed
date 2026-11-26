@@ -194,7 +194,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await keys.getByLabel('Key name').blur();
   await region(admin, keys, 'console-companion-keys.jpg');
   await keys.getByLabel('Key name').fill('');
-  await region(admin, admin.getByRole('region', { name: 'Appearance' }), 'console-appearance.jpg');
+  await region(admin, admin.getByRole('radiogroup', { name: 'Appearance' }), 'console-appearance.jpg');
 
   // ── Referee: an unpaired device ───────────────────────────────────────────
   const unpaired = await context(browser, TABLET);

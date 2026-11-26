@@ -287,9 +287,9 @@ About pairing:
 
   ![The penalty list editor: a name, Time or DQ, and the seconds for each reason](guide/images/console-penalty-list.jpg)
 
-- **Appearance:** at the bottom of Settings. Choose **Automatic** (follow the computer's light or dark setting), **Light** or **Dark** for the console. It changes only the browser you're using, straight away, and is remembered there. Phones, referee devices and the projector are not affected.
+- **Appearance:** a small **Automatic / Light / Dark** switch sits in the bottom right corner of the console, on every page (it is not under Settings). Choose **Automatic** (follow the computer's light or dark setting), **Light** or **Dark**. It only changes this browser: phones, referee devices and the projector are not affected.
 
-  ![Appearance: Automatic, Light or Dark, for this browser only](guide/images/console-appearance.jpg)
+  ![The Appearance switch in the bottom right corner of the console: Automatic, Light or Dark](guide/images/console-appearance.jpg)
 
 ---
 

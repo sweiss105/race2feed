@@ -152,7 +152,14 @@
 @media (prefers-reduced-motion: reduce) { .format-option { transition: none; } }
 
 /* A form field with its label above it; fields in a row line up on their inputs. */
-.field { display: grid; gap: var(--space-1); min-width: 0; align-self: end; }
+.field-top { min-width: 0; align-self: end; }
 .field-label { font-size: 0.8125rem; font-weight: 600; color: var(--secondary-label); }
-.field .input { width: 100%; }
-.race-actions:has(.field) { align-items: end; }
+.field-top .input { width: 100%; }
+.race-actions:has(.field-top) { align-items: end; }
+
+/* Appearance: a small three-way switch pinned to the bottom right of the console, on every section. */
+.appearance-switch { position: fixed; right: var(--space-4); bottom: var(--space-4); z-index: 5; margin: 0; width: auto;
+  background: var(--surface); box-shadow: var(--shadow-m, var(--shadow-s)); border: 0.5px solid var(--separator); }
+.appearance-switch button { min-height: 1.875rem; padding: 0 var(--space-3); font-size: 0.8125rem; }
+/* Room so the last control on a page is never hidden under it. */
+.console .page { padding-bottom: 4.5rem; }

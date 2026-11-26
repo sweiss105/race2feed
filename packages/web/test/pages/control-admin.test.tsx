@@ -254,14 +254,19 @@ describe('admin sections', () => {
     const { container } = withRunner(<Settings view={ctlViewOf(lockedFour())} />, vi.fn(async () => ({ ok: true })));
     const headings = [...container.querySelectorAll('h2, h3')].map((h) => h.textContent);
     expect(headings[1]).toBe('Events');
-    expect(headings.at(-1)).toBe('Appearance');
+    // Appearance is no longer a Settings section: it is the switch pinned to the corner of every page.
+    expect(headings).not.toContain('Appearance');
   });
 
-  it('has a three-way Appearance switch at the bottom that applies and remembers Dark', () => {
+  it('has a three-way Appearance switch on every section that applies and remembers Dark', () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
     localStorage.removeItem('prc.theme');
     document.documentElement.classList.remove('theme-dark', 'theme-light');
-    withRunner(<Settings view={ctlViewOf(lockedFour())} />, vi.fn(async () => ({ ok: true })));
+    render(<ConsolePage me={{ role: 'admin', label: 'a' }} view={ctlViewOf(lockedFour())} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    for (const section of ['Teams', 'Setup', 'Log']) {
+      fireEvent.click(screen.getByRole('link', { name: section }));
+      expect(screen.getByRole('radiogroup', { name: 'Appearance' })).toBeTruthy();
+    }
     const group = screen.getByRole('radiogroup', { name: 'Appearance' });
     expect(within(group).getAllByRole('radio').map((r) => r.textContent)).toEqual(['Automatic', 'Light', 'Dark']);
     expect(within(group).getByRole('radio', { name: 'Automatic' }).getAttribute('aria-checked')).toBe('true');
@@ -269,7 +274,7 @@ describe('admin sections', () => {
     expect(document.documentElement.classList.contains('theme-dark')).toBe(true);
     expect(localStorage.getItem('prc.theme')).toBe('dark');
     expect(within(group).getByRole('radio', { name: 'Dark' }).getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByText('Only changes this browser. Phones, referee devices and the projector are not affected.')).toBeTruthy();
+    expect(group.getAttribute('title')).toContain('for this browser only');
     fireEvent.click(within(group).getByRole('radio', { name: 'Automatic' }));
     expect(document.documentElement.classList.contains('theme-dark')).toBe(false);
     localStorage.removeItem('prc.theme');

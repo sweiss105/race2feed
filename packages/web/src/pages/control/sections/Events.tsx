@@ -53,15 +53,15 @@ export function Events({ view, api = CONTROL_API }: { view: ControlView | null; 
             const ack = await runner.run({ type: 'createEvent', name, date, tableCount: Number(tables) }, 'createEvent');
             if (ack?.ok) { setName(''); setTables(''); load(); }
           }}>
-            <label class="field" style={{ flex: 2 }}>
+            <label class="field field-top" style={{ flex: 2 }}>
               <span class="field-label">Event name</span>
               <input class="input" placeholder="e.g. Race to Feed 2027" value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
             </label>
-            <label class="field" style={{ flex: 1 }}>
+            <label class="field field-top" style={{ flex: 1 }}>
               <span class="field-label">Date</span>
               <input class="input" type="date" value={date} onInput={(e) => setDate((e.target as HTMLInputElement).value)} />
             </label>
-            <label class="field" style={{ width: '7rem' }}>
+            <label class="field field-top" style={{ width: '7rem' }}>
               <span class="field-label">Tables</span>
               <input class="input" type="number" min={1} max={99} value={tables} onInput={(e) => setTables((e.target as HTMLInputElement).value)} />
             </label>

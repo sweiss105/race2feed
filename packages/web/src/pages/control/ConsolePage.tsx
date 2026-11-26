@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'preact/hooks';
+import { AppearanceSwitch } from './AppearanceSwitch';
 import './control.css';
 import type { Ack, ControlView } from '../../lib/types';
 import { CONTROL_API, type ApiBase, type Me } from '../../lib/api';
@@ -79,6 +80,7 @@ export function ConsolePage(props: ConsoleProps) {
               : <SectionView section={section} {...props} />}
           </div>
         </main>
+        <AppearanceSwitch />
       </div>
     </RunnerProvider>
   );

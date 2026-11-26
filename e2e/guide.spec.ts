@@ -290,7 +290,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
 
   // ── Round 1: the referee explains the penalty while the race is still running ──
   const note = ref.getByRole('region', { name: 'Penalty for Alpha' });
-  await note.getByRole('button', { name: 'Started early' }).click();
+  await note.getByRole('button', { name: 'False Start' }).click();
   await note.getByLabel('Note (optional)').fill('Went before the horn');
   await note.getByLabel('Note (optional)').blur();
   await expect(ref.locator('.undo-bar')).toHaveCount(0, { timeout: 15_000 });
@@ -318,7 +318,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   // ── Round 1: race control reviews the penalty, then corrects results ──────
   const review = admin.getByRole('region', { name: 'Penalties to review' });
   await expect(review.getByText(/Went before the horn/)).toBeVisible();
-  await expect(review.getByLabel('Penalty')).toHaveValue('early');
+  await expect(review.getByLabel('Penalty')).toHaveValue('false-start');
   await expect(status).toHaveText('Waiting on 1 penalty to be reviewed');
   await expect(admin.getByRole('button', { name: 'Open round 2' })).toBeDisabled();
   await admin.evaluate(() => window.scrollTo(0, 0));
@@ -335,7 +335,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await rowOf('Alpha').getByRole('button', { name: 'Set' }).click();
   await expect(rowOf('Alpha')).toContainText('3:31.40');
 
-  await expect(phone.getByText(/\(incl\. \+10s · Started early\)/).first()).toBeVisible();
+  await expect(phone.getByText(/\(incl\. \+10s · False Start\)/).first()).toBeVisible();
   await shot(phone, 'phone-results-penalty.png');
 
   // ── The rest of the event, raced from the console ─────────────────────────

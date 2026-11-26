@@ -1,4 +1,4 @@
-import type { Actor, Ctx, LiveEvent, CommandResult } from '../../src/core/model';
+import type { Actor, Ctx, LiveEvent, CommandResult, PenaltyReason } from '../../src/core/model';
 import { newEvent } from '../../src/core/model';
 
 export const admin: Actor = { role: 'admin', label: 'admin' };
@@ -22,7 +22,15 @@ export function csvFor(counts: Record<string, number>): string {
   return lines.join('\n');
 }
 
-export const blank = (tables = 26): LiveEvent => newEvent('ev1', 'Test', '2026-12-01', tables);
+/** The penalty list tests run with: fixed here (and including a DQ) so tests don't depend on the product's starter list. */
+export const TEST_REASONS: PenaltyReason[] = [
+  { id: 'sealed', name: 'Bag not sealed', kind: 'time', amountMs: 5000 },
+  { id: 'count', name: 'Wrong item count', kind: 'time', amountMs: 5000 },
+  { id: 'early', name: 'Started early', kind: 'time', amountMs: 10_000 },
+  { id: 'unsafe', name: 'Unsafe conduct', kind: 'dq' },
+];
+export const blank = (tables = 26): LiveEvent =>
+  ({ ...newEvent('ev1', 'Test', '2026-12-01', tables), penaltyReasons: TEST_REASONS.map((r) => ({ ...r })) });
 
 import { handleSetup } from '../../src/core/setup';
 import { handleLifecycle } from '../../src/core/lifecycle';

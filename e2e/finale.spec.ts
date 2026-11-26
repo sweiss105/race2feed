@@ -39,7 +39,7 @@ test('penalty review, champion and the end of the event', async ({ browser }) =>
 
   // After the round the referee says why.
   const note = ref.getByRole('region', { name: 'Penalty for Alpha' });
-  await note.getByRole('button', { name: 'Started early' }).click();
+  await note.getByRole('button', { name: 'False Start' }).click();
   await note.getByLabel('Note (optional)').fill('Went before the horn');
   await shot(ref, 'referee-penalty-note');
   await note.getByRole('button', { name: 'Send to race control' }).click();
@@ -51,12 +51,12 @@ test('penalty review, champion and the end of the event', async ({ browser }) =>
   await expect(admin.locator('.race-status')).toHaveText('Waiting on 1 penalty to be reviewed');
   const review = admin.getByRole('region', { name: 'Penalties to review' });
   await expect(review.getByText(/Went before the horn/)).toBeVisible();
-  await expect(review.getByLabel('Penalty')).toHaveValue('early');
+  await expect(review.getByLabel('Penalty')).toHaveValue('false-start');
   await shot(admin, 'console-penalty-review');
   await review.getByRole('button', { name: 'Approve' }).click();
   await expect(review.getByText('All penalties decided.')).toBeVisible();
   await expect(admin.getByRole('button', { name: 'Open round 2' })).toBeEnabled();
-  await expect(phone.getByText(/\(incl\. \+10s · Started early\)/).first()).toBeVisible();
+  await expect(phone.getByText(/\(incl\. \+10s · False Start\)/).first()).toBeVisible();
 
   // Race the remaining rounds from the console.
   const times = { Alpha: '3:00.00', Bravo: '3:05.00', Charlie: '3:10.00', Delta: '3:15.00' };

@@ -1,15 +1,17 @@
 import { describe, it, expect } from 'vitest';
 import { applyCommand } from '../../src/core/apply';
 import { STARTER_REASONS, reasonsOf, reviewOf } from '../../src/core/reasons';
-import type { Tap } from '../../src/core/model';
+import { newEvent, type Tap } from '../../src/core/model';
 import { admin, blank, ctx, lockedFour } from './helpers';
 
 const code = (r: ReturnType<typeof applyCommand>) => (r.ok ? 'ok' : r.code);
 
 describe('penalty reasons', () => {
   it('new events start with the starter list', () => {
-    expect(blank().penaltyReasons).toEqual(STARTER_REASONS);
-    expect(STARTER_REASONS.map((r) => r.name)).toEqual(['Bag not sealed', 'Wrong item count', 'Started early', 'Unsafe conduct']);
+    expect(newEvent('ev1', 'Test', '2026-12-01', 26).penaltyReasons).toEqual(STARTER_REASONS);
+    expect(STARTER_REASONS.map((r) => [r.name, r.kind === 'time' ? r.amountMs : 'dq'])).toEqual([
+      ['Fluffing Bags', 5000], ['False Start', 10_000], ['Interference', 15_000], ['Unsafe Conduct', 30_000],
+    ]);
   });
 
   it('events stored before the list existed get the starter list', () => {

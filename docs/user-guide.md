@@ -190,10 +190,10 @@ About pairing:
 
   | Reason | Penalty |
   |---|---|
-  | Bag not sealed | +5s |
-  | Wrong item count | +5s |
-  | Started early | +10s |
-  | Unsafe conduct | DQ |
+  | Fluffing Bags | +5s |
+  | False Start | +10s |
+  | Interference | +15s |
+  | Unsafe Conduct | +30s |
 
   To change it, go to **Settings → Penalty list**. Each row has a name, **Time** or **DQ**, and the seconds for a time penalty. Use **Add penalty** and **Remove**, then press **Save penalty list**. You can change the list at any time. Each name must be different, and the list can't be empty. Penalties that were already decided keep the reason and time they were given.
 
@@ -332,18 +332,18 @@ Pending penalties appear in the **Penalties to review** panel on the Race Contro
 1. Read the referee's pick and note. A note isn't required, so you can decide without one.
 2. Choose the official reason from the penalty list. The referee's pick is pre-selected.
 3. Then decide:
-   - **Approve with a time reason:** the penalty becomes that reason's time (for example, +10s for "Started early").
+   - **Approve with a time reason:** the penalty becomes that reason's time (for example, +10s for "False Start").
    - **Approve with a DQ reason:** the team is disqualified from that race. It ranks like a DNF and shows as **DQ**.
    - **Reject:** the penalty is removed and the results update.
 
-![A penalty to review: the referee picked Started early and added a note; Approve or Reject](guide/images/console-penalty-review.jpg)
+![A penalty to review: the referee picked False Start and added a note; Approve or Reject](guide/images/console-penalty-review.jpg)
 
 **You can't open the next round while any penalty is still pending.** The big button stays greyed out and the status line reads "Waiting on *N* penalties to be reviewed".
 
 ![A penalty still to review: Open round 2 is greyed out and the status line reads "Waiting on 1 penalty to be reviewed"](guide/images/console-race-penalty-waiting.jpg)
 
 Approved reasons are shown to everyone:
-- **On phones**, for example `3:46.20 (incl. +10s · Started early)` or `DQ · Unsafe conduct`.
+- **On phones**, for example `3:46.20 (incl. +10s · False Start)` or `DQ · Unsportsmanlike conduct` (if you add a DQ reason to the list).
 - **On the projector**, just `+10s` or `DQ`.
 - **In the CSV and JSON exports**, together with the referees' notes.
 
@@ -474,7 +474,7 @@ If the round finishes while you're filling in a card, what you've picked and typ
 
 Your note goes only to race control, who makes the final decision.
 
-![During the race: Alpha and Bravo have finished, and the Penalty notes card for Alpha sits below the team buttons with Started early picked and a short note, ready to send](guide/images/referee-penalty-notes.jpg)
+![During the race: Alpha and Bravo have finished, and the Penalty notes card for Alpha sits below the team buttons with False Start picked and a short note, ready to send](guide/images/referee-penalty-notes.jpg)
 
 ### If the Wi-Fi drops
 
@@ -509,10 +509,10 @@ Your phone remembers your team, so next time it opens straight to it. Tap **Not 
 
 ![Brackets as cards, with your team highlighted](guide/images/phone-brackets.png)
 
-Times include penalties. For example, `3:46.20 (incl. +10s · Started early)` means the time already includes a 10-second penalty. **pending: under review** after a time means a referee has flagged the team and race control hasn't decided yet; the time may still change. **DQ** means the team was disqualified from that race.
+Times include penalties. For example, `3:46.20 (incl. +10s · False Start)` means the time already includes a 10-second penalty. **pending: under review** after a time means a referee has flagged the team and race control hasn't decided yet; the time may still change. **DQ** means the team was disqualified from that race.
 
 ![My team while a referee's penalty waits for race control: the time is marked "pending: under review"](guide/images/phone-results-pending.png)
-![The same race once race control approved the penalty: the time includes +10s for Started early](guide/images/phone-results-penalty.png)
+![The same race once race control approved the penalty: the time includes +10s for False Start](guide/images/phone-results-penalty.png)
 
 When race control shows the champion, a champion card appears at the top of every phone. It shows the Grand Champion (or each category's winner if there's no Grand Championship), the bags packed and the final standings, with your team highlighted. The tabs stay available below. After the event ends, phones also show **Event complete**.
 

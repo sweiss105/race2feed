@@ -303,17 +303,17 @@ All times in this section are **official times**: the raw time plus any penaltie
 - **Penalties race control adds itself** take their reason when added and count as approved immediately.
 - **Changing a decision on an earlier round** after a later round has opened follows the usual unlock confirmation (§4).
 - **Approved reasons are shown to everyone:**
-  - On phones: `3:46.20 (incl. +15s · Unsafe start)` or `DQ · Unsafe conduct`.
+  - On phones: `3:46.20 (incl. +15s · Interference)` or `DQ · {reason}`.
   - On the projector: just `+15s` or `DQ`.
   - The CSV and JSON exports include the reasons and the referee notes.
 - **The penalty list** (name, plus a time or DQ) is managed by admin in Settings. It can be edited at any time; already-decided penalties keep their recorded reason and time. New events start with:
 
   | Reason | Penalty |
   |---|---|
-  | Bag not sealed | +5s |
-  | Wrong item count | +5s |
-  | Started early | +10s |
-  | Unsafe conduct | DQ |
+  | Fluffing Bags | +5s |
+  | False Start | +10s |
+  | Interference | +15s |
+  | Unsafe Conduct | +30s |
 
 ---
 
@@ -417,7 +417,7 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
 - The phone **remembers the team** (local storage), so later visits open straight to it.
 - **"Your next race":** round, table number and opponent(s). Before the round is opened it says "waiting for Round N to finish".
 - **Brackets:** all categories and tiers, live-updating.
-- **Race times:** the team's and its opponents' official finish times, plus seeding totals and rank within category. Approved penalties are marked (e.g. `3:46.20 (incl. +5s · Bag not sealed)`), and a time with a penalty awaiting review reads `3:41.20 · pending: under review`.
+- **Race times:** the team's and its opponents' official finish times, plus seeding totals and rank within category. Approved penalties are marked (e.g. `3:46.20 (incl. +5s · Fluffing Bags)`), and a time with a penalty awaiting review reads `3:41.20 · pending: under review`.
 - **Full schedule:** every team's table for the current round.
 
 ### 7.5 Projector (public URL, full-screen)

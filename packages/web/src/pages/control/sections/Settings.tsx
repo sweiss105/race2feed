@@ -168,7 +168,7 @@ function PenaltyList({ view }: { view: ControlView }) {
       <p class="footnote secondary" style={{ margin: 0 }}>Referees pick from this list when they explain a penalty; race control picks the final one. Everyone sees the name.</p>
       {rows.map((r, i) => (
         <div class="row" key={r.id}>
-          <input class="input" aria-label={`Name for ${label(r, i)}`} placeholder="e.g. Bag not sealed" maxLength={60} value={r.name}
+          <input class="input" aria-label={`Name for ${label(r, i)}`} placeholder="e.g. False Start" maxLength={60} value={r.name}
             onInput={(e) => update(i, { name: (e.target as HTMLInputElement).value })} />
           <select class="input" aria-label={`Kind for ${label(r, i)}`} value={r.kind} onChange={(e) => update(i, { kind: (e.target as HTMLSelectElement).value as 'time' | 'dq' })}>
             <option value="time">Time</option>

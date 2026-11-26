@@ -15,7 +15,8 @@
     "e2e": "playwright test -c e2e/playwright.config.ts --trace off",
     "guide:shots": "playwright test -c e2e/guide.config.ts --trace off",
     "guide:pdf": "node scripts/build-guide.mjs",
-    "guide": "npm run guide:shots && npm run guide:pdf"
+    "guide": "npm run guide:shots && npm run guide:pdf",
+    "measure:hub": "vitest run -c packages/server/vitest.load.config.ts"
   },
   "devDependencies": {
     "@playwright/test": "^1.63.0",

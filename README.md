@@ -139,6 +139,7 @@ npm run typecheck        # tsc --noEmit for engine, server and web
 npm test                 # builds the pages (pretest), then runs every Vitest project
 npm run e2e              # Playwright against a fresh local wrangler dev server
 npm run guide            # retakes the user guide's screenshots and rebuilds its PDF (see Documentation)
+npm run measure:hub      # hub load profile: message sizes and CPU per phone, per tap (see Testing)
 npm run deploy           # wrangler deploy (normally done by GitHub Actions; see below)
 ```
 
@@ -159,6 +160,13 @@ npm run deploy           # wrangler deploy (normally done by GitHub Actions; see
 **End-to-end:** `npm run e2e` builds the pages and starts `wrangler dev` on port 8787. It uses a throwaway store in `.wrangler/e2e` and a test admin password. Then it drives real browser windows: console, referee tablet, phone and projector.
 - The first time, install the browser with `npx playwright install --with-deps chromium` (as CI does).
 - Screenshots of every screen are saved to `test-results/screens/`.
+
+**Hub load profile:** `npm run measure:hub` estimates what the hub would spend with a crowd of phones connected. It is not part of `npm test`.
+- It runs whole events of 50, 100 and 200 teams through the command core in Node. For each stage of the event, it measures the public snapshot's size (plain and gzipped), the round update's size, the time to build one phone's snapshot (what a reconnect costs) and the time to handle one referee tap.
+- It then multiplies those figures for 1,750 phones: how long the hub is busy during a reconnect storm, and how much data a snapshot broadcast and the round updates send.
+- Change the crowd and the event sizes with `R2F_PEOPLE` and `R2F_TEAMS`, for example `R2F_PEOPLE=2500 R2F_TEAMS=60,120 npm run measure:hub`.
+- The report is saved to `test-results/hub-load.md`. The code is in `packages/server/test/load/hub-load.measure.ts`, with its own config in `packages/server/vitest.load.config.ts`.
+- Timings come from Node, not the Workers runtime, and leave out Cloudflare's own per-socket costs. Use them to compare sizes and to find hot spots. Only a load test against a deployed Worker shows how it really holds up.
 
 ## Deployment
 

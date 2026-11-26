@@ -41,7 +41,10 @@ export interface EventProgress {
   finishedRounds: number;
   /** round → teamId → result */
   results: Record<number, Record<string, EntryResult>>;
-  /** raceId → team order for its tied teams */
+  /**
+   * raceId → one list holding the decided order of every tied group in the race. A group is decided when all
+   * its members are in the list, and ranks by their relative order there; other teams in the list don't matter.
+   */
   tieDecisions: Record<string, string[]>;
   /** round → the races it was opened with. A round listed here is never rebuilt. */
   lineups?: Record<number, SavedRace[]>;

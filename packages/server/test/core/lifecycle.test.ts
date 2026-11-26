@@ -141,6 +141,56 @@ describe('round lifecycle', () => {
     expect(code(handleLifecycle(e, { type: 'showChampion', bagTotal: '' }, ctx(admin)))).toBe('ok');
   });
 
+  describe('two tied pairs in one race', () => {
+    /** Seven A teams and one B team on eight tables; seeding and heats raced; the Others race (four teams) has two tied pairs. */
+    function twoPairs() {
+      let e = ok(handleSetup(blank(8), { type: 'importTeams', csv: csvFor({ A: 7, B: 1 }) }, ctx(admin)));
+      e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+      e = ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
+      const bySeed = Object.fromEntries(e.setup.teams.map((t, i) => [t.name, 100_000 + i * 1000]));
+      for (let i = 0; i < 3; i++) e = runRound(e, bySeed);
+      // The Others race, in seed order (the order an undecided tie falls back to).
+      const race = derive(e).rounds[3]!.races.find((r) => r.role === 'others')!;
+      const others = new Set(race.entrants.map((x) => x.teamId));
+      const [a, b, c, d] = race.fallbackOrder.filter((id) => others.has(id)) as [string, string, string, string];
+      const name = (id: string) => e.setup.teams.find((t) => t.id === id)!.name;
+      const rest = Object.fromEntries(e.setup.teams.filter((t) => !others.has(t.id)).map((t, i) => [t.name, 50_000 + i * 1000]));
+      e = runRound(e, { ...rest, [name(a)]: 60_000, [name(b)]: 60_000, [name(c)]: 61_000, [name(d)]: 61_000 });
+      return { e, raceId: race.id, a, b, c, d };
+    }
+    const tiesOf = (e: ReturnType<typeof twoPairs>['e'], raceId: string) =>
+      derive(e).rounds.flatMap((r) => r.races).find((r) => r.id === raceId)!.ranking;
+
+    it('each pair keeps its own decision', () => {
+      let { e, raceId, a, b, c, d } = twoPairs();
+      expect(e.round).toMatchObject({ current: 4, phase: 'finished' });
+      expect(tiesOf(e, raceId).ties).toEqual([[a, b], [c, d]]);
+      e = ok(handleLifecycle(e, { type: 'decideTie', raceId, order: [b, a] }, ctx(admin)));
+      e = ok(handleLifecycle(e, { type: 'decideTie', raceId, order: [d, c] }, ctx(admin)));
+      expect(tiesOf(e, raceId)).toEqual({ order: [b, a, d, c], ties: [] });
+      expect(code(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin)))).toBe('ok');
+      // Deciding a pair again replaces only that pair.
+      e = ok(handleLifecycle(e, { type: 'decideTie', raceId, order: [a, b] }, ctx(admin)));
+      expect(tiesOf(e, raceId)).toEqual({ order: [a, b, d, c], ties: [] });
+      expect(e.tieDecisions[raceId]).toEqual([d, c, a, b]);
+    });
+
+    it('refuses an order that is not exactly one tied group', () => {
+      const { e, raceId, a, b, c, d } = twoPairs();
+      for (const order of [[a, c], [a, b, c, d], [a], [a, a], [a, b, 'nobody'], []]) {
+        expect(code(handleLifecycle(e, { type: 'decideTie', raceId, order }, ctx(admin)))).toBe('not_a_tie');
+      }
+      const one = ok(handleLifecycle(e, { type: 'decideTie', raceId, order: [a, b] }, ctx(admin)));
+      expect(code(handleLifecycle(one, { type: 'decideTie', raceId, order: [b, c] }, ctx(admin)))).toBe('not_a_tie');
+    });
+
+    it('a decision stored for a single group still resolves it', () => {
+      const { e, raceId, a, b, c, d } = twoPairs();
+      const stored = { ...e, tieDecisions: { [raceId]: [d, c] } };
+      expect(tiesOf(stored, raceId)).toEqual({ order: [a, b, d, c], ties: [[a, b]] });
+    });
+  });
+
   it('reports when the event is complete', () => {
     let e = lockedFour();
     for (let i = 0; i < 4; i++) e = runRound(e, seedTimes);

@@ -51,6 +51,22 @@ describe('race section', () => {
     return ctlViewOf({ ...e, stations: { 1: { ready: true, excluded: false }, 2: { ready: true, excluded: false } } });
   };
 
+  it('after one tied pair is decided, the other pair\'s card shows and sends its own teams', async () => {
+    const e = runRound(lockedFour(), seedTimes);
+    const [t1, t2, t3, t4] = ['T1', 'T2', 'T3', 'T4'].map((n) => teamId(e, n)) as [string, string, string, string];
+    const withTies = (teams: string[][]): ControlView => ({ ...ctlViewOf(e), ties: [{ raceId: 'r1:x', teams }], blockers: ['Round 1: tie in r1:x'] });
+    const send = vi.fn(async () => ({ ok: true }));
+    const page = (view: ControlView) => <ConsolePage me={me('admin')} view={view} send={send} serverNow={() => 0} status="open" />;
+    const { rerender } = render(page(withTies([[t1, t2], [t3, t4]])));
+    const ties = () => screen.getByRole('region', { name: 'Ties' });
+    expect(within(ties()).getAllByRole('button', { name: 'Decide' })).toHaveLength(2);
+    // The first pair is decided: the server now lists only the second.
+    rerender(page(withTies([[t3, t4]])));
+    expect(within(ties()).getAllByRole('listitem').map((li) => li.querySelector('.headline')!.textContent)).toEqual(['T3', 'T4']);
+    fireEvent.click(within(ties()).getByRole('button', { name: 'Decide' }));
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'decideTie', raceId: 'r1:x', order: [t3, t4] }));
+  });
+
   it('offers no round to open once every round has been raced', () => {
     let e = lockedFour();
     for (let i = 0; i < 4; i++) e = runRound(e, seedTimes);

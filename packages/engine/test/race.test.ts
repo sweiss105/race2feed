@@ -63,6 +63,19 @@ describe('rankRace', () => {
     expect(r.ties).toEqual([]);
   });
 
+  it('one tieOrder list decides several tied groups, each by its members\' relative order', () => {
+    const entries = [
+      { teamId: 'a', result: fin(60_000) }, { teamId: 'b', result: fin(60_000) },
+      { teamId: 'c', result: fin(61_000) }, { teamId: 'd', result: fin(61_000) },
+    ];
+    const fallbackOrder = ['a', 'b', 'c', 'd'];
+    expect(rankRace(entries, { fallbackOrder, tieOrder: ['d', 'c', 'b', 'a'] })).toEqual({ order: ['b', 'a', 'd', 'c'], ties: [] });
+    // A list covering one group leaves the other undecided, in fallback order.
+    expect(rankRace(entries, { fallbackOrder, tieOrder: ['d', 'c'] })).toEqual({ order: ['a', 'b', 'd', 'c'], ties: [['a', 'b']] });
+    // A group is decided only when all its members are listed.
+    expect(rankRace(entries, { fallbackOrder, tieOrder: ['d', 'b', 'a'] }).ties).toEqual([['d', 'c']]);
+  });
+
   it('two non-finishers break by fallback, no tie', () => {
     const r = rankRace(
       [{ teamId: 'a', result: dnf }, { teamId: 'b', result: dnf }],

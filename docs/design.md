@@ -141,6 +141,8 @@ All times in this section are **official times**: the raw time plus any penaltie
 **Exact tie** (equal to the hundredth of a second):
 - The race is flagged **TIE**, and race control must pick the order.
 - A round can't be advanced while any tie is unresolved.
+- A race can hold more than one tied group (say two pairs). Each group is decided on its own (`decideTie` with exactly that group's teams, in order) and keeps its decision when another is decided; deciding a group again replaces only that group's order.
+- Stored as one list per race (`tieDecisions[raceId]`): a decided group's teams are moved to the end of the list in the new order. A group counts as decided when all its teams are in the list, and ranks by their relative order there.
 
 **A finished round with a missing result** (race control cleared a result after the round finished, so a team's status is pending again):
 - The round is not settled: none of its races with such a team decides a heat winner, a place, a standing or the champion.

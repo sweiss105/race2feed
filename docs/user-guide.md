@@ -424,6 +424,8 @@ If two or more teams in a race have exactly the same official time (to the hundr
 1. Use the **↑** and **↓** arrows to put the teams in finishing order.
 2. Press **Decide**.
 
+If one race has more than one tie (say two pairs with the same times), each tied group gets its own card. Decide them one at a time; each keeps its own order.
+
 The next round can't be opened until every tie is decided.
 
 ### Rename a team

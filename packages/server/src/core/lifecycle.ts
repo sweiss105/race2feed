@@ -1,4 +1,4 @@
-import { stationCount, stationOfTable, tablesOfStation } from '@race2feed/engine';
+import { rankRace, stationCount, stationOfTable, tablesOfStation } from '@race2feed/engine';
 import { done, fail, perStation, readyTablesOf, type CommandResult, type Ctx, type LifecycleCommand, type LiveEvent, type Station } from './model';
 import { buildProgress, derive, teamsInRound } from './results';
 import { checkCorrection } from './corrections';
@@ -129,12 +129,16 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
         return fail('invalid', 'A tie decision is a list of team ids.');
       }
       const race = derive(e).rounds.flatMap((r) => r.races).find((r) => r.id === cmd.raceId);
+      if (!race) return fail('not_a_tie', 'That order does not match a tie in this race.');
+      // Every group of teams sharing a time in this race, whether or not it has been decided.
+      const results = buildProgress(e).results[race.round] ?? {};
+      const tied = rankRace(race.entrants.map(({ teamId }) => ({ teamId, result: results[teamId] })), { fallbackOrder: race.fallbackOrder }).ties;
       const sameTeams = (g: string[]) =>
         g.length === cmd.order.length && new Set(cmd.order).size === g.length && g.every((id) => cmd.order.includes(id));
-      const previous = e.tieDecisions[cmd.raceId];
-      const group = race?.ranking.ties.find(sameTeams) ?? (previous && sameTeams(previous) ? previous : undefined);
-      if (!race || !group) return fail('not_a_tie', 'That order does not match a tie in this race.');
-      const after = { ...e, tieDecisions: { ...e.tieDecisions, [cmd.raceId]: cmd.order } };
+      if (!tied.some(sameTeams)) return fail('not_a_tie', 'That order does not match a tie in this race.');
+      // One list per race holds every group's order: this group's teams move to the end, in the new order.
+      const kept = (e.tieDecisions[cmd.raceId] ?? []).filter((id) => !cmd.order.includes(id));
+      const after = { ...e, tieDecisions: { ...e.tieDecisions, [cmd.raceId]: [...kept, ...cmd.order] } };
       return checkCorrection(e, after, race.round, cmd.confirmUnlock) ?? ok(after);
     }
     case 'pinProjector':

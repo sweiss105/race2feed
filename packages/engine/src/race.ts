@@ -4,7 +4,7 @@ import { hundredths } from './time';
 export interface RaceRanking {
   /** Every team, best first. */
   order: string[];
-  /** Groups of finishers sharing a hundredth that tieOrder does not fully cover. */
+  /** Groups of finishers sharing a hundredth that tieOrder does not fully cover (a covered group ranks by its members' relative order in tieOrder). */
   ties: string[][];
 }
 

@@ -178,7 +178,7 @@ function Ties({ view }: { view: ControlView }) {
   return (
     <section class="panel" aria-label="Ties">
       <h3 class="headline">Ties to decide</h3>
-      {view.ties.flatMap((t) => t.teams.map((group, gi) => <TieDecision key={`${t.raceId}-${gi}`} raceId={t.raceId} group={group} view={view} run={runner.run} busy={runner.busy(`tie-${t.raceId}`)} />))}
+      {view.ties.flatMap((t) => t.teams.map((group) => <TieDecision key={`${t.raceId}-${[...group].sort().join(',')}`} raceId={t.raceId} group={group} view={view} run={runner.run} busy={runner.busy(`tie-${t.raceId}`)} />))}
     </section>
   );
 }

@@ -547,6 +547,8 @@ The projector follows the event by itself:
 ![Projector: the Grand Champion and the bags packed](guide/images/projector-champion.jpg)
 
 **During the race**, once the first team is in, every team of the round is listed under the clock in two columns (down the first column, then the second):
+- The **red number is the finishing position** (1 for the fastest time so far). Teams still racing, and teams marked DNF, DNS or DQ, have no number. Two teams with exactly the same time share a position.
+- The team's **table** follows its name in grey, for example "Alpha (T1)".
 - Finished teams first, in the order they finished (fastest time first), each with a checkered-flag marker and its time: `3:41.20`, `3:46.20 (+5s)` with an approved penalty, `under review` while a penalty is pending. Then teams marked **DNF** (or **DQ**), then **DNS**.
 - Then the teams still racing, by table number, with a green dot and their race label.
 

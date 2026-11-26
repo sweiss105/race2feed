@@ -34,6 +34,9 @@ html.proj-clear .proj { text-shadow: 0 0.06em 0.3em rgba(0, 0, 0, 0.85); }
 }
 .proj-tables .row { break-inside: avoid; display: grid; grid-template-columns: 3.2em minmax(0, 1fr) auto; gap: 1em; align-items: baseline; padding: 0.35em 0; border-bottom: 1px solid var(--separator); }
 .proj-tables .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.proj-tables .who { display: flex; align-items: baseline; gap: 0.4em; min-width: 0; }
+.proj-tables .who .name { flex: 0 1 auto; min-width: 0; }
+.proj-tables .tbl { flex: none; color: var(--secondary-label); font-size: 0.75em; font-variant-numeric: tabular-nums; }
 .proj-tables .lbl { white-space: nowrap; }
 .proj-tables .t { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--accent); text-align: right; }
 .proj-tables .lbl { color: var(--secondary-label); font-size: 0.75em; }

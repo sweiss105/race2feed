@@ -91,7 +91,9 @@ describe('projector', () => {
     const list = screen.getByLabelText('Teams');
     expect(list.querySelectorAll('.row').length).toBe(4);
     // T2 (3:41.20, table 2), then T3 DNF (table 3), then T1 and T4 still racing by table.
-    expect([...list.querySelectorAll('.row .t')].map((t) => t.textContent)).toEqual(['2', '3', '1', '4']);
+    expect([...list.querySelectorAll('.row .tbl')].map((t) => t.textContent)).toEqual(['(T2)', '(T3)', '(T1)', '(T4)']);
+    // The red number is the finishing position: only the team with a time has one.
+    expect([...list.querySelectorAll('.row .t')].map((t) => t.textContent)).toEqual(['1', '', '', '']);
     const row = (name: string) => within(list).getByText(name).closest('.row') as HTMLElement;
     expect(within(row('T2')).getByRole('img', { name: 'Finished' })).toBeTruthy();
     expect(row('T2').textContent).toContain('3:41.20');
@@ -112,13 +114,16 @@ describe('projector', () => {
     const rows = [...screen.getByLabelText('Teams').querySelectorAll('.row')].map((r) => [r.querySelector('.name')!.textContent, r.querySelector('.lbl')!.textContent]);
     expect(rows.map(([n]) => n)).toEqual(['T2', 'T1', 'T4', 'T3']);
     expect(rows.slice(0, 3).map(([, t]) => t)).toEqual(['3:05.00', '3:10.00', 'DNF']);
+    expect([...screen.getByLabelText('Teams').querySelectorAll('.row .t')].map((t) => t.textContent)).toEqual(['1', '2', '', '']);
   });
 
   it('orders equal times by table, DNF before DNS', () => {
     const e = withResults(start(openNext(lockedFour()), 1_000_000), { T3: 190_000, T2: 190_000 }, { T4: 'dns', T1: 'dnf' });
     show(viewOf(e), 1_000_000);
-    const tables = [...screen.getByLabelText('Teams').querySelectorAll('.row .t')].map((t) => t.textContent);
-    expect(tables).toEqual(['2', '3', '1', '4']);
+    const list = screen.getByLabelText('Teams');
+    expect([...list.querySelectorAll('.row .tbl')].map((t) => t.textContent)).toEqual(['(T2)', '(T3)', '(T1)', '(T4)']);
+    // Equal times share a position.
+    expect([...list.querySelectorAll('.row .t')].map((t) => t.textContent)).toEqual(['1', '1', '', '']);
   });
 
   it('keeps the list when a result is undone, and a new round starts big again', () => {

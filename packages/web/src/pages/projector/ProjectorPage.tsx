@@ -58,7 +58,7 @@ function Tables({ state, siteUrl }: { state: PublicView; siteUrl: string }) {
       </header>
       <div class="proj-body proj-fit">
         <div class="proj-tables" style={listStyle(rows, rows.map((r) => r.label))}>
-          {rows.map((r) => <TeamRow key={r.teamId} table={r.table} name={r.name} dot={r.ready ? 'ready' : 'not-ready'} right={r.label} />)}
+          {rows.map((r) => <TeamRow key={r.teamId} lead={r.table} name={r.name} dot={r.ready ? 'ready' : 'not-ready'} right={r.label} />)}
         </div>
       </div>
     </>
@@ -85,11 +85,16 @@ const listStyle = (rows: { name: string }[], rights: string[]) => ({
 }) as Record<string, string>;
 
 /** One row of the team list on the tables and clock screens: table, dot and name, and the race label or result. */
-function TeamRow({ table, name, dot, right }: { table: number; name: string; dot: DotStatus; right: string }) {
+function TeamRow({ lead, name, tableTag, dot, right }: { lead: number | null; name: string; tableTag?: number; dot: DotStatus; right: string }) {
+  // lead is the red number: the table on the tables screen, the finishing position on the running list (blank until
+  // the team has a time), where the table moves to a grey "(T1)" after the name.
   return (
     <div class="row">
-      <span class="t">{table}</span>
-      <span class="name"><StatusDot status={dot} />{name}</span>
+      <span class="t">{lead ?? ''}</span>
+      <span class="who">
+        <span class="name"><StatusDot status={dot} />{name}</span>
+        {tableTag !== undefined && <span class="tbl">(T{tableTag})</span>}
+      </span>
       <span class="lbl">{right}</span>
     </div>
   );
@@ -117,6 +122,9 @@ function Clock({ state, serverNow }: { state: PublicView; serverNow: () => numbe
       dot: (done ? 'finished' : 'racing') as DotStatus, right: done ? timeText(x!, { short: true }) : r.label,
     };
   }).sort((a, b) => a.group - b.group || a.ms - b.ms || a.table - b.table) : [];
+  // Finishing position for teams with a time; equal times share one (1, 1, 3). DNF, DNS, DQ and racing have none.
+  const timed = rows.filter((r) => r.group === 0);
+  const place = new Map(timed.map((r) => [r.teamId, 1 + timed.findIndex((o) => o.ms === r.ms)]));
   return (
     <>
       <header><div class="proj-kicker">Round {round}</div></header>
@@ -129,8 +137,8 @@ function Clock({ state, serverNow }: { state: PublicView; serverNow: () => numbe
               <h3 class="proj-kicker">Preliminary times</h3>
               <div class="proj-fit">
                 <div class="proj-tables proj-race-list" aria-label="Teams"
-                  style={listStyle(rows, [...rows.map((r) => r.label), ...rows.map((r) => r.right), '3:46.20 (+5s)'])}>
-                  {rows.map((r) => <TeamRow key={r.teamId} table={r.table} name={r.name} dot={r.dot} right={r.right} />)}
+                  style={listStyle(rows.map((r) => ({ name: `${r.name} (T${r.table})` })), [...rows.map((r) => r.label), ...rows.map((r) => r.right), '3:46.20 (+5s)'])}>
+                  {rows.map((r) => <TeamRow key={r.teamId} lead={place.get(r.teamId) ?? null} name={r.name} tableTag={r.table} dot={r.dot} right={r.right} />)}
                 </div>
               </div>
             </>

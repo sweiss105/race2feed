@@ -104,6 +104,16 @@ describe('validateBracketPlan', () => {
     it('does not complain when there are enough tables', () => {
       expect(validateBracketPlan(grand(5, true))).not.toContain(msg);
     });
+    it('counts only categories that have teams as winners', () => {
+      const cats = [{ id: 'a', name: 'A' }, { id: 'b', name: 'B' }];
+      const teams = [...teamsOf(4, 'a'), ...teamsOf(4, 'b')];
+      const brackets = suggestBracketPlan(cats, teams);
+      const stale: EventInput = { tableCount: 4, categories: cats.slice(0, 1), teams: teamsOf(4, 'a'), groups: [], tableOf: {}, brackets, grandChampionship: true };
+      expect(validateBracketPlan({ ...stale, tableCount: 1 }).filter((m) => m.includes('Grand Championship'))).toEqual([]);
+      expect(validateBracketPlan(stale)).toEqual(['Gold bracket "b:0": its category has no teams. Remove it, or suggest groups and brackets again.']);
+      // Still listed, but empty: the existing size check reports it.
+      expect(validateBracketPlan({ ...stale, categories: cats })).toEqual(['B: brackets hold 4 teams but the category has 0']);
+    });
     it('needs a table per category winner only when two or more categories have brackets', () => {
       const one = { ...input([spec(0, 1, 4), spec(1, 5, 4)], 8, 1), grandChampionship: true };
       expect(validateBracketPlan(one).filter((m) => m.includes('Grand Championship'))).toEqual([]);

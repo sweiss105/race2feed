@@ -58,6 +58,19 @@ describe('buildRoundPlan', () => {
     expect(placement.flatMap((r) => (r.kind === 'placement' ? r.bracketIds : []))).not.toContain('cm:0');
   });
 
+  it('omits the grand round when only one category would produce a winner', () => {
+    // Two A teams; B's bracket was left behind when its last team was removed.
+    const two = input([2, 1], 3);
+    const removed: EventInput = { ...two, categories: two.categories.slice(0, 1), teams: two.teams.filter((t) => t.categoryId === 'hs') };
+    expect(removed.brackets.map((b) => b.categoryId)).toEqual(['hs', 'cm']);
+    expect(buildRoundPlan(removed).some((r) => r.kind === 'grand')).toBe(false);
+    // The category is still listed but has no teams.
+    expect(buildRoundPlan({ ...removed, categories: two.categories }).some((r) => r.kind === 'grand')).toBe(false);
+    // Only a top bracket sends a winner.
+    const noTop: EventInput = { ...two, brackets: two.brackets.map((b) => (b.categoryId === 'cm' ? { ...b, tierIndex: 1 } : b)) };
+    expect(buildRoundPlan(noTop).some((r) => r.kind === 'grand')).toBe(false);
+    expect(buildRoundPlan(two).some((r) => r.kind === 'grand')).toBe(true);
+  });
   it('omits the grand round when disabled or with one category', () => {
     expect(buildRoundPlan(input([14, 16], 26, false)).some((r) => r.kind === 'grand')).toBe(false);
     expect(buildRoundPlan(input([14], 26, true)).some((r) => r.kind === 'grand')).toBe(false);

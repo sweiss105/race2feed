@@ -86,11 +86,16 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
       const teams = e.setup.teams.filter((t) => t.id !== cmd.teamId);
       const tableOf = { ...e.setup.tableOf };
       delete tableOf[cmd.teamId];
+      // A category goes with its last team, and so do its brackets; a seeding group goes with its last team.
+      const categories = e.setup.categories.filter((c) => teams.some((t) => t.categoryId === c.id));
       return ok(withSetup(e, {
         teams,
-        categories: e.setup.categories.filter((c) => teams.some((t) => t.categoryId === c.id)),
-        groups: e.setup.groups.map((g) => ({ ...g, teamIds: g.teamIds.filter((id) => id !== cmd.teamId) })),
+        categories,
+        groups: e.setup.groups
+          .map((g) => ({ ...g, teamIds: g.teamIds.filter((id) => id !== cmd.teamId) }))
+          .filter((g) => g.teamIds.length > 0),
         tableOf,
+        brackets: e.setup.brackets.filter((b) => categories.some((c) => c.id === b.categoryId)),
       }));
     }
     case 'setTableCount':

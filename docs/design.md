@@ -92,7 +92,10 @@ Weaknesses this design fixes:
    - Leftover teams (1–3) are folded into the **last** bracket, which becomes 5, 6 or 7 teams. For example, HS 14 teams gives 4 + 4 + 6.
    - Admin can change bracket sizes (4–7) and rename tiers.
    - A category with fewer than 4 teams gets one bracket of that size. A size of 2–3 skips the heats and races once, ranked by time.
+   - **Removing a team** (before lock) also clears what it leaves empty: a category goes with its last team, together with that category's brackets, and a seeding group goes with its last team. Removing a team from a category that keeps others leaves the brackets as they are; locking then reports that they no longer match.
+   - **Locking** is refused, with the problems listed, when the groups or brackets don't match the teams. This includes a bracket whose category has no teams ("Gold bracket "b:0": its category has no teams. Remove it, or suggest groups and brackets again.").
 5. **Grand Championship:** by default the winner of each category's top bracket. Admin can turn this on or off. Locking setup is refused when there are more category winners than tables.
+   - It is scheduled only when at least two categories would send a winner: categories that have teams and a top bracket holding at least one of them. A bracket whose category is gone or empty sends none.
 6. **Credentials:** pair referee tablets (§9) and create a Companion API key. Who may sign in to the console is managed in Cloudflare Access (§9).
 
 ### 3.3 Round structure

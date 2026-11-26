@@ -32,8 +32,27 @@ export function suggestBracketPlan(
   return plan;
 }
 
+/**
+ * The categories that send a winner to the Grand Championship: those whose top bracket holds at least one team.
+ * A bracket whose category is gone or has no teams produces no winner.
+ */
+export function grandCategories(input: Pick<EventInput, 'categories' | 'teams' | 'brackets'>): string[] {
+  return input.categories
+    .filter((c) => {
+      const n = input.teams.filter((t) => t.categoryId === c.id).length;
+      return input.brackets.some((b) => b.categoryId === c.id && b.tierIndex === 0 && n >= b.firstSeed);
+    })
+    .map((c) => c.id);
+}
+
 export function validateBracketPlan(input: EventInput): string[] {
   const errors: string[] = [];
+  // A bracket left behind by a category that no longer exists (its last team was removed).
+  for (const b of input.brackets) {
+    if (!input.categories.some((c) => c.id === b.categoryId)) {
+      errors.push(`${b.tierName} bracket "${b.id}": its category has no teams. Remove it, or suggest groups and brackets again.`);
+    }
+  }
   for (const category of input.categories) {
     const n = input.teams.filter((t) => t.categoryId === category.id).length;
     const brackets = input.brackets
@@ -50,7 +69,7 @@ export function validateBracketPlan(input: EventInput): string[] {
     }
   }
   if (input.grandChampionship) {
-    const winners = new Set(input.brackets.map((b) => b.categoryId)).size;
+    const winners = grandCategories(input).length;
     if (winners >= 2 && winners > input.tableCount) {
       errors.push(`Grand Championship: ${winners} category winners but only ${input.tableCount} tables`);
     }

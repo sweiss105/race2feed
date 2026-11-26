@@ -1,5 +1,5 @@
 import type { BracketSpec, EventInput } from './types';
-import { bracketSet } from './brackets';
+import { bracketSet, grandCategories } from './brackets';
 
 export type RoundSpec =
   | { round: number; kind: 'seeding'; groupId: string; run: 1 | 2 }
@@ -51,8 +51,8 @@ export function buildRoundPlan(input: EventInput): RoundSpec[] {
     }
   }
 
-  const categoriesWithBrackets = new Set(input.brackets.map((b) => b.categoryId));
-  if (input.grandChampionship && categoriesWithBrackets.size >= 2) rounds.push({ kind: 'grand' });
+  // A Grand Championship needs at least two category winners to race.
+  if (input.grandChampionship && grandCategories(input).length >= 2) rounds.push({ kind: 'grand' });
 
   return rounds.map((r, i) => ({ ...r, round: i + 1 }) as RoundSpec);
 }

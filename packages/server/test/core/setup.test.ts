@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { handleSetup } from '../../src/core/setup';
-import { admin, blank, csvFor, ctx, ok } from './helpers';
+import { handleLifecycle } from '../../src/core/lifecycle';
+import { derive } from '../../src/core/results';
+import type { CommandResult } from '../../src/core/model';
+import { admin, blank, csvFor, ctx, ok, runRound } from './helpers';
+
+const code = (r: CommandResult) => (r.ok ? 'ok' : r.code);
 
 const importTeams = (csv: string, tables = 26) =>
   ok(handleSetup(blank(tables), { type: 'importTeams', csv }, ctx(admin)));
@@ -120,5 +125,60 @@ describe('setup commands', () => {
     expect(e.settings).toEqual({ penaltiesEnabled: false, undoWindowMs: 3000, rotateReferees: false });
     e = ok(handleSetup(e, { type: 'setTableCount', tableCount: 10 }, ctx(admin)));
     expect(e.setup.tableCount).toBe(10);
+  });
+
+  describe('removing the last team of a category', () => {
+    /** Three tables, two A teams and one B team, Grand Championship on, suggested groups and brackets; then B's only team is removed. */
+    function lastTeamRemoved() {
+      let e = importTeams(csvFor({ A: 2, B: 1 }), 3);
+      expect(e.setup.grandChampionship).toBe(true);
+      e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+      expect(e.setup.brackets.map((b) => b.id)).toEqual(['a:0', 'b:0']);
+      return ok(handleSetup(e, { type: 'removeTeam', teamId: e.setup.teams.find((t) => t.name === 'B 1')!.id }, ctx(admin)));
+    }
+
+    it('removes the category and its bracket, so no one-team Grand Championship is scheduled', () => {
+      let e = lastTeamRemoved();
+      expect(e.setup.categories.map((c) => c.id)).toEqual(['a']);
+      expect(e.setup.brackets.map((b) => b.id)).toEqual(['a:0']);
+      // Locked without suggesting again, then qualifying raced.
+      e = ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
+      expect(derive(e).rounds.map((r) => r.spec.kind)).toEqual(['seeding', 'seeding', 'heats']);
+      for (let i = 0; i < 3; i++) e = runRound(e, { 'A 1': 100_000, 'A 2': 110_000 });
+      expect(derive(e).rounds.some((r) => r.spec.kind === 'grand')).toBe(false);
+      expect(code(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin)))).toBe('event_complete');
+    });
+
+    it('removes a seeding group left empty, with its table assignments', () => {
+      // Two tables: group A holds A 1 and A 2, group B holds only B 1.
+      let e = ok(handleSetup(importTeams(csvFor({ A: 2, B: 1 }), 2), { type: 'suggestSetup' }, ctx(admin)));
+      expect(e.setup.groups.map((g) => g.teamIds.length)).toEqual([2, 1]);
+      const b1 = e.setup.teams.find((t) => t.name === 'B 1')!.id;
+      e = ok(handleSetup(e, { type: 'removeTeam', teamId: b1 }, ctx(admin)));
+      expect(e.setup.groups.map((g) => g.id)).toEqual(['A']);
+      expect(Object.keys(e.setup.tableOf)).not.toContain(b1);
+      e = ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
+      expect(derive(e).rounds.map((r) => r.spec.kind)).toEqual(['seeding', 'seeding', 'heats']);
+    });
+
+    it('a team removed from a category that keeps others leaves the brackets for lock to report', () => {
+      let e = ok(handleSetup(importTeams(csvFor({ A: 2, B: 1 }), 3), { type: 'suggestSetup' }, ctx(admin)));
+      e = ok(handleSetup(e, { type: 'removeTeam', teamId: e.setup.teams.find((t) => t.name === 'A 2')!.id }, ctx(admin)));
+      expect(e.setup.brackets.map((b) => b.id)).toEqual(['a:0', 'b:0']);
+      const r = handleSetup(e, { type: 'lockSetup' }, ctx(admin));
+      expect(r.ok ? [] : r.detail).toEqual(['A: brackets hold 2 teams but the category has 1']);
+    });
+
+    it('lock reports a bracket whose category has no teams', () => {
+      // The state an event stored before the fix can be in: the category is gone, its bracket is not.
+      const e = lastTeamRemoved();
+      const stale = { ...e, setup: { ...e.setup, brackets: [...e.setup.brackets, { id: 'b:0', categoryId: 'b', tierIndex: 0, tierName: 'Gold', firstSeed: 1, size: 1 }] } };
+      const r = handleSetup(stale, { type: 'lockSetup' }, ctx(admin));
+      expect(r.ok ? 'ok' : r.code).toBe('setup_invalid');
+      expect(r.ok ? [] : r.detail).toEqual(['Gold bracket "b:0": its category has no teams. Remove it, or suggest groups and brackets again.']);
+      // setBrackets can name a category that does not exist: the same report.
+      const set = ok(handleSetup(e, { type: 'setBrackets', brackets: stale.setup.brackets }, ctx(admin)));
+      expect(code(handleSetup(set, { type: 'lockSetup' }, ctx(admin)))).toBe('setup_invalid');
+    });
   });
 });

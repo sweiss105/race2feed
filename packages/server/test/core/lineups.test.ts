@@ -100,6 +100,28 @@ describe('saved line-ups', () => {
     expect(next.ok ? 'ok' : next.code).toBe('blocked');
   });
 
+  it('a completed final keeps its entrants and tables when a heat is corrected so the other team wins', () => {
+    let e = runRound(runRound(lockedFour(), times), times);
+    // Heats: T1 beats T4, T2 beats T3. Then the placement round is raced to the end.
+    e = runRound(e, { T1: 50_000, T4: 55_000, T2: 51_000, T3: 56_000 });
+    e = runRound(e, { T1: 50_000, T2: 51_000, T4: 55_000, T3: 56_000 });
+    expect(e.round).toMatchObject({ current: 4, phase: 'finished' });
+    const finals = (x: typeof e) => derive(x).rounds[3]!.races.map((r) => ({ id: r.id, entrants: r.entrants }));
+    const before = finals(e);
+    expect(names(e, 4)).toEqual(['T1 v T2', 'T4 v T3']);
+    // Late correction: T4 now beats T1 in the heat.
+    const cmd = { type: 'setResult' as const, round: 3, teamId: teamId(e, 'T4'), set: { kind: 'time' as const, rawMs: 40_000 } };
+    const asked = handleTaps(e, cmd, ctx(admin, 9_000_000));
+    expect(asked.ok ? 'ok' : asked.code).toBe('unlock_required');
+    if (!asked.ok) expect(asked.detail).toEqual({ laterRounds: [4], keptRounds: [4], bracketsKept: false });
+    const after = ok(handleTaps(e, { ...cmd, confirmUnlock: true }, ctx(admin, 9_000_000)));
+    expect(derive(after).rounds[2]!.races[0]!.ranking.order[0]).toBe(teamId(e, 'T4'));
+    expect(finals(after)).toEqual(before);
+    expect(after.lineups![4]).toEqual(e.lineups![4]);
+    // The final's result stands: T1 is still the winner.
+    expect(derive(after).standings.t).toEqual(derive(e).standings.t);
+  });
+
   it('backfills line-ups for an event stored before they existed', () => {
     const e = runRound(runRound(lockedFour(), times), times);
     const legacy = { ...e, lineups: undefined, bracketMembers: undefined };

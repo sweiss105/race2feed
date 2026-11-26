@@ -6,6 +6,7 @@ import { derive } from './core/results';
 import { backfillLineups } from './core/lineups';
 import { withLateReferee, withoutReferee } from './core/rotation';
 import { eventCsv } from './core/export';
+import { fairnessCsv } from './core/fairnessExport';
 import { companionView, controlView, publicRoundUpdate, publicView, refereeView } from './core/views';
 import { needsSnapshot } from './core/broadcast';
 import { autoFinishDelay, nextAlarm } from './core/autofinish';
@@ -621,7 +622,7 @@ export class Hub extends DurableObject<Env> {
 
   // ---------- export ----------
 
-  async exportEvent(eventId: string, format: 'json' | 'csv'): Promise<string | null> {
+  async exportEvent(eventId: string, format: 'json' | 'csv' | 'fairness'): Promise<string | null> {
     const row = this.sql.exec<{ doc: string }>('SELECT doc FROM events WHERE id = ?', eventId).toArray()[0];
     if (!row) return null;
     const event = JSON.parse(row.doc) as LiveEvent;
@@ -629,6 +630,6 @@ export class Hub extends DurableObject<Env> {
       const audit = this.sql.exec('SELECT at, actor, action, detail FROM audit WHERE event_id = ? ORDER BY id', eventId).toArray();
       return JSON.stringify({ event, audit });
     }
-    return eventCsv(event);
+    return format === 'fairness' ? fairnessCsv(event) : eventCsv(event);
   }
 }

@@ -72,13 +72,14 @@ async function consoleRoute(route: string, request: Request, url: URL, hub: HubS
   if (route === '/events' && get) return json(await hub.listEvents());
   if (route === '/apikeys' && get) return json(await hub.listApiKeys());
   if (route === '/export' && get) {
-    const format = url.searchParams.get('format') === 'csv' ? 'csv' : 'json';
+    const asked = url.searchParams.get('format');
+    const format = asked === 'csv' || asked === 'fairness' ? asked : 'json';
     const out = await hub.exportEvent(url.searchParams.get('event') ?? '', format);
     if (out === null) return json({ error: 'not_found' }, 404);
     return new Response(out, {
       headers: {
-        'content-type': format === 'csv' ? 'text/csv' : 'application/json',
-        'content-disposition': `attachment; filename="race-to-feed.${format}"`,
+        'content-type': format === 'json' ? 'application/json' : 'text/csv',
+        'content-disposition': `attachment; filename="${format === 'fairness' ? 'race-to-feed-fairness.csv' : `race-to-feed.${format}`}"`,
       },
     });
   }

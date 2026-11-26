@@ -164,6 +164,43 @@ describe('commands', () => {
   });
 });
 
+describe('fairness report export', () => {
+  it('is a CSV download for the console, with who entered each result, and is refused without sign-in', async () => {
+    const admin = await lockedEvent();
+    const eventId = (await consoleGet(admin, '/events')).body.find((e: { active: boolean }) => e.active).id;
+    await command({ type: 'openNextRound' }, admin);
+    for (const station of [1, 2]) await command({ type: 'overrideStation', station, state: 'ready' }, admin);
+    await command({ type: 'startRace' }, admin);
+    const teams: { id: string; name: string }[] = (await consoleView(admin)).teams;
+    const a = teams.find((t) => t.name === 'A')!;
+    expect((await command({ type: 'setResult', round: 1, teamId: a.id, set: { kind: 'time', rawMs: 221_200 } }, admin)).status).toBe(200);
+
+    const { exports } = await import('cloudflare:workers');
+    const res = await exports.default.fetch(`https://r2f.test/api/control/export?event=${eventId}&format=fairness`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/csv');
+    expect(res.headers.get('content-disposition')).toBe('attachment; filename="race-to-feed-fairness.csv"');
+    const text = await res.text();
+    expect(text.startsWith('Warnings\nkind,round,referee,teams,message,status,dismissed_by,dismissed_at,note\n')).toBe(true);
+    expect(text).toContain('\nRace control edits\nat,by,round,team,change\n');
+    expect(text).toMatch(new RegExp(`\\n\\d{4}-\\d\\d-\\d\\dT[\\d:.]+Z,${DEV_USER},1,A,time 3:41\\.20\\n`));
+    expect(text).toContain('\nReferee assignments\nround,referee,station,tables,teams\n');
+
+    // The other exports are unchanged.
+    const csv = await exports.default.fetch(`https://r2f.test/api/control/export?event=${eventId}&format=csv`);
+    expect(csv.headers.get('content-disposition')).toBe('attachment; filename="race-to-feed.csv"');
+    expect((await csv.text()).startsWith('round,team,category,')).toBe(true);
+
+    expect((await consoleGet(admin, '/export?event=nope&format=fairness')).status).toBe(404);
+    const path = `/export?event=${eventId}&format=fairness`;
+    expect(await call(`/api/emergency${path}`)).toMatchObject({ status: 401, body: { error: 'unauthorized' } });
+    expect(await call(`https://r2f.weiss-audio.com/api/control${path}`)).toMatchObject({ status: 401, body: { error: 'unauthorized' } });
+    expect((await call(`/api${path}`)).status).toBe(404);
+    const emergency = await emergencySignIn('10.1.0.31');
+    expect((await consoleGet(emergency, path)).status).toBe(200);
+  });
+});
+
 describe('referee pairing', () => {
   it('pairs a tablet once, accepts its commands, and stops after revoke', async () => {
     const admin = await lockedEvent();

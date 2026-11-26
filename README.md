@@ -80,7 +80,7 @@ Every page opens a WebSocket: `/api/ws` for phones, the projector, referee table
 | `GET /api/control/me` | The console: who is signed in (`{role: 'admin', label: <email>}`) |
 | `POST /api/control/command` | The console: `{cmd}`, run as the signed-in email |
 | `GET /api/control/events`, `GET /api/control/apikeys` | The console's lists |
-| `GET /api/control/export?event=<id>&format=csv\|json` | Export of one event |
+| `GET /api/control/export?event=<id>&format=csv\|json\|fairness` | Export of one event: results (`csv`), the whole event with its log (`json`), or the fairness report (`fairness`, a CSV named `race-to-feed-fairness.csv`: warnings, race control's hand edits, referee assignments) |
 | `GET /api/control/ws` | The console's WebSocket |
 | `POST /api/emergency/login` | `{password}`, checked against `EMERGENCY_PASSWORD`. Sets the `r2f_session` cookie (12 hours). Rate-limited: 5 failures per IP in 5 minutes. |
 | `POST /api/emergency/logout` | Ends the emergency session and closes its sockets |

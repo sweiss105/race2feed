@@ -3,7 +3,8 @@ import type { LiveEvent } from './model';
 import { buildProgress, derive } from './results';
 import { reviewOf } from './reasons';
 
-const cell = (v: unknown) => {
+/** One CSV cell: quoted when needed, and text that a spreadsheet would read as a formula made plain. */
+export const cell = (v: unknown) => {
   let s = v === null || v === undefined ? '' : String(v);
   // Spreadsheets read a leading = + - @ (or tab / CR) in text as a formula; a leading apostrophe makes it plain text.
   if (typeof v === 'string' && /^[=+\-@\t\r]/.test(s)) s = `'${s}`;

@@ -277,8 +277,22 @@ All times in this section are **official times**: the raw time plus any penaltie
 - **Ids are stable.** An id is built only from the kind, the round, the referee's device id (`-` when unknown) and the sorted team ids, for example `close_finish:5:dev3:tA,tB`; `referee_wins:dev3` and `penalty_outlier:dev3` have no round. So an id does not change when unrelated results change.
 - **Order:** newest round first, then kind (alphabetical), then id.
 - **Dismissing** (`dismissWarning { id, note }`, race control only): the note is trimmed and must be 1–200 characters (`invalid`); the id must be a warning that applies now (`not_found`). The event saves who, when and the note (`dismissed`: id → `{ by, at, note }`), and the command is logged like any other. Dismissing again replaces the note. A dismissed warning that stops applying is no longer listed; if it applies again under the same id it is still dismissed.
-- **Where they are visible:** only in race control's view, as `fairness: { open, dismissed }` (each dismissed warning carries its `dismissal`), and in the fairness report. Never in the participant, projector, referee or Companion payloads.
+- **Where they are visible:** only in race control's view, as `fairness: { open, dismissed }` (each dismissed warning carries its `dismissal`), and in the fairness report (§3.9). Never in the participant, projector, referee or Companion payloads.
 - **Who entered what:** a result or penalty entered at the console saves who entered it (`by` on the override or tap), and a penalty removed or rejected at the console saves who did (`removedBy`). Records stored before this have neither.
+
+### 3.9 Fairness report
+
+- A third export of one event, beside CSV and JSON: `GET /api/control/export?event=<id>&format=fairness` (and the same under `/api/emergency/`), for the signed-in console only. It answers `text/csv` as a download named `race-to-feed-fairness.csv`, or 404 for an unknown event.
+- **One file, three sections.** Each section is a title line, a header row, its rows, then one blank line. An event with nothing to report has the three titles and headers and no rows.
+  1. **Warnings**: `kind,round,referee,teams,message,status,dismissed_by,dismissed_at,note`. Every fairness warning that applies (§3.8), in the same order as on the console. `status` is `open` or `dismissed`; the last three cells are filled for a dismissed warning only.
+  2. **Race control edits**: `at,by,round,team,change`. Everything entered, changed or removed by hand at the console, in time order:
+     - every result race control set: `time 3:41.20`, `DNF`, `DNS` or `cleared`;
+     - every penalty race control added: `penalty added: {reason}`;
+     - every penalty race control took away: `penalty removed` (one of its own, or a referee's it had approved) or `penalty rejected` (a referee's, at review).
+     - A referee's own taps and undos are not listed. `by` is empty for records stored before the name was saved.
+  3. **Referee assignments**: `round,referee,station,tables,teams`. One row per referee per round that has saved assignments (§3.7), by round then station. Rounds opened with rotation off have no rows.
+- Team names in a cell are joined with `; `, as are tables. Times are ISO 8601 in UTC.
+- Text is escaped as in the event CSV: quoted where needed, and a cell that begins with `=`, `+`, `-` or `@` gets a leading apostrophe so a spreadsheet does not read it as a formula.
 
 ### 4.1 Show champion and end the event
 

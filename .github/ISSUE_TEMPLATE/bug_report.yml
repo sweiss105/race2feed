@@ -1,0 +1,62 @@
+name: Bug report
+description: Something in PRC behaves differently from what the guide or the design says.
+title: "Short sentence saying what goes wrong"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. One problem per issue, please.
+        For a security problem, do not file it here: use **Security → Report a vulnerability**.
+  - type: input
+    id: version
+    attributes:
+      label: Where it was reproduced
+      description: The branch and commit, or "the live site" with the date and time.
+      placeholder: "main at 8c01a2b"
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps from a known starting point (event size, categories, settings), so someone else can follow them exactly.
+      placeholder: |
+        1. Create a four-team category on four tables. Finish both seeding rounds and both heats.
+        2. Before opening the placement round, use Clear on both entrants in the same finished heat.
+        3. Open the placement round and inspect the winners' race.
+    validations:
+      required: true
+  - type: textarea
+    id: observed
+    attributes:
+      label: Observed behavior
+      description: What actually happens. Include the exact message, time or screen if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen instead, and why (the guide, the design document, or common sense on event day).
+    validations:
+      required: true
+  - type: dropdown
+    id: screen
+    attributes:
+      label: Where it shows
+      multiple: true
+      options:
+        - Race control console
+        - Referee tablet
+        - Participant phone
+        - Projector
+        - Companion buttons
+        - Exports or reports
+        - Rules (seeding, brackets, results)
+        - Not sure
+  - type: textarea
+    id: links
+    attributes:
+      label: Code or screenshots
+      description: Optional. Links to the lines involved (use a permanent link to a commit), screenshots, or an exported event.

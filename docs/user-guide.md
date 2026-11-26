@@ -25,7 +25,7 @@ Everything happens at **https://r2f.weiss-audio.com**:
 | `r2f.weiss-audio.com` | Participants and the public, on their phones |
 | `r2f.weiss-audio.com/projector` | The computer connected to the projector |
 | `r2f.weiss-audio.com/ref` | Referee tablets (opened by scanning a QR code) |
-| `r2f.weiss-audio.com/control` | Race control (setup, settings and events too) |
+| `r2f.weiss-audio.com/control` | Race control: the console, called **PRC** (setup, settings and events too) |
 
 **A few words we use:**
 
@@ -38,7 +38,7 @@ Everything happens at **https://r2f.weiss-audio.com**:
 
 **How a round flows:**
 
-1. Race control presses **Open round N** (the big button on the Race page). Everyone's phone, the projector and the referee tablets show who races at which table.
+1. Race control presses **Open round N** (the big button on the Race Control page). Everyone's phone, the projector and the referee tablets show who races at which table.
 2. Each referee checks their teams are in place and presses **Ready**.
 3. When every station is Ready, race control (or the Companion **Start** button) starts the race. The master clock runs.
 4. Referees tap each team's button the moment the team finishes.
@@ -55,22 +55,24 @@ Race control sets up the event before the day, then runs it. Sign in at `/contro
 
 1. Open `/control`. Before the console appears, a Cloudflare sign-in page (Cloudflare's own page, not the Race to Feed app) asks for your email address.
 2. Type it and press the button to send a code. Wait for the email with a one-time code.
-3. Type the code on the same Cloudflare page. The console opens on the **Race** page.
+3. Type the code on the same Cloudflare page. The console opens on the **Race Control** page.
 
 Only addresses on the console's allow list get a code. **Sign in again the day before the event** on every laptop that will run the console: a sign-in lasts 14 days on that browser, and signing in needs email, which you don't want to depend on during the event. Your email is shown in the **Log** next to everything you do.
 
-The console's menu on the left has these sections: **Race, Teams, Setup, Devices, Settings, Events, Log**. Everyone who signs in sees all of them. **Sign out** (bottom of the menu) signs that browser out of Cloudflare.
+The name at the top of the menu, **PRC**, is short for **Packing Race Coordinator**: the app that runs the race. (Race to Feed is the event; phones and the projector still show the event's name.) The console's menu on the left has these sections: **Race Control, Teams, Setup, Referees, Settings, Log**. Everyone who signs in sees all of them. Events are created, made active and ended under **Settings**. An old bookmark to the Events page opens Settings. **Sign out** (bottom of the menu) signs that browser out of Cloudflare.
 
 If the console says **"You are not signed in. Reload this page to sign in."**, press **Reload** and sign in again. If Cloudflare or email is down on the day, use the [emergency sign-in](#troubleshooting-and-faq).
 
 ### 1. Create the event
 
-1. Go to **Events**.
+1. Go to **Settings**. The **Events** panel is at the top of the page, open when no event is active. (Settings works even when no event is active yet.) While an event is active the panel is folded away to one line, **Events** with **Active:** and the event's name under it; click that line to open it, and click it again to fold it.
 2. Type the **Event name**, pick the **Date** and enter the number of **Tables** at the venue.
 3. Press **Create event**.
 4. If no event is active and none has just ended, the new event becomes **Active** straight away. Otherwise, press **Make active** on its row when you're ready. (Creating next year's event right after ending this one doesn't take the champion off everyone's phones.)
 
-![Events: the form for a new event, the active event with End event, and last year's ended event with Make active](guide/images/console-events.jpg)
+![Settings → Events: the form for a new event, the active event with End event, and last year's ended event with Make active](guide/images/console-events.jpg)
+
+![Settings → Events folded away while an event is active: click it to open it](guide/images/console-events-folded.jpg)
 
 Only one event is active at a time. Older events are kept for history, and you can download any of them with the **CSV** or **JSON** links on its row. In the CSV, text that starts with `=`, `+`, `-` or `@` is exported with a leading apostrophe so spreadsheets show it as text instead of running it as a formula.
 
@@ -153,13 +155,13 @@ To stop a key working, press **Revoke** next to it. See [Bitfocus Companion](#bi
 
 ### 7. Pair the referee tablets
 
-Go to **Devices**. There's one row per station.
+Go to **Referees**. There's one row per station.
 
 1. Press **Pair tablet** on a station's row. A QR code and a short code appear.
 2. On the referee's tablet or phone, scan the QR code with the camera. It opens the referee page, which asks for the referee's name; once they press **Start** the tablet is paired to that station.
 3. Press **Done** to close the code.
 
-![Devices: the pairing QR code and short code for Tables 1 & 2, with one row per station](guide/images/console-devices-pairing.jpg)
+![Referees: the pairing QR code and short code for Tables 1 & 2, with one row per station](guide/images/console-devices-pairing.jpg)
 
 About pairing:
 - **Codes are single-use and expire after 10 minutes.** Make a new one if needed.
@@ -169,9 +171,9 @@ About pairing:
 
 ### 8. Settings
 
-Under **Settings**, for the active event:
+**Settings** starts with the **Events** panel (see [Create the event](#1-create-the-event)), folded away while an event is active. Below it, for the active event:
 
-![Settings: the Time penalties switch (on), the referee undo window, the auto-finish delay and the bag total, then the penalty list](guide/images/console-settings.jpg)
+![Settings: the Events panel folded away at the top, then the active event's panel with the Time penalties switch (on), the referee undo window, the auto-finish delay and the bag total](guide/images/console-settings.jpg)
 
 - **Time penalties:** the switch that turns referee penalties on or off for the whole event (off for a new event). See [Time penalties](#time-penalties).
 - **Referee undo window (seconds):** how long a referee can undo their own tap (default 10 seconds). Press **Save undo window**.
@@ -190,13 +192,17 @@ Under **Settings**, for the active event:
 
   ![The penalty list editor: a name, Time or DQ, and the seconds for each reason](guide/images/console-penalty-list.jpg)
 
+- **Appearance:** at the bottom of Settings. Choose **Automatic** (follow the computer's light or dark setting), **Light** or **Dark** for the console. It changes only the browser you're using, straight away, and is remembered there. Phones, referee tablets and the projector are not affected.
+
+  ![Appearance: Automatic, Light or Dark, for this browser only](guide/images/console-appearance.jpg)
+
 ---
 
 ## Race control
 
-Sign in at `/control` with your email address and the one-time code (see [Setup before the day](#setup-before-the-day)). Most of your work happens in the **Race** section.
+Sign in at `/control` with your email address and the one-time code (see [Setup before the day](#setup-before-the-day)). Most of your work happens in the **Race Control** section.
 
-At the top of **Race** you'll see:
+At the top of **Race Control** you'll see:
 - the round number and its state: **idle**, **open**, **running** or **finished**
 - the race clock, while running
 - a **status line** that says what the room is waiting for
@@ -220,7 +226,7 @@ At the top of **Race** you'll see:
 
 On a device set to reduce motion, the button doesn't pulse.
 
-![The top of the Race page before the first round: the status line says "Ready to open round 1" and the big button, Open round 1, pulses](guide/images/console-race-button.jpg)
+![The top of the Race Control page before the first round: the status line says "Ready to open round 1" and the big button, Open round 1, pulses](guide/images/console-race-button.jpg)
 
 ### Open a round
 
@@ -312,7 +318,7 @@ How penalties count:
 
 A referee's penalty **adds no time**; it flags the team as **pending: under review** (that label appears beside the team's time for everyone, and as "under review" on the projector) until you decide it. The referee can send a note for each penalty: the closest reason from the list, plus a short comment. They can do this as soon as they tap that team's finish button, so a note often arrives while the race is still running.
 
-Pending penalties appear in the **Penalties to review** panel on the Race page ("Round N · flagged by the referee") as soon as the referee taps them. The referee's pick and note show up there when they send it. For each one:
+Pending penalties appear in the **Penalties to review** panel on the Race Control page ("Round N · flagged by the referee") as soon as the referee taps them. The referee's pick and note show up there when they send it. For each one:
 
 1. Read the referee's pick and note. A note isn't required, so you can decide without one.
 2. Choose the official reason from the penalty list. The referee's pick is pre-selected.
@@ -349,13 +355,13 @@ Spotted a misspelling on the projector? Go to **Teams**, press **Rename** on the
 
 ### Projector control
 
-The projector changes screens by itself. To show a particular screen, use the **Projector** menu on the Race page and choose **welcome**, **tables**, **clock**, **seeding results**, **brackets**, **standings** or **champion**. The projector stays on that screen until you choose **Projector: automatic** again. The automatic option shows which screen it would pick.
+The projector changes screens by itself. To show a particular screen, use the **Projector** menu on the Race Control page and choose **welcome**, **tables**, **clock**, **seeding results**, **brackets**, **standings** or **champion**. The projector stays on that screen until you choose **Projector: automatic** again. The automatic option shows which screen it would pick.
 
 ### Show the champion
 
 When the last round is finished and every penalty has been decided (until then the button is greyed out and the status line says what it's waiting for):
 
-1. Press **Show champion** (the big button on the Race page).
+1. Press **Show champion** (the big button on the Race Control page).
 2. Enter or confirm the number of bags packed, then press **Show**.
 3. The projector **and every participant's phone** switch to the champion screen: the Grand Champion, the bag total and the final standings by category. If there's no Grand Championship, it shows each category's winner instead.
 
@@ -363,9 +369,9 @@ While the champion is showing, the big button reads **Hide champion**. Pressing 
 
 ![Show the champion: enter the bags packed, then press Show](guide/images/console-show-champion.jpg)
 
-### Devices and Log
+### Referees and Log
 
-- **Devices:** pair or revoke referee tablets (see [Pair the referee tablets](#7-pair-the-referee-tablets)).
+- **Referees:** pair or revoke referee tablets (see [Pair the referee tablets](#7-pair-the-referee-tablets)).
 - **Log:** the latest 50 changes, newest first, with who made each one. Every tap, penalty, undo, correction, override, tie decision and round change is recorded.
 
 ---
@@ -376,9 +382,9 @@ You'll use a tablet or phone paired to your station. The top of the screen shows
 
 ### Pairing
 
-1. Race control shows a QR code for your station (in **Devices**).
+1. Race control shows a QR code for your station (in **Referees**).
 2. Scan it with your device's camera. The referee page asks for **Your name**.
-3. Type your name (up to 40 characters) and press **Start**. If the connection drops, the form stays: check the connection and press **Start** again. Your tables appear. Your name shows in race control's Devices list and in the log next to what you do.
+3. Type your name (up to 40 characters) and press **Start**. If the connection drops, the form stays: check the connection and press **Start** again. Your tables appear. Your name shows in race control's Referees list and in the log next to what you do.
 
 ![Pairing: type your name, then press Start](guide/images/referee-name.jpg)
 
@@ -566,7 +572,7 @@ A Companion key can do only these things. It can't change results or setup.
 
 When the event is over:
 
-1. Go to **Events**.
+1. Go to **Settings**. The **Events** panel is at the top; click it to open it.
 2. Press **End event** on the active event.
 3. Confirm. The confirmation warns you if some rounds haven't been raced, or if any penalty is still waiting for a decision (decide those first, or they stay "under review" in the final results).
 
@@ -581,7 +587,7 @@ When an event ends:
 
 ### Reopen an event
 
-On the ended event's row in **Events**, press **Make active** and confirm. Then:
+On the ended event's row in **Settings → Events**, press **Make active** and confirm. Then:
 - Referee tablets must be **paired again**.
 - If a race was counting down to auto-finish when the event ended, the auto-finish delay starts again from the moment you reopen it. The same happens if you make another event active mid-countdown and then switch back.
 - If the event was ended before its last round, the champion screen is taken down automatically. If it was ended after the last round, the champion stays up; race control can press **Hide champion** at any time.
@@ -591,7 +597,7 @@ On the ended event's row in **Events**, press **Make active** and confirm. Then:
 ## Troubleshooting and FAQ
 
 **The referee tablet says "Scan the station QR code".**
-The tablet isn't paired, or its pairing ended. That happens when it's revoked, when another event is made active, or when the event is ended. Ask race control for a new code in **Devices**.
+The tablet isn't paired, or its pairing ended. That happens when it's revoked, when another event is made active, or when the event is ended. Ask race control for a new code in **Referees**.
 
 **"This pairing code is invalid or already used."**
 Codes work once and last 10 minutes. Make a new one with **Pair tablet**.
@@ -621,7 +627,7 @@ Within the undo window, the referee presses **Undo**. After that, race control f
 **Teams → Rename**.
 
 **The projector is stuck on one screen.**
-It's probably pinned. On the **Race** page, set the projector menu back to **Projector: automatic**.
+It's probably pinned. On the **Race Control** page, set the projector menu back to **Projector: automatic**.
 
 **The console says "You are not signed in. Reload this page to sign in."**
 Your sign-in ended (it lasts 14 days) or you pressed **Sign out**. Press **Reload**, then sign in with your email and the code.
@@ -647,7 +653,7 @@ After 5 wrong emergency passwords in 5 minutes, emergency sign-in pauses for tha
 **Unlock setup** works only before the first round is opened. After that, only renaming teams, settings, the penalty list and the bag total can change.
 
 **A tablet was lost.**
-Go to **Devices** and press **Revoke** next to it. It's disconnected immediately. Pair a replacement.
+Go to **Referees** and press **Revoke** next to it. It's disconnected immediately. Pair a replacement.
 
 **A phone shows the wrong team.**
 Tap **Not you?** and search again.

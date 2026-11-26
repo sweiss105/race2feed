@@ -127,6 +127,29 @@ describe('setup commands', () => {
     expect(e.setup.tableCount).toBe(10);
   });
 
+  it('changing the number of tables clears groups, tables and brackets; Suggest rebuilds them', () => {
+    let e = ok(handleSetup(importTeams(csvFor({ 'High School': 8 }), 4), { type: 'suggestSetup' }, ctx(admin)));
+    expect(e.setup.groups).toHaveLength(2);
+    expect(e.setup.brackets.length).toBeGreaterThan(0);
+    // The same number changes nothing.
+    expect(ok(handleSetup(e, { type: 'setTableCount', tableCount: 4 }, ctx(admin))).setup).toEqual(e.setup);
+    e = ok(handleSetup(e, { type: 'setTableCount', tableCount: 8 }, ctx(admin)));
+    expect(e.setup).toMatchObject({ tableCount: 8, groups: [], tableOf: {}, brackets: [] });
+    expect(e.setup.teams).toHaveLength(8);
+    e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+    expect(e.setup.groups).toHaveLength(1);
+    expect(ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin))).setupLocked).toBe(true);
+  });
+
+  it('refuses a table count that is not a whole number of at least 1, and any change once locked', () => {
+    const e = importTeams(csvFor({ 'High School': 4 }), 4);
+    for (const tableCount of [0, -2, 2.5, Number.NaN]) {
+      expect(handleSetup(e, { type: 'setTableCount', tableCount }, ctx(admin))).toMatchObject({ ok: false, code: 'invalid' });
+    }
+    const locked = ok(handleSetup(ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin))), { type: 'lockSetup' }, ctx(admin)));
+    expect(handleSetup(locked, { type: 'setTableCount', tableCount: 6 }, ctx(admin))).toMatchObject({ ok: false, code: 'setup_locked' });
+  });
+
   describe('removing the last team of a category', () => {
     /** Three tables, two A teams and one B team, Grand Championship on, suggested groups and brackets; then B's only team is removed. */
     function lastTeamRemoved() {

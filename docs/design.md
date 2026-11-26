@@ -224,6 +224,8 @@ All times in this section are **official times**: the raw time plus any penaltie
 
 ### 3.6 Tables per referee
 
+- **Number of tables.** Set when the event is created and changeable in Setup (the **Tables** box) until setup is locked, with `setTableCount` (a whole number, at least 1; the console accepts 1–99). A change to a different number clears `groups`, `tableOf` and `brackets`, which were built for the old number; `suggestSetup` rebuilds them. Sending the current number changes nothing.
+
 *Added after the first live test, at the user's request.*
 
 - Admin chooses per event, in Setup, either **One referee per two tables** (the default, as in §3.1) or **One referee per table**. It can be changed until setup is locked.

@@ -169,6 +169,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await expect(format.getByTestId('format-summary')).toHaveText(/^\d+ rounds, \d+ races$/);
   await region(admin, format, 'console-setup-format.jpg', 0);
   await region(admin, admin.getByRole('region', { name: 'Brackets' }), 'console-setup-brackets.jpg');
+  await region(admin, admin.getByRole('region', { name: 'Tables', exact: true }), 'console-setup-tables.jpg');
   await region(admin, admin.getByRole('region', { name: 'Referees' }), 'console-tables-per-referee.jpg');
   await region(admin, admin.getByRole('region', { name: 'Seeding groups' }), 'console-setup-groups.jpg');
   // The guide server runs on a local address; show the real site's addresses in the picture.

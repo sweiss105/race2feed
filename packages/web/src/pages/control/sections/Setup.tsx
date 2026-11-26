@@ -37,6 +37,7 @@ export function Setup({ view }: { view: ControlView }) {
       {runner.error('suggestSetup') && <p class="err">{runner.error('suggestSetup')}</p>}
       {problems.length > 0 && <div class="panel"><Problems items={problems} /></div>}
       <TournamentFormat view={view} />
+      <Tables view={view} />
       <TablesPerReferee view={view} />
       <Brackets view={view} />
       <Groups view={view} />
@@ -188,6 +189,44 @@ function Groups({ view }: { view: ControlView }) {
           ))}
         </tbody>
       </table>
+    </section>
+  );
+}
+
+/** The number of tables at the venue. Changing it clears groups, table assignments and brackets (server). */
+export function Tables({ view }: { view: ControlView }) {
+  const runner = useRunner();
+  const current = view.setup.tableCount;
+  const [text, setText] = useState(String(current));
+  const [changed, setChanged] = useState(false);
+  useEffect(() => setText(String(current)), [current]);
+  const n = Number(text);
+  const valid = Number.isInteger(n) && n >= 1 && n <= 99;
+  const built = view.setup.groups.length > 0 || view.setup.brackets.length > 0;
+  const save = async (e: Event) => {
+    e.preventDefault();
+    if (!valid || n === current) return;
+    const ack = await runner.run({ type: 'setTableCount', tableCount: n }, 'setTableCount');
+    if (ack?.ok) setChanged(true);
+  };
+  return (
+    <section class="panel card stack" aria-labelledby="tables-count">
+      <h3 id="tables-count" class="headline">Tables</h3>
+      <form style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }} onSubmit={save}>
+        <input class="input" style={{ width: '6rem' }} type="number" min={1} max={99} aria-label="Number of tables" value={text}
+          disabled={view.setupLocked} onInput={(e) => { setText((e.target as HTMLInputElement).value); setChanged(false); }} />
+        <Button type="submit" kind="secondary" busy={runner.busy('setTableCount')} disabled={view.setupLocked || !valid || n === current}>Save tables</Button>
+      </form>
+      <p class="footnote secondary" style={{ margin: 0 }}>
+        How many packing tables the venue has. This is how many teams can race at once: fewer tables means more rounds, not fewer teams.
+        {view.setupLocked ? ' Unlock setup to change this.'
+          : built ? ' Changing it clears the seeding groups, table assignments and brackets, because they were built for this number.' : ''}
+      </p>
+      {!valid && text !== '' && <p class="err">Enter a whole number from 1 to 99.</p>}
+      {changed && !built && !view.setupLocked && view.setup.teams.length > 0 && (
+        <p class="footnote" role="status" style={{ margin: 0 }}>Tables changed to {current}. Press <strong>Suggest groups and brackets</strong> to rebuild the groups and brackets.</p>
+      )}
+      {runner.error('setTableCount') && <p class="err">{runner.error('setTableCount')}</p>}
     </section>
   );
 }

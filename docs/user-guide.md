@@ -69,7 +69,7 @@ If the console says **"You are not signed in. Reload this page to sign in."**, p
 ### 1. Create the event
 
 1. Go to **Settings**. The **Events** panel is at the top of the page, open when no event is active. (Settings works even when no event is active yet.) While an event is active the panel is folded away to one line, **Events** with **Active:** and the event's name under it; click that line to open it, and click it again to fold it.
-2. Type the **Event name**, pick the **Date** and enter the number of **Tables** at the venue.
+2. Type the **Event name**, pick the **Date** and enter the number of **Tables** at the venue. (You can change the number of tables later in **Setup**, until setup is locked.)
 3. Press **Create event**.
 4. If no event is active and none has just ended, the new event becomes **Active** straight away. Otherwise, press **Make active** on its row when you're ready. (Creating next year's event right after ending this one doesn't take the champion off everyone's phones.)
 
@@ -187,6 +187,17 @@ You can then adjust:
 ![Brackets in Setup: each category's tiers, with the seeds and the number of teams in each](guide/images/console-setup-brackets.jpg)
 
 ![Seeding groups and tables: change a team's group or table here](guide/images/console-setup-groups.jpg)
+
+### Number of tables
+
+In **Setup**, under **Tables**, you can change how many packing tables the venue has: type the number and press **Save tables**.
+
+- **Tables are how many teams can race at once**, not how many teams you can have. Fewer tables means more rounds; more tables means fewer rounds, but more room and more referees.
+- **Changing the number clears the seeding groups, table assignments and brackets**, because they were built for the old number. Press **Suggest groups and brackets** afterwards to rebuild them.
+- If referee tablets are already paired and you reduce the number of tables, pair again any tablet whose tables no longer exist.
+- It can't be changed once setup is locked.
+
+![The Tables box in Setup: the number of tables and Save tables](guide/images/console-setup-tables.jpg)
 
 ### Tables per referee
 

@@ -100,7 +100,10 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
     }
     case 'setTableCount':
       if (!Number.isInteger(cmd.tableCount) || cmd.tableCount < 1) return fail('invalid', 'Table count must be at least 1.');
-      return ok(withSetup(e, { tableCount: cmd.tableCount }));
+      if (cmd.tableCount === e.setup.tableCount) return ok(e);
+      // Groups, table assignments and brackets were built for the old number of tables: they are cleared, and
+      // "Suggest groups and brackets" rebuilds them for the new one.
+      return ok(withSetup(e, { tableCount: cmd.tableCount, groups: [], tableOf: {}, brackets: [] }));
     case 'setTablesPerReferee':
       if (cmd.count !== 1 && cmd.count !== 2) return fail('invalid', 'A referee covers 1 or 2 tables.');
       return ok(withSetup(e, { tablesPerStation: cmd.count }));

@@ -425,12 +425,13 @@ describe('swapReferees', () => {
     const before = open(rotating(lockedFour()), roster(2));
     const e = ok(swap(before, 'dev1', 'dev2', roster(2)));
     expect(e.assignments![1]).toEqual([
-      { deviceId: 'dev2', name: 'Ref 2', station: 1, tables: [1, 2] },
-      { deviceId: 'dev1', name: 'Ref 1', station: 2, tables: [3, 4] },
+      { deviceId: 'dev2', name: 'Ref 2', station: 1, tables: [1, 2], swapped: true },
+      { deviceId: 'dev1', name: 'Ref 1', station: 2, tables: [3, 4], swapped: true },
     ]);
     expect(code(ready(e, refereeDev('dev1', 1), 3))).toBe('ok');
     expect(code(ready(e, refereeDev('dev1', 1), 1))).toBe('not_your_table');
-    expect(ok(swap(e, 'dev2', 'dev1', roster(2))).assignments).toEqual(before.assignments);
+    // Swapping back puts everyone where they were; the entries stay marked as placed by hand.
+    expect(ok(swap(e, 'dev2', 'dev1', roster(2))).assignments![1]).toEqual(before.assignments![1]!.map((x) => ({ ...x, swapped: true })));
   });
 
   it('takes away a Ready already given at the tables involved', () => {
@@ -448,7 +449,7 @@ describe('swapReferees', () => {
     const e = ok(swap(ok(ready(before, refereeDev('dev2', 2))), 'dev2', 'dev3', roster(3)));
     expect(e.assignments![1]).toEqual([
       { deviceId: 'dev1', name: 'Ref 1', station: 1, tables: [1, 2] },
-      { deviceId: 'dev3', name: 'Ref 3', station: 2, tables: [3, 4] },
+      { deviceId: 'dev3', name: 'Ref 3', station: 2, tables: [3, 4], swapped: true },
     ]);
     expect(e.stations[2]).toEqual({ ready: false, excluded: false, readyTables: [] });
     // Either way round.

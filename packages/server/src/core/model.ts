@@ -99,7 +99,8 @@ export interface Dismissal { by: string; at: number; note: string }
 /** One paired referee that has not been revoked. home: the station the device was paired to. */
 export interface RosterEntry { deviceId: string; name: string; home: number }
 /** A referee's place in one round. tables: only the tables this referee judges that round. */
-export interface Assignment { deviceId: string; name: string; station: number; tables: number[] }
+/** swapped: race control put this referee here by hand (swapReferees); the app's own choice has none. */
+export interface Assignment { deviceId: string; name: string; station: number; tables: number[]; swapped?: true }
 
 export type SetupCommand =
   | { type: 'importTeams'; csv: string }

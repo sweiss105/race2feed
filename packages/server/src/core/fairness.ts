@@ -141,7 +141,8 @@ export function fairnessWarnings(e: LiveEvent, d: DerivedEvent): FairnessWarning
       `${who ?? 'A referee'} removed a finish tap for ${team(tap.teamId)} in round ${tap.round}, which changed the winner from ${team(then)} to ${team(winner)}.`);
   }
 
-  // repeat_team: a referee has a team for the third time, or two rounds running. One warning at the latest such round.
+  // repeat_team: a swap by race control gave a referee a team for the third time, or two rounds running.
+  // One warning at the latest such round.
   const roundsOf = new Map<string, { deviceId: string; teamId: string; rounds: number[] }>();
   for (const [roundText, byDevice] of Object.entries(refereeTeams(e, d)).sort((a, b) => Number(a[0]) - Number(b[0]))) {
     for (const [deviceId, teams] of Object.entries(byDevice)) {
@@ -154,7 +155,10 @@ export function fairnessWarnings(e: LiveEvent, d: DerivedEvent): FairnessWarning
     }
   }
   for (const { deviceId, teamId, rounds } of roundsOf.values()) {
-    const hit = rounds.filter((r, i) => i + 1 >= REPEAT_TEAM_TIMES || rounds.includes(r - 1)).at(-1);
+    // Only a repeat race control caused by hand: the app already picks the assignment with the fewest repeats, so
+    // one it could not avoid (too few referees) is nothing anyone can act on. Those stay in the fairness report.
+    const byHand = (r: number) => e.assignments?.[r]?.some((x) => x.deviceId === deviceId && x.swapped) ?? false;
+    const hit = rounds.filter((r, i) => (i + 1 >= REPEAT_TEAM_TIMES || rounds.includes(r - 1)) && byHand(r)).at(-1);
     if (hit === undefined) continue;
     const upTo = rounds.filter((r) => r <= hit);
     const who = nameOf(hit, deviceId) ?? 'A referee';

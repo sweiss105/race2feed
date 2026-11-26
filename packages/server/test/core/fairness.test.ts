@@ -251,11 +251,24 @@ describe('undo_changed_winner', () => {
 });
 
 describe('repeat_team', () => {
-  /** All four rounds raced with no rotation, then `rounds` saved as if "Dana" (dev1) had T1's table in each. */
-  const dana = (rounds: number[]) => {
+  /**
+   * All four rounds raced with no rotation, then `rounds` saved as if "Dana" (dev1) had T1's table in each;
+   * in the `byHand` rounds race control put her there with a swap.
+   */
+  const dana = (rounds: number[], byHand: number[] = rounds) => {
     const e = playTo(lockedFour(), 4);
-    return { ...e, assignments: Object.fromEntries(rounds.map((r) => [r, [assign('dev1', 'Dana', 1, [tableOf(e, r, 'T1')])]])) };
+    return { ...e, assignments: Object.fromEntries(rounds.map((r) => [r, [{
+      ...assign('dev1', 'Dana', 1, [tableOf(e, r, 'T1')]), ...(byHand.includes(r) ? { swapped: true as const } : {}),
+    }]])) };
   };
+
+  it('stays quiet about a repeat the app could not avoid: only a swap by race control counts', () => {
+    expect(ofKind(dana([2, 3], []), 'repeat_team')).toEqual([]);
+    expect(ofKind(dana([1, 2, 4], []), 'repeat_team')).toEqual([]);
+    // The swap has to be in the round that makes the repeat.
+    expect(ofKind(dana([2, 3], [2]), 'repeat_team')).toEqual([]);
+    expect(ofKind(dana([2, 3], [3]), 'repeat_team')).toHaveLength(1);
+  });
 
   it('stays quiet the second time, when the rounds are not consecutive', () => {
     expect(ofKind(dana([1, 3]), 'repeat_team')).toEqual([]);
@@ -277,15 +290,12 @@ describe('repeat_team', () => {
     ]);
   });
 
-  it('counts the open round, so an unavoidable repeat shows as soon as the round opens', () => {
+  it('says nothing when too few referees force a repeat as a round opens', () => {
     // Two referees, four teams: by round 3 each referee has had every team, two of them in round 2.
     let e = playTo(rotating(lockedFour()), 2, roster(2));
-    expect(ofKind(e, 'repeat_team')).toEqual([]);
     e = run(e, { type: 'openNextRound' }, admin, startOf(3), roster(2));
     expect(e.round.phase).toBe('open');
-    const found = ofKind(e, 'repeat_team');
-    expect(found.length).toBeGreaterThan(0);
-    expect(found.every((w) => w.round === 3 && /^Ref \d had T\d at their tables in rounds 2 and 3\.$/.test(w.message))).toBe(true);
+    expect(ofKind(e, 'repeat_team')).toEqual([]);
   });
 
   it('fires when race control swaps a referee back to the teams they just had', () => {
@@ -500,7 +510,10 @@ describe('fairnessWarnings', () => {
   it('lists the newest round first, then by kind, then by id', () => {
     let e = playTo(rotating(lockedFour()), 2, roster(2));
     e = play(e, {}, roster(2));
+    // As if race control had placed the round-3 referees by hand, so that round's repeats count too.
+    e = { ...e, assignments: { ...e.assignments, 3: e.assignments![3]!.map((x) => ({ ...x, swapped: true as const })) } };
     e = run(e, { type: 'openNextRound' }, admin, startOf(4), roster(2));
+    e = run(e, { type: 'swapReferees', a: 'dev1', b: 'dev2' }, admin, startOf(4), roster(2));
     const found = warnings(e);
     expect(found.length).toBeGreaterThan(2);
     const sorted = [...found].sort((a, b) => b.round - a.round || (a.kind < b.kind ? -1 : a.kind > b.kind ? 1 : 0) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
@@ -635,6 +648,7 @@ describe('what race control sees', () => {
   it('shows nothing about fairness, assignments or dismissals to anyone else', () => {
     let e = playTo(rotating(lockedFour()), 3, roster(2));
     e = run(e, { type: 'openNextRound' }, admin, startOf(4), roster(2));
+    e = run(e, { type: 'swapReferees', a: 'dev1', b: 'dev2' }, admin, startOf(4), roster(2));
     e = run(e, { type: 'dismissWarning', id: warnings(e)[0]!.id, note: 'Seen' }, admin, startOf(4));
     expect(view(e).fairness.open.length).toBeGreaterThan(0);
     expect(view(e).fairness.dismissed).toHaveLength(1);

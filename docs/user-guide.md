@@ -394,7 +394,7 @@ What each one means:
 |---|---|
 | **Very fast time** | A team's time is at least 30 seconds faster than the fastest time in the event before it, going by the times as shown (to the hundredth). Check it wasn't a mistaken tap. |
 | **One referee's teams keep doing well** | Over at least 6 bracket races, the teams one referee judged finished better than their seeding suggested far more often than worse. |
-| **Same referee, same team** | A referee has the same team for the third time, or two rounds running. It can't always be avoided with few referees, and a swap can cause it. |
+| **Same referee, same team** | You swapped a referee onto a team they have already judged: for the third time, or two rounds running. Repeats the app can't avoid (too few referees) are not flagged here; the fairness report still lists who judged whom in every round. |
 | **Same referee, same team penalised again** | A referee has given penalties to the same team in two or more rounds. |
 | **Unusual number of penalties** | After three rounds: a referee has given far more penalties than the others, or none when the others have given several. |
 | **Close finish** | Two teams in the same race, both judged by one referee, finished within half a second of each other. |

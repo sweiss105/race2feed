@@ -97,8 +97,8 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       if (!placeOfA && !placeOfB) return fail('not_assigned', 'Neither referee has tables this round.');
       // Each place (station and tables) goes to the other referee; a referee without one leaves the other without.
       const assignments = saved.flatMap((x) =>
-        x === placeOfA ? [{ ...x, deviceId: b.deviceId, name: b.name }]
-          : x === placeOfB ? [{ ...x, deviceId: a.deviceId, name: a.name }] : [x]);
+        x === placeOfA ? [{ ...x, deviceId: b.deviceId, name: b.name, swapped: true as const }]
+          : x === placeOfB ? [{ ...x, deviceId: a.deviceId, name: a.name, swapped: true as const }] : [x]);
       // A Ready at those tables was given by the referee who has now left them.
       const stations = { ...e.stations };
       for (const place of [placeOfA, placeOfB]) {

@@ -29,7 +29,7 @@ export function applyCommand(e: LiveEvent, cmd: Command, ctx: Ctx): CommandResul
   if (!allowed.includes(ctx.actor.role)) return fail('forbidden', 'You are not allowed to do that.');
   try {
     const result = dispatch(e, cmd, ctx);
-    return result.ok ? { ...result, event: withAutoFinish(e, result.event, ctx.now) } : result;
+    return result.ok && !result.unchanged ? { ...result, event: withAutoFinish(e, result.event, ctx.now) } : result;
   } catch (err) {
     // Handlers are pure, so a throw leaves nothing half-applied. In setup it is a wrong-typed field;
     // elsewhere it may be a server fault, so the sender keeps the command and can try again.

@@ -15,6 +15,9 @@ concurrency:
 
 jobs:
   deploy:
+    # Only main is ever deployed. A run started by hand from any other branch or tag is skipped
+    # here, before the job starts, so it never receives the production environment's secrets.
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     environment: production

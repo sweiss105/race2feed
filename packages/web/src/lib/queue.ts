@@ -4,7 +4,7 @@ export interface QueuedTap { clientTapId: string; cmd: object; /** Round the tap
 
 /** Refusals that will never succeed on retry. */
 export const NON_RETRYABLE = new Set([
-  'already_finished', 'not_your_team', 'bad_timestamp', 'penalties_disabled', 'round_not_running', 'round_over', 'invalid', 'forbidden',
+  'already_finished', 'not_your_team', 'bad_timestamp', 'penalties_disabled', 'round_not_running', 'round_over', 'invalid', 'forbidden', 'too_many_penalties',
 ]);
 
 /** Referee taps kept in memory, written through to localStorage until the server has answered them. */

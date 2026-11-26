@@ -486,6 +486,7 @@ What each one means:
 | **Unusual number of penalties** | After three rounds: a referee has given far more penalties than the others, or none when the others have given several. |
 | **Close finish** | Two teams in the same race, both judged by one referee, finished within half a second of each other. |
 | **Undo changed the winner** | A referee took back a finish tap, and with the first tap a different team would have won that race. |
+| **Finish arrived late** | A referee's finish tap reached the server 10 seconds or more after the time their device gave for it, usually because the device was offline and sent the tap when it reconnected. The time still counts as tapped. Check it looks right, for example against the other team in the race. |
 | **Final judged by one referee** | A bracket's deciding race or the Grand Championship had both teams at one referee, because no referee was spare. |
 
 Each warning says which round and referee it's about ("Whole event" for the two that look at the whole event) and gives the details in a sentence. Warnings update by themselves: if you correct a result and the pattern no longer holds, the warning goes away.

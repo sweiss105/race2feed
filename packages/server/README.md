@@ -21,7 +21,7 @@ Merging into `main` deploys automatically. The GitHub Actions workflow `.github/
 2. runs the type check, the unit tests and the browser tests
 3. deploys to Cloudflare
 
-Nothing goes live unless every test passes. Pull requests run the same tests without deploying (`.github/workflows/ci.yml`). You can also deploy by hand: GitHub → **Actions** → **Deploy** → **Run workflow**.
+Nothing goes live unless every test passes. Pull requests run the same tests without deploying (`.github/workflows/ci.yml`). You can also deploy by hand: GitHub → **Actions** → **Deploy** → **Run workflow**, with the branch left on `main`. A run started from any other branch or tag is skipped and deploys nothing.
 
 ### One-time setup: give GitHub access to Cloudflare
 
@@ -37,7 +37,13 @@ Nothing goes live unless every test passes. Pull requests run the same tests wit
 4. **Set the emergency password** before deploying. In Cloudflare, go to **Workers & Pages → race2feed → Settings → Variables and Secrets → Add**, choose type **Secret**, name it `EMERGENCY_PASSWORD` and enter a long password (or run `npx wrangler secret put EMERGENCY_PASSWORD -c packages/server/wrangler.jsonc`). It opens the console at `/emergency` when Access or email is down. Keep it somewhere safe off-site. Without it, `/emergency` is off.
 5. **After the first deploy with Access sign-in,** delete the old `ADMIN_PASSWORD` secret there (or `npx wrangler secret delete ADMIN_PASSWORD -c packages/server/wrangler.jsonc`). Nothing reads it any more.
 
-The workflow uses a GitHub environment named `production`. Optionally, under **Settings → Environments → production**, add yourself as a required reviewer so each deploy waits for your click.
+The workflow uses a GitHub environment named `production`. Under **Settings → Environments → production**:
+
+- **Set Deployment branches and tags to Selected branches and tags, with only `main`.** The workflow already skips every other branch; this makes GitHub refuse them too, even if the workflow file is changed on a branch.
+- **Move the two secrets from step 2 here** (Environment secrets) and delete the repository-level copies, so only the deploy job on `main` can read them.
+- **Add a required reviewer** so each deploy waits for a click. With more than one person on the repository, turn on **Prevent self-review** too.
+
+The token in step 1 can edit DNS because the first deploy creates the custom domain's record. Once the site is live you can replace it with a token made from the same template without **Zone → DNS → Edit**.
 
 ## Plan and limits
 

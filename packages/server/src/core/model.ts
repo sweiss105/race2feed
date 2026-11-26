@@ -125,7 +125,7 @@ export interface Station { ready: boolean; excluded: boolean; readyTables?: numb
 
 export type LifecycleCommand =
   | { type: 'openNextRound' }
-  /** table: one of the referee's tables; without it (older tablet pages) every occupied table of the station. */
+  /** table: one of the referee's tables; without it (older referee pages) every occupied table of the station. */
   | { type: 'stationReady'; table?: number }
   | { type: 'overrideStation'; station: number; state: 'ready' | 'notReady' | 'excluded' }
   /** a, b: referee device ids. Exchanges their tables in the open round; one of them may have none. See rotation.ts. */
@@ -140,7 +140,7 @@ export type LifecycleCommand =
   | { type: 'dismissWarning'; id: string; note: string };
 
 export type TapCommand =
-  /** round: the round the tablet made the tap in; refused (`round_over`) when it is not the current round. Older tablet pages send none. */
+  /** round: the round the device made the tap in; refused (`round_over`) when it is not the current round. Older referee pages send none. */
   | { type: 'tapFinish'; teamId: string; atServerMs: number; clientTapId: string; round?: number }
   | { type: 'tapPenalty'; teamId: string; clientTapId: string; round?: number }
   | { type: 'undoTap'; tapId: string }

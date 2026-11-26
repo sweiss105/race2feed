@@ -25,4 +25,4 @@ Please do not test against the live site during an event, and do not access, cha
 
 In scope: the code in this repository and the deployed app.
 
-Out of scope: Cloudflare's own sign-in pages and infrastructure, and problems that need physical access to an unlocked referee tablet or a signed-in race control laptop.
+Out of scope: Cloudflare's own sign-in pages and infrastructure, and problems that need physical access to an unlocked referee device or a signed-in race control laptop.

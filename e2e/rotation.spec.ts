@@ -4,10 +4,10 @@ import { acknowledgeAutoLock, openEvents, pressReady, readyAndStart, setUpEvent,
 /** With a fairness warning open the menu link reads "Race Control 1 fairness warnings", so match its start. */
 const raceControl = (admin: Page) => admin.getByRole('link', { name: /^Race Control/ });
 
-/** Pairs a fresh referee tablet to a station under a name, through the console's pairing code. */
+/** Pairs a fresh referee device to a station under a name, through the console's pairing code. */
 async function pair(browser: Browser, admin: Page, station: string, name: string) {
   await admin.getByRole('link', { name: 'Referees', exact: true }).click();
-  await admin.getByRole('button', { name: `Pair tablet for ${station}` }).click();
+  await admin.getByRole('button', { name: `Pair device for ${station}` }).click();
   const code = (await admin.locator('[data-qr]').getAttribute('data-qr'))!.split('code=')[1]!;
   const ref = await (await browser.newContext({ viewport: { width: 1180, height: 820 } })).newPage();
   await ref.goto(`/ref?code=${code}`);
@@ -42,7 +42,7 @@ test('referees rotate, race control swaps them, and a close finish is flagged an
   const lee = await pair(browser, admin, 'Tables 3 & 4', 'Lee');
   const go = (ref: Page, round: number, tables: string) => ref.getByRole('heading', { level: 1, name: `Round ${round}: go to ${tables}` });
   const there = (ref: Page) => ref.getByRole('button', { name: "I'm there" });
-  /** The top of the tablet: the tables the referee has this round. */
+  /** The top of the referee page: the tables the referee has this round. */
   const header = (ref: Page) => ref.locator('.ref-meta .headline');
 
   const stations = admin.getByRole('region', { name: 'Stations' });
@@ -80,7 +80,7 @@ test('referees rotate, race control swaps them, and a close finish is flagged an
   await pressReady(dana);
   await expect(card('Tables 3 & 4')).toContainText('Ready');
 
-  // ── Swap them: the tablets follow, and the Ready given at those tables is cleared ──
+  // ── Swap them: the devices follow, and the Ready given at those tables is cleared ──
   await card('Tables 3 & 4').getByRole('button', { name: 'Swap Dana' }).click();
   const select = stations.getByRole('combobox', { name: 'Swap Dana with' });
   await select.selectOption({ label: 'Lee — Tables 1 & 2' });

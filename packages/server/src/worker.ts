@@ -147,7 +147,7 @@ export default {
       return json({ ok: true, station: r.station }, 200, { 'set-cookie': setCookie(DEVICE_COOKIE, r.deviceToken, 30 * 24 * 60 * 60) });
     }
 
-    // Referee tablets (device cookie) and Companion (Bearer key) only; a session cookie signs no one in here.
+    // Referee devices (device cookie) and Companion (Bearer key) only; a session cookie signs no one in here.
     if (path === '/api/command' && post) {
       const actor = await hub.authenticate(credentials(request));
       if (!actor) return json({ error: 'unauthorized' }, 401);

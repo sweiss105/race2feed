@@ -291,7 +291,7 @@ const dev3 = refereeDev('dev3', 1);
 describe('permissions follow the assignment', () => {
   const opened = () => open(rotating(lockedFour()), bothHomeOne);
 
-  it('lets a referee tap for the assigned tables only, wherever the tablet was paired', () => {
+  it('lets a referee tap for the assigned tables only, wherever the device was paired', () => {
     const e = start(opened());
     expect(e.assignments![1]!.map((a) => [a.deviceId, a.station])).toEqual([['dev1', 1], ['dev2', 2]]);
     expect(code(tap(e, dev2, 3))).toBe('ok');
@@ -312,7 +312,7 @@ describe('permissions follow the assignment', () => {
     expect(code(tap(start(e), dev3, 1))).toBe('not_your_team');
   });
 
-  it('marks the assigned station ready, not the one the tablet was paired to', () => {
+  it('marks the assigned station ready, not the one the device was paired to', () => {
     let e = ok(ready(opened(), dev2, 3));
     expect(e.stations[2]).toEqual({ ready: false, excluded: false, readyTables: [3] });
     expect(e.stations[1]!.readyTables).toEqual([]);
@@ -526,7 +526,7 @@ describe('a referee paired while a round is open', () => {
     expect(withLateReferee(e, d, { ...late, home: 99 })).toBe(e);
   });
 
-  it('a replacement tablet paired mid-race takes a station nobody is judging', () => {
+  it('a replacement device paired mid-race takes a station nobody is judging', () => {
     const e = start(open(rotating(lockedFour()), one));
     expect(withLateReferee(e, derive(e), late).assignments![1]).toContainEqual({ deviceId: 'dev9', name: 'Late', station: 2, tables: [3, 4] });
     expect(withLateReferee(e, derive(e), { ...late, home: 1 })).toBe(e);

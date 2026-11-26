@@ -78,7 +78,7 @@ export async function acknowledgeAutoLock(ref: Page) {
 /** Pairs a fresh referee context to station 1 via the console's pairing code. */
 export async function pairReferee(browser: Browser, admin: Page, viewport?: { width: number; height: number }) {
   await admin.getByRole('link', { name: 'Referees', exact: true }).click();
-  await admin.getByRole('button', { name: 'Pair tablet for Tables 1 & 2' }).click();
+  await admin.getByRole('button', { name: 'Pair device for Tables 1 & 2' }).click();
   const code = (await admin.locator('[data-qr]').getAttribute('data-qr'))!.split('code=')[1]!;
   const ref = await (await browser.newContext(viewport ? { viewport } : {})).newPage();
   await ref.goto(`/ref?code=${code}`);

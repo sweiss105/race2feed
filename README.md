@@ -4,7 +4,7 @@ PRC (Packing Race Coordinator) is the live web app that runs Race to Feed, a cha
 
 On event day:
 - **Teams** race at numbered tables.
-- **Referees** time them on paired tablets.
+- **Referees** time them on their own phone or tablet, paired to the event.
 - **Race control** runs the rounds from a console.
 - **Participants** follow along on their phones.
 - **A projector** shows the big screen, and it changes screens by itself as the event moves on.
@@ -21,7 +21,7 @@ It covers the whole day: setup, seeding rounds, brackets, the Grand Championship
 ### Architecture
 
 ```
- phones, projector        referee tablets        race control               Bitfocus Companion
+ phones, projector        referee devices        race control               Bitfocus Companion
    (public, read-only)      (device cookie)      (Cloudflare Access)          (API key)
           │                        │                       │                        │
           └──────────── HTTPS + WebSocket (/api/*) ────────┴────────────────────────┘
@@ -50,7 +50,7 @@ It covers the whole day: setup, seeding rounds, brackets, the Grand Championship
 |---|---|---|---|
 | `/` | Participants: team search, next table, schedule, brackets, results | Public | None (read-only) |
 | `/projector` | Full-screen projector that follows the round state (`?bg=transparent` removes the background, for OBS) | Public | None (read-only) |
-| `/ref` | Referee tablet: Ready, finish taps, penalties, undo | Referees | Device cookie from a pairing QR code (`/ref?code=…`) |
+| `/ref` | Referee device: Ready, finish taps, penalties, undo | Referees | Device cookie from a pairing QR code (`/ref?code=…`) |
 | `/control` | Race control console, PRC (Packing Race Coordinator; all sections) | Race control | Cloudflare Access: emailed one-time code |
 | `/emergency` | The same console, for when Access or email is down (not linked anywhere) | Race control | The `EMERGENCY_PASSWORD` secret |
 
@@ -58,7 +58,7 @@ Bitfocus Companion has no page. It sends commands with an API key (see [Companio
 
 ### Real-time model
 
-Every page opens a WebSocket: `/api/ws` for phones, the projector, referee tablets and Companion; `/api/control/ws` (or `/api/emergency/ws`) for the console. The hub accepts it with the Durable Object **hibernation API**, so idle connections cost nothing. Each socket is tagged by role (`public`, `control`, `referee:<device id>`, `companion`). A referee socket is tagged by device because each referee gets their own view: their tables can change every round (design §3.7).
+Every page opens a WebSocket: `/api/ws` for phones, the projector, referee devices and Companion; `/api/control/ws` (or `/api/emergency/ws`) for the console. The hub accepts it with the Durable Object **hibernation API**, so idle connections cost nothing. Each socket is tagged by role (`public`, `control`, `referee:<device id>`, `companion`). A referee socket is tagged by device because each referee gets their own view: their tables can change every round (design §3.7).
 
 - **Public pages** connect with `?role=public`. They receive:
   - a full `snapshot` when something structural changes (`core/broadcast.ts` decides which commands need one)
@@ -66,7 +66,7 @@ Every page opens a WebSocket: `/api/ws` for phones, the projector, referee table
 - **Signed-in pages** (control, referee, Companion) receive a role-specific `view` after every change: `controlView`, `refereeView` or `companionView` in `core/views.ts`.
 - **Commands** are sent over the socket as `{type: 'cmd', id, cmd}` and answered with an `ack`. The same commands are also accepted over HTTP at `POST /api/command`.
 - **Clock sync:** pages send `ping` and get `pong` with the server time, NTP-style, to estimate their offset from the server clock.
-  - Referee taps are stamped on the tablet in server time.
+  - Referee taps are stamped on the device in server time.
   - Taps made while offline are queued in local storage and sent later with their original timestamp.
 - **Credentials are checked on every message**, so revoking a device or ending an emergency session takes effect immediately (close code `4401`). A console socket signed in through Access closes on the first message after the Access token expires.
 
@@ -75,10 +75,10 @@ Every page opens a WebSocket: `/api/ws` for phones, the projector, referee table
 | Route | Purpose |
 |---|---|
 | `GET /api/health` | Liveness check |
-| `GET /api/ws` | WebSocket upgrade for phones, the projector, referee tablets and Companion (public, or authenticated by the device cookie or `Authorization: Bearer <key>`; `?role=public` forces public, `?role=referee` authenticates with the device cookie only). A session cookie signs no one in here. |
+| `GET /api/ws` | WebSocket upgrade for phones, the projector, referee devices and Companion (public, or authenticated by the device cookie or `Authorization: Bearer <key>`; `?role=public` forces public, `?role=referee` authenticates with the device cookie only). A session cookie signs no one in here. |
 | `POST /api/pair` | `{code, name}`. Pairs a referee device, stores the name (1–40 chars, else `400 name_required` with the code unspent) and sets the `r2f_device` cookie |
-| `POST /api/command` | `{cmd}`. Runs one command as the referee tablet (device cookie) or Companion (Bearer key) |
-| `GET /api/me` | Who the tablet or Companion is (role, label, station); `?as=referee` answers from the device cookie only |
+| `POST /api/command` | `{cmd}`. Runs one command as the referee device (device cookie) or Companion (Bearer key) |
+| `GET /api/me` | Who the referee device or Companion is (role, label, station); `?as=referee` answers from the device cookie only |
 | `GET /api/control/me` | The console: who is signed in (`{role: 'admin', label: <email>}`) |
 | `POST /api/control/command` | The console: `{cmd}`, run as the signed-in email |
 | `GET /api/control/events`, `GET /api/control/apikeys` | The console's lists |
@@ -176,7 +176,7 @@ npm run deploy           # wrangler deploy (normally done by GitHub Actions; see
 - **Run one project:** for example `npx vitest run --project server-core`.
 - **The web tests read the built pages.** Use `npm test` (which builds first), or run `npm run build` before running the `web` project on its own.
 
-**End-to-end:** `npm run e2e` builds the pages and starts `wrangler dev` on port 8787. It uses a throwaway store in `.wrangler/e2e` and signs the console in with `--var DEV_CONSOLE_USER:e2e@example.com`. Then it drives real browser windows: console, referee tablets, phone and projector. Five specs run: `event`, `finale`, `format`, `rotation` and `screens`.
+**End-to-end:** `npm run e2e` builds the pages and starts `wrangler dev` on port 8787. It uses a throwaway store in `.wrangler/e2e` and signs the console in with `--var DEV_CONSOLE_USER:e2e@example.com`. Then it drives real browser windows: console, referee devices, phone and projector. Five specs run: `event`, `finale`, `format`, `rotation` and `screens`.
 - The first time, install the browser with `npx playwright install --with-deps chromium` (as CI does).
 - Screenshots of every screen are saved to `test-results/screens/`.
 
@@ -217,7 +217,7 @@ The app is deployed to Cloudflare Workers on the custom domain **r2f.weiss-audio
 
 **Deploy order for the Access sign-in:** (1) the Access application and its policy exist, so `/control` asks for the emailed code (then the old password until this version is deployed); (2) set `EMERGENCY_PASSWORD` (`ACCESS_TEAM_DOMAIN` and `ACCESS_AUD` ship in `wrangler.jsonc`); (3) deploy; (4) after the first successful deploy, delete the `ADMIN_PASSWORD` secret.
 
-After this deploy, reload every open console tab and referee tablet: pages loaded before it cannot sign in or pair.
+After this deploy, reload every open console tab and referee device: pages loaded before it cannot sign in or pair.
 
 **After the deploy, check:**
 

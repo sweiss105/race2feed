@@ -48,7 +48,7 @@ const listed = (items: (string | number)[]): string =>
  * Every fairness warning that applies to the event as saved: newest round first, then kind, then id.
  * Computed, never stored, so a corrected result removes a warning that no longer applies.
  *
- * Who judged a team in a round: the referee whose saved assignment has the team's table; without one, the tablet
+ * Who judged a team in a round: the referee whose saved assignment has the team's table; without one, the device
  * that made the team's finish tap (its name is known only if it has an assignment in some round).
  * Finished rounds count for every kind. The open or running round also counts for repeat_team and
  * final_one_referee (known when it opens) and for fast_time, close_finish and undo_changed_winner (as results arrive).
@@ -233,7 +233,7 @@ export function fairnessWarnings(e: LiveEvent, d: DerivedEvent): FairnessWarning
 
   // penalty_outlier: a referee far above the average number of penalties, or with none while the others give many.
   if (finished >= OUTLIER_FROM_ROUND) {
-    // The referees: everyone with tables in a finished round, and every tablet that tapped in one.
+    // The referees: everyone with tables in a finished round, and every device that tapped in one.
     const referees = new Set<string>();
     for (const [roundText, saved] of Object.entries(e.assignments ?? {})) {
       if (Number(roundText) <= finished) for (const a of saved) referees.add(a.deviceId);

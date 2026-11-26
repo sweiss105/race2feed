@@ -52,7 +52,7 @@ Weaknesses this design fixes:
 **Goals**
 - Run a full event end to end without a spreadsheet: setup, seeding, brackets, the Grand Championship and final standings.
 - Support any number of teams, categories and venue tables.
-- Live timing from one master clock, with finish times captured by referees on tablets.
+- Live timing from one master clock, with finish times captured by referees on their own phones or tablets (bring your own device; nothing is handed out).
 - Race start and finish driven from Bitfocus Companion (Stream Deck).
 - A read-only participant view on phones, with team search, highlighting and "your next table".
 - A projector view that follows the event automatically.
@@ -75,7 +75,7 @@ Weaknesses this design fixes:
 | **Category** | A division such as High School, Community or Corporate. Teams are ranked within their category. |
 | **Team** | Name and category. |
 | **Table** | One physical race station, numbered 1..T. One team per table per round. |
-| **Station** | A fixed **pair of adjacent tables** (1&2, 3&4, …) covered by one referee tablet. With an odd table count, the last station is a single table. |
+| **Station** | A fixed **pair of adjacent tables** (1&2, 3&4, …) covered by one referee device. With an odd table count, the last station is a single table. |
 | **Seeding group** | A set of teams that race in the same seeding rounds. |
 | **Bracket** | A seeded set of 4–7 teams within a category (Gold, Silver, Bronze, Copper, Tin, …). |
 | **Round** | One start-to-finish run of the master clock. All races in a round start together. |
@@ -98,7 +98,7 @@ Weaknesses this design fixes:
    - **Locking** is refused, with the problems listed, when the groups or brackets don't match the teams. This includes a bracket whose category has no teams ("Gold bracket "b:0": its category has no teams. Remove it, or suggest groups and brackets again.").
 5. **Grand Championship:** by default the winner of each category's top bracket. Admin can turn this on or off. Locking setup is refused when there are more category winners than tables.
    - It is scheduled only when at least two categories would send a winner: categories that have teams and a top bracket holding at least one of them. A bracket whose category is gone or empty sends none.
-6. **Credentials:** pair referee tablets (§9) and create a Companion API key. Who may sign in to the console is managed in Cloudflare Access (§9).
+6. **Credentials:** pair referee devices (§9) and create a Companion API key. Who may sign in to the console is managed in Cloudflare Access (§9).
 
 ### 3.3 Round structure
 
@@ -194,14 +194,14 @@ All times in this section are **official times**: the raw time plus any penaltie
   - Assignments for the round go out to referees, participants and the projector.
   - Stations with no teams this round are excluded automatically.
   - Every station starts with no table ready.
-  - **Ready is per table.** The referee presses **Ready** for each of their tables that has a team this round (`stationReady` with `table`); each locks in. A station is Ready once every one of its tables that has a team is ready. `stationReady` without a table (an older tablet page) readies all of the station's occupied tables at once. A table that is not the referee's, or has no team this round, is refused (`not_your_table`).
+  - **Ready is per table.** The referee presses **Ready** for each of their tables that has a team this round (`stationReady` with `table`); each locks in. A station is Ready once every one of its tables that has a team is ready. `stationReady` without a table (an older referee page) readies all of the station's occupied tables at once. A table that is not the referee's, or has no team this round, is refused (`not_your_table`).
   - The station record keeps `readyTables` and the `ready` flag together. A station stored before per-table Ready, with `ready: true` and no `readyTables`, counts every one of its tables as ready.
 - **Start gate:**
   - Companion **START** is refused until every active station is Ready (every occupied table ready) or overridden.
   - Race control can override any station: force it Ready (all its tables), set it back to not ready (clears all its tables), or exclude it.
 - **Running:**
   - The server starts the master clock.
-  - Referee tablets show one button per team at their tables.
+  - Referee devices show one button per team at their tables.
 - **Finish gate:**
   - Companion **RACE FINISHED** is refused until every team in the round has a time, DNF or DNS.
   - **Auto-finish:** once every team in the running round has a result, the server sets `round.autoFinishAt` to now plus the event's **Auto-finish delay (seconds)** (default 30; never shorter than the referee undo window; 0 turns it off).
@@ -244,7 +244,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 - **Setting:** `settings.rotateReferees`, changed with `setSettings` (allowed with setup locked; it must be true or false). It is on for new events. An event stored before rotation has no value, which means off.
 - **Off:** every referee stays at the station they paired to (their *home station*), and nothing is saved.
 - **On:** when a round is opened the server gives each station that has a team that round one referee, and saves the result with the event (`assignments`: round → list of referee device, name, station and tables). Table assignments of teams do not change.
-  - The referees are the paired, not revoked referee tablets at that moment. The hub passes them to the core as a roster (device, name, home station).
+  - The referees are the paired, not revoked referee devices at that moment. The hub passes them to the core as a roster (device, name, home station).
   - A saved round is never rewritten when a later round opens, and a round opened with rotation off has no entry: its referees were at their home stations. Changing the setting takes effect from the next round opened.
   - Opening a round never fails because of rotation, whatever the number of referees (including none).
 - **Choosing who goes where.** The cost of a referee at a station is, for each team at that station: 1 for every earlier round that referee had the team, plus 3 more if they had it in the round before. The server picks the choice with the lowest total cost. It is an exact search (Hungarian algorithm), not an approximation.
@@ -253,18 +253,18 @@ All times in this section are **official times**: the raw time plus any penaltie
 - **Fewer referees than stations with a team:** the lowest-numbered stations get the referees (chosen by the same cost rule). The others have no referee that round, as an unpaired station behaves: race control uses its own Ready, Finish, DNF and DNS controls.
 - **More referees than stations:** the referees left over have no tables that round.
 - **Finals split.** With one referee per two tables only. It applies to a race that decides a bracket (the race of a 2-team bracket, or the Winners race of a larger one) and to the Grand Championship, when the race has two teams and both are at one station. If a referee is left over, the station's referee keeps the lower table and the spare takes the higher one, so each team has its own referee. Such races are taken in station order while spares last; the spare with the lowest cost for that team is used (lowest device id if equal). The Others race is not split.
-- **Permissions follow the round's assignment.** In a round with a saved assignment, a referee's tables are the assigned ones, wherever the tablet was paired:
+- **Permissions follow the round's assignment.** In a round with a saved assignment, a referee's tables are the assigned ones, wherever the device was paired:
   - Ready (`stationReady`) marks the referee's own tables at the assigned station. A table that is not theirs is refused (`not_your_table`). Without a table in the command, only their own tables are marked. In a split final each referee readies their own table, and the station is ready once both have.
   - Finish and penalty taps are accepted only for teams at the referee's tables (`not_your_team` otherwise).
   - A referee with no tables that round can do nothing: Ready answers `not_your_station` and taps `not_your_team`.
-  - Undo and penalty notes stay tied to the tablet that made the tap. That tablet was assigned the team when it tapped, and an assignment cannot change once the race has started.
+  - Undo and penalty notes stay tied to the device that made the tap. Its referee was assigned the team when the tap was made, and an assignment cannot change once the race has started.
   - In a round without a saved assignment (rotation off) the referee's tables are the home station's, as before.
 - **The referee's view** lists the teams at the referee's tables for the current round. Its `station` says: `number` (the assigned station; the home station with rotation off; 0 with no tables), `tables`, `assigned` (false only when the round has a saved assignment and this referee is not in it) and `moved` (true when the referee is assigned to a different station from the one they had the round before, or from their home station if they had none; keeping one table of the same station, as in a split final, is not a move). A referee sees nothing about other referees.
 - **Swap** (`swapReferees { a, b }`, race control only; `a` and `b` are referee device ids): exchanges the stations and tables of two referees in the open round. One of them may have no tables: that referee takes the other's place and the other has none. Any Ready already given at the tables involved is taken back. Refusals, in this order: no round is open (`round_not_open`: a swap is not possible once the race has started); the round has no saved assignment (`rotation_off`); the two are the same (`invalid`); either is not a paired referee (`not_found`); neither has tables (`not_assigned`). Earlier rounds are never changed.
-- **The hub** is the only code that knows the paired tablets.
-  - With every command it passes the core the roster: the active event's paired, not revoked referee tablets (device id, the referee's name, home station), in device id order. A tablet stored without a name is called "Referee {station}".
-  - Each referee socket is tagged by device, and after every change each connected referee is sent their own view. A tablet that reconnects or reloads, or a hub that restarts, gives the same assigned tables, because they are read from the saved event.
-  - **Pairing while a round is open or running:** the new referee takes the station they paired to for that round if it has teams and no referee (so a replacement tablet can take over mid-race); the assignment is saved in the same transaction as the device and its log entry. Otherwise (the station has a referee, or the race is over) they have no tables until the next round is opened.
+- **The hub** is the only code that knows the paired devices.
+  - With every command it passes the core the roster: the active event's paired, not revoked referee devices (device id, the referee's name, home station), in device id order. A device stored without a name is called "Referee {station}".
+  - Each referee socket is tagged by device, and after every change each connected referee is sent their own view. A device that reconnects or reloads, or a hub that restarts, gives the same assigned tables, because they are read from the saved event.
+  - **Pairing while a round is open or running:** the new referee takes the station they paired to for that round if it has teams and no referee (so a replacement device can take over mid-race); the assignment is saved in the same transaction as the device and its log entry. Otherwise (the station has a referee, or the race is over) they have no tables until the next round is opened.
   - **Revoking** takes the referee out of the open or running round's assignment, saved together with the revocation. Their tables then have no referee, and race control uses its own controls. Rounds that are over keep who judged them.
   - Race control's view also carries the current round's assignments (`assignments`, empty when none is saved) and the roster (`roster`). No other view does.
 
@@ -274,7 +274,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 
 - **A warning is a prompt to look, nothing more.** No warning ever blocks opening, starting or finishing a round, or any other action.
 - **Computed, not stored.** The server works the warnings out from the saved event (taps, results, line-ups, assignments) each time race control's view is built. So they are the same on every console and after a restart, and a corrected result removes a warning that no longer applies.
-- **Who judged a team in a round:** the referee whose saved assignment (§3.7) has the team's table that round. Without one (rotation off, an event stored before rotation, or a table whose referee was revoked), the tablet that made the team's finish tap. If neither exists, checks that need the referee skip that result.
+- **Who judged a team in a round:** the referee whose saved assignment (§3.7) has the team's table that round. Without one (rotation off, an event stored before rotation, or a table whose referee was revoked), the device that made the team's finish tap. If neither exists, checks that need the referee skip that result.
 - **The referee's name** comes from the saved assignments. A referee who was never in one (rotation off) has no name here: the warning's `referee` is null and its message says "A referee".
 - **Which rounds count:** finished rounds, for every kind. The open or running round also counts for `repeat_team` and `final_one_referee` (known as soon as the round opens) and for `fast_time`, `close_finish` and `undo_changed_winner` (as results arrive).
 - **The kinds.** The thresholds are constants in `packages/server/src/core/fairness.ts`, not settings.
@@ -284,8 +284,8 @@ All times in this section are **official times**: the raw time plus any penaltie
   | `fast_time` | A team's official time (penalties included) is at least 30.00 s faster than the fastest official time recorded before it, in any round, both taken at the hundredth as they are shown. "Before" goes by when each current result was recorded: its finish tap, or race control's entry. | `FAST_MS = 30_000` |
   | `referee_wins` | Over the finished bracket and Grand Championship races with two or more teams (seeding rounds are not counted, nor a race whose teams all had the same referee), each team a referee judged counts once per race: *better* if it finished ahead of the place its seeding total predicted within that race, *worse* if behind. Fires for a referee with at least 6 counted and better minus worse at least 4. | `WINS_MIN_RACES = 6`, `WINS_MARGIN = 4` |
   | `repeat_team` | A swap by race control (`swapReferees` marks both assignments `swapped`) gives a referee a team for the third time, or in two rounds running. One warning per referee and team, at the latest such round. A repeat in an assignment the app chose itself raises nothing: the app already picks the fewest repeats, so with too few referees it is nothing anyone can act on. Those repeats are still in the fairness report's assignments section. | `REPEAT_TEAM_TIMES = 3` |
-  | `repeat_penalty` | A referee's tablet has penalty taps for the same team in 2 or more rounds. Undone and rejected penalties do not count; one still waiting for review does. | `REPEAT_PENALTY_ROUNDS = 2` |
-  | `penalty_outlier` | Once 3 rounds are finished. The referees are everyone with tables in a finished round's assignment and every tablet that tapped in one. Counting each referee's penalty taps that stand: fires for a referee with at least 3 and more than twice the average per referee, or with none while the average is at least 2. Race control's own penalties are not counted. | `OUTLIER_FROM_ROUND = 3`, `OUTLIER_MIN = 3`, `OUTLIER_AVG_FOR_NONE = 2` |
+  | `repeat_penalty` | A referee's device has penalty taps for the same team in 2 or more rounds. Undone and rejected penalties do not count; one still waiting for review does. | `REPEAT_PENALTY_ROUNDS = 2` |
+  | `penalty_outlier` | Once 3 rounds are finished. The referees are everyone with tables in a finished round's assignment and every device that tapped in one. Counting each referee's penalty taps that stand: fires for a referee with at least 3 and more than twice the average per referee, or with none while the average is at least 2. Race control's own penalties are not counted. | `OUTLIER_FROM_ROUND = 3`, `OUTLIER_MIN = 3`, `OUTLIER_AVG_FOR_NONE = 2` |
   | `close_finish` | Two teams of one race, both judged by the same referee, have official times 0.50 s apart or less, both taken at the hundredth as they are shown (two teams showing the same time are 0.00 s apart). | `CLOSE_MS = 500` |
   | `undo_changed_winner` | A referee undid a finish tap in a race with two or more teams, every team of the race has a result, and the race's winner would be a different team had the undone tap stood (with the team's current penalties). | |
   | `final_one_referee` | Rotation is on, with one referee per two tables: a race that decides a bracket or the Grand Championship has two teams and one referee's assignment holds both tables, because no spare referee was free to split it (§3.7). | |
@@ -404,31 +404,31 @@ The small current-round update that public screens get while a round is open or 
 **End event** (admin, Events page, after a confirmation that warns if rounds remain unraced or penalties are still pending):
 - The event is marked **Ended** and is no longer active.
 - Its results are locked: no further commands are accepted for it.
-- All referee tablets are signed out and their pairings revoked.
+- All referee devices are signed out and their pairings revoked.
 - **Phones and the projector keep showing the ended event's champion and final results** (read-only) until admin activates another event. Exports keep working.
 - Creating a new event while an ended event is on display does not activate it automatically, so the champion stays up until admin chooses **Make active**.
-- **Make active** on an ended event reopens it, after a confirmation. Tablets must be paired again. A round that was counting down to auto-finish (§4) restarts its full delay from the moment of reopening. If it was ended before its last round finished, the champion screen is taken down.
+- **Make active** on an ended event reopens it, after a confirmation. Referee devices must be paired again. A round that was counting down to auto-finish (§4) restarts its full delay from the moment of reopening. If it was ended before its last round finished, the champion screen is taken down.
 
 **Delete event** (admin, Settings → Events, *added at the event owner's request so test events do not pile up*):
 - Every event except the active one has a **Delete** button in the event list; the active event must be ended (or another made active) first. An event that was created but never used can be deleted too.
 - A confirmation sheet, **Delete {name}?**, says the deletion is permanent and cannot be undone, offers that event's CSV, JSON and fairness report exports (§3.9), and asks for the event's name. **Delete event** stays disabled until the typed name (trimmed) matches the event's name exactly.
 - The hub command is `deleteEvent { eventId, confirmName }`, admin only. Refusals, checked in this order: unknown event → `not_found` "No such event."; the active event → `event_active` "End this event or make another one active before deleting it."; `confirmName` (trimmed) not exactly the event's name → `name_mismatch` "Type the event's name exactly to delete it." A refusal shows in the sheet, which stays open.
 - In one storage transaction the hub deletes the event and every audit, device and pairing-code row for it, then writes one audit row with no event (actor, `deleteEvent`, `{ eventId, name }`) so a trace of the deletion survives. Its exports then answer 404.
-- If phones and the projector were showing the deleted event (the last ended one), they fall back to the next most recent ended event, or to the no-event screen when none is left. No sockets are closed: tablets only ever sign in to the active event, which cannot be deleted.
+- If phones and the projector were showing the deleted event (the last ended one), they fall back to the next most recent ended event, or to the no-event screen when none is left. No sockets are closed: referee devices only ever sign in to the active event, which cannot be deleted.
 
 ---
 
 ## 5. Timing
 
 - **One master clock per round,** owned by the server and started by Companion START.
-- **Times are stamped on the tablet and synced to the server:**
-  - Each referee tablet continually estimates its clock offset from the server, NTP-style: repeated ping round trips over the live connection, using a median of recent samples.
-  - A tap is recorded as `tablet_time_at_touch + offset`, and elapsed time is that minus the round start.
-  - If a tap is made while Wi-Fi is down, the tablet **queues** it and sends it with its original timestamp when the connection comes back. The result is unaffected.
-  - **A tap belongs to the round it was made in.** `tapFinish` and `tapPenalty` carry the tablet's own tap id (`clientTapId`) and the round (`round`):
-    - A tap the server already has from that tablet for that team and kind (same `clientTapId`), in any round and whether or not it was since undone, removed or rejected, is a resend: it is answered as a success and creates nothing.
-    - Otherwise a tap whose `round` is not the current round is refused with `round_over` ("That tap was for round 1, which is over.") and creates nothing. The tablet drops it from its queue and shows the refusal.
-    - A command without `round` (a tablet page loaded before this rule) is treated as made in the current round, as before.
+- **Times are stamped on the referee's device and synced to the server:**
+  - Each referee device continually estimates its clock offset from the server, NTP-style: repeated ping round trips over the live connection, using a median of recent samples.
+  - A tap is recorded as `device_time_at_touch + offset`, and elapsed time is that minus the round start.
+  - If a tap is made while Wi-Fi is down, the device **queues** it and sends it with its original timestamp when the connection comes back. The result is unaffected.
+  - **A tap belongs to the round it was made in.** `tapFinish` and `tapPenalty` carry the device's own tap id (`clientTapId`) and the round (`round`):
+    - A tap the server already has from that device for that team and kind (same `clientTapId`), in any round and whether or not it was since undone, removed or rejected, is a resend: it is answered as a success and creates nothing.
+    - Otherwise a tap whose `round` is not the current round is refused with `round_over` ("That tap was for round 1, which is over.") and creates nothing. The device drops it from its queue and shows the refusal.
+    - A command without `round` (a referee page loaded before this rule) is treated as made in the current round, as before.
 - **Precision and display:**
   - Times are stored in milliseconds and displayed to hundredths (`m:ss.hh`).
   - Ties are compared at the displayed precision (hundredths).
@@ -448,7 +448,7 @@ The small current-round update that public screens get while a round is open or 
 - **When a referee can add one:** from **START** until the round finishes (race control presses **RACE FINISHED**, or auto-finish fires, §4). That includes before or after the team's finish tap, since infractions are often spotted at the end. Each penalty tap restarts the auto-finish delay, so referees have that long after the last finish.
   - After the round is finished, only race control can add or remove penalties. This is subject to the same late-correction rules as times (§4).
 - **On/off switch:** one **event-wide** switch on race control.
-  - Flipping it shows or hides the penalty buttons on every referee tablet **immediately**, even mid-race.
+  - Flipping it shows or hides the penalty buttons on every referee device **immediately**, even mid-race.
   - Turning it off **never removes** penalties already given. Race control can still remove those one at a time, and can still add penalties while the switch is off.
   - The switch is off by default for a new event.
 - **Corrections:**
@@ -462,10 +462,10 @@ The small current-round update that public screens get while a round is open or 
 
 *Added after the first live test, at the user's request.*
 
-- **A referee's penalty tap adds no time.** It flags the team as **pending: under review** (shown beside its time on the participant page, console results and referee tablet, and as "under review" on the projector's finish ticker). Times, places and brackets change only when race control approves a reason. Penalties stored by earlier versions keep the amounts they have.
+- **A referee's penalty tap adds no time.** It flags the team as **pending: under review** (shown beside its time on the participant page, console results and referee device, and as "under review" on the projector's finish ticker). Times, places and brackets change only when race control approves a reason. Penalties stored by earlier versions keep the amounts they have.
 - **As soon as the penalised team has finished,** a referee who tapped penalties sees a **Penalty notes** card for each one, without waiting for the round to finish:
   - While the race is running, a penalty's card appears as soon as its team has a result (the referee taps the team's finish button, or race control records DNF, DNS or DQ). It does not wait for the **Undo** countdowns, which keep working alongside the card. A penalty tapped after the team finished gets its card straight away. If the finish is undone, the team has no result and the card goes away until the team finishes again (anything typed into it is lost); undoing the penalty removes its card. The cards sit below the team buttons, so the finish buttons don't move.
-  - Once the round is finished, every pending penalty the tablet gave has a card. A card the referee is filling in when the round finishes keeps its reason and note.
+  - Once the round is finished, every pending penalty the device gave has a card. A card the referee is filling in when the round finishes keeps its reason and note.
   - They pick the closest reason from the penalty list and may add a short note, then **Send**.
   - The referee's pick and note go to race control only. Race control's review panel lists the penalty as soon as it is given and shows the referee's reason when it arrives.
   - The server accepts a note for a penalty in the running round only once its team has a result (otherwise `team_not_finished`, "Add the note once this team has finished."). A note changes the round's taps, so it restarts the auto-finish countdown, which gives the referee time for the next note.
@@ -532,7 +532,7 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
 
 **Settings** holds, top to bottom: the **Events** panel (create an event, the event list with Active/Ended, Make active, End event with its confirmation, the CSV, JSON and **Fairness report** (§3.9) export links, and Delete on every event but the active one, behind a type-the-name confirmation (§4.1)), then the active event's own settings, the penalty list, Companion keys, and **Appearance**. Settings works with no active event, so events can be created and activated there. The Events panel is a disclosure (`<details>`): its summary reads **Events**, with a secondary line **Active: {event name}** while an event is active. It is open when there is no active event and folded away when there is one; that default is decided when Settings mounts and again only when the console gains or loses its active event, so view updates never fold it under the user. Folded, nothing inside is reachable by keyboard or screen reader.
 
-**Appearance** is a per-browser preference for the console and the emergency console only: Automatic (follow the device), Light or Dark, as a three-way segmented control. It is kept in `localStorage` under `prc.theme` (`auto` | `light` | `dark`; missing or unreadable means `auto`) and applied before the first paint by setting `theme-light` / `theme-dark` on `<html>` (`auto` sets neither). It never reaches the server; phones, referee tablets and the projector are unaffected.
+**Appearance** is a per-browser preference for the console and the emergency console only: Automatic (follow the device), Light or Dark, as a three-way segmented control. It is kept in `localStorage` under `prc.theme` (`auto` | `light` | `dark`; missing or unreadable means `auto`) and applied before the first paint by setting `theme-light` / `theme-dark` on `<html>` (`auto` sets neither). It never reaches the server; phones, referee devices and the projector are unaffected.
 
 - Manage events (Settings → Events), import and edit teams, set the venue table count.
 - Edit seeding groups and table assignments.
@@ -608,8 +608,9 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
 - **Backup controls:** Start and Finish now (the action button) follow the same gates as Companion.
 - **Brackets** (knockout only): a panel on Race Control, above Results, with every bracket's knockout tree (§7.4), by category. It appears as soon as the brackets are drawn, before the first knockout round is opened, and the next round's teams are already in their places once the round before is settled. Results keeps listing every race by round.
 
-### 7.3 Referee (paired tablet, QR)
-- **Pairing asks for a name.** Opening a station's QR link shows one field, **Your name**, and a **Start** button; submitting pairs the tablet. The name is trimmed and must be 1–40 characters. It is checked before the code is used, so a missing name never spends the code.
+### 7.3 Referee (paired device, QR)
+- **Bring your own device.** Referees use their own phone or tablet; nothing is handed out. "Device" below means that phone or tablet.
+- **Pairing asks for a name.** Opening a station's QR link shows one field, **Your name**, and a **Start** button; submitting pairs the device. The name is trimmed and must be 1–40 characters. It is checked before the code is used, so a missing name never spends the code.
 - **Auto-lock notice after pairing.** Referees use their own phones, and a phone that locks mid-race delays the tap and adds time to the team's result. After a pairing succeeds in this page load, the page shows "Keep your screen on": why it matters, where to turn off auto-lock (and Low Power Mode / Battery Saver) on iPhone/iPad and Android, and that the page's own screen wake lock does not work on every device. A checkbox "I've turned off auto-lock on this device" enables **Continue**; only then does the live page (and its connection) start. Continue stores `r2f.autoLockAck` (the station number) in `localStorage`; it is cleared when a new pairing is submitted or the device is signed out. A device that loads already paired goes straight to the live page whether or not the key is stored, so the notice shows once per pairing (and, with storage blocked, still only after a pairing).
 - The name labels the device in race control's Referees list ("{name} — {station tables}") and the log's actor ("{name} (station {n})"). Devices paired before names existed keep "referee station {n}".
 - Shows the referee's table numbers for the current round (`station.tables`, §3.7) and the current round's teams at those tables.
@@ -625,10 +626,10 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
   - It is placed and coloured so it can't be mistaken for the finish button.
   - It's available from START until RACE FINISHED, before or after the team's finish tap.
   - It shows the number of penalties flagged (e.g. **×2**). Each penalty tap has its own **Undo** countdown.
-- **Penalty notes** (§5.2): during the race, a card for each pending penalty this tablet gave appears below the team buttons as soon as that team has a result (its finish button is tapped, or race control marks it DNF, DNS or DQ). After the round, every pending penalty has a card. A half-written card survives the round finishing.
+- **Penalty notes** (§5.2): during the race, a card for each pending penalty this device gave appears below the team buttons as soon as that team has a result (its finish button is tapped, or race control marks it DNF, DNS or DQ). After the round, every pending penalty has a card. A half-written card survives the round finishing.
 - Shows connection status and any taps queued offline.
 - A saved tap the server refuses for good is always reported ("The saved tap for {team} in round {round} was refused: {reason}"), even if the round or connection changed while the answer was in flight. A tap refused because its round is over (`round_over`, §5) reads "The saved tap for {team} was not counted: That tap was for round {round}, which is over."
-- **One live tab per tablet.** The page holds the Web Lock `r2f-referee`. A second tab shows "The referee page is already open in another tab on this tablet" and a **Use this tab instead** button, and creates neither the live connection nor the tap queue. The button posts `takeover` on `BroadcastChannel('r2f-referee')`; the holder releases the lock and shows the same message, and the new tab acquires it. Without Web Locks or BroadcastChannel the page behaves as before.
+- **One live tab per device.** The page holds the Web Lock `r2f-referee`. A second tab shows "The referee page is already open in another tab on this device" and a **Use this tab instead** button, and creates neither the live connection nor the tap queue. The button posts `takeover` on `BroadcastChannel('r2f-referee')`; the holder releases the lock and shows the same message, and the new tab acquires it. Without Web Locks or BroadcastChannel the page behaves as before.
 
 ### 7.4 Participant (public, read-only, phone-first)
 - **Team search** highlights the team in every bracket and list where it appears.
@@ -721,7 +722,7 @@ The server is reachable from the internet, so:
 - **No cross-site console requests.** The console's credentials are cookies: Access's `CF_Authorization` (set to SameSite Lax on the Access application) and the emergency `r2f_session`. Every `/api/control/*` and `/api/emergency/*` request, socket upgrades and the emergency login included, is refused with `403 cross_site` when its `Origin` header is not the site's own or `Sec-Fetch-Site` is `cross-site`. Requests with no `Origin` (a same-origin navigation such as an export link, or a script) pass.
 - **Console sockets.** The Worker signs the console in, then passes the socket to the hub with an internal `x-r2f-console` header naming who it is (URI-encoded, so names outside Latin-1 work; a value that does not decode counts as no header). The Worker deletes that header from every incoming request, and the hub reads it only on the console socket paths, so a caller cannot claim to be the console.
 - **Emergency sign-in.** `/emergency` is outside the Access application and shows one password box. The password is the Worker secret `EMERGENCY_PASSWORD`; if it is not set, every `/api/emergency/*` route answers `404` and the page says emergency sign-in is not enabled. A correct password sets a 12-hour `r2f_session` cookie that works only on `/api/emergency/*`, the same console routes as `/api/control/*`; each socket message checks the session again. Wrong passwords are rate-limited: 5 failures per address in 5 minutes. Log entries are named `emergency sign-in`.
-- **No passwords in the app's screens.** Console passwords stored by older versions are deleted when the hub starts and never checked. A session cookie no longer signs anyone in on `/api/command` or `/api/ws`, which serve referee tablets (device cookie), Companion (API key) and public screens only.
+- **No passwords in the app's screens.** Console passwords stored by older versions are deleted when the hub starts and never checked. A session cookie no longer signs anyone in on `/api/command` or `/api/ws`, which serve referee devices (device cookie), Companion (API key) and public screens only.
 - **Local development and tests.** `wrangler dev` has no Access in front of it. The Worker variable `DEV_CONSOLE_USER`, set only in `.dev.vars` and the test configuration, signs console requests in as that name. It is refused on the production hostname.
 - Every write endpoint requires an authenticated role, and session and device cookies are `HttpOnly`, `Secure` and `SameSite=Strict`.
 - Public endpoints expose only what the participant and projector pages show, including whether a team's table is ready, while a round is open (each entrant's `ready` flag, per table; false in every other round and phase, and at an excluded station). They expose no station list, ready-table list, device, audit or credential data.
@@ -768,7 +769,7 @@ The server is reachable from the internet, so:
 | Risk | Mitigation |
 |---|---|
 | **Venue internet outage.** Timing, start and finish all depend on reaching Cloudflare. | Queued taps cover short dropouts (§5). Bring a phone hotspot as a backup uplink for race control and the Companion machine. A local fallback (a venue box) can be designed later if needed. |
-| A referee tablet is lost or misused | Pairing is per device and revocable, and taps are audit-logged. |
+| A referee device is lost or misused | Pairing is per device and revocable, and taps are audit-logged. |
 | A referee taps penalty instead of finish, or the other way round | The two buttons look different and sit apart, each has its own undo, and race control can remove either. |
 | A wrong time decides a head-to-head | The referee can undo, race control can edit, results are reviewed before the next round opens, and every change is logged. |
 | The app is reachable from the internet | Role authentication, rate limiting and a read-only public surface (§9). |

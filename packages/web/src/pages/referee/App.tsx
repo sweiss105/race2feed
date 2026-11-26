@@ -162,7 +162,7 @@ function OneTab({ children }: { children: ComponentChildren }) {
       <div class="ref">
         <Header title="Referee" />
         <div class="center-page">
-          <p class="callout">The referee page is already open in another tab on this tablet</p>
+          <p class="callout">The referee page is already open in another tab on this device</p>
           <Button onClick={() => { void claim.current?.takeOver().then(() => setState('live')); }}>Use this tab instead</Button>
         </div>
       </div>

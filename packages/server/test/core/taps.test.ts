@@ -85,7 +85,7 @@ describe('taps resent or delayed into a later round', () => {
 
   it('a penalty resent after it was rejected does not flag the team in the next round', () => {
     let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(admin)));
-    // The command as an older tablet page sends it: no round.
+    // The command as an older referee page sends it: no round.
     const cmd = { type: 'tapPenalty' as const, teamId: teamId(e, 'T1'), clientTapId: 'pen-1' };
     e = ok(handleTaps(e, cmd, ctx(referee(1), START + 100_000)));
     e = ok(handleLifecycle(others(e, 1, ['T1', 'T2', 'T3', 'T4']), { type: 'finishRace' }, ctx(admin, START + 400_000)));
@@ -97,7 +97,7 @@ describe('taps resent or delayed into a later round', () => {
     expect(code(again)).toBe('ok');
     if (again.ok) expect(again.event.taps).toEqual(e.taps);
     expect(e.taps.filter((t) => t.round === 2)).toEqual([]);
-    // The same answer when the tablet names the round.
+    // The same answer when the device names the round.
     const named = handleTaps(e, { ...cmd, round: 1 }, ctx(referee(1), START + 700_000));
     expect(code(named)).toBe('ok');
     if (named.ok) expect(named.event.taps).toEqual(e.taps);

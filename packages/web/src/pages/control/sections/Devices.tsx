@@ -50,7 +50,7 @@ export function Devices({ view }: { view: ControlView }) {
                       </div>
                     ))}
                   </td>
-                  <td><Button kind="secondary" aria-label={`Pair tablet for ${tables}`} busy={runner.busy(`pair-${s}`)} onClick={() => void pair(s)}>Pair tablet</Button></td>
+                  <td><Button kind="secondary" aria-label={`Pair device for ${tables}`} busy={runner.busy(`pair-${s}`)} onClick={() => void pair(s)}>Pair device</Button></td>
                 </tr>
               );
             })}

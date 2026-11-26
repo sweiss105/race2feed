@@ -220,7 +220,7 @@ export class Hub extends DurableObject<Env> {
     try {
       await this.afterChange({ type: 'pairDevice' });
     } catch (err) {
-      // The code is spent and the device saved: the tablet must still get its token.
+      // The code is spent and the device saved: it must still get its token.
       console.error('pairDevice broadcast failed', err);
     }
     return { ok: true, deviceToken: token, station: row.station };
@@ -296,7 +296,7 @@ export class Hub extends DurableObject<Env> {
         });
         this.active = this.loadActive();
         this.ended = this.loadEnded();
-        // Tablets are paired per event: disconnect the old event's referees.
+        // Referee devices are paired per event: disconnect the old event's referees.
         this.closeSockets((a) => a.actor.role === 'referee');
         await this.afterChange(cmd);
         return reply({ eventId: cmd.eventId });

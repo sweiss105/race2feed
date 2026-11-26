@@ -95,7 +95,7 @@ export function Events({ view, api = CONTROL_API }: { view: ControlView | null; 
                 <strong>{undecided} penalt{undecided === 1 ? 'y is' : 'ies are'} still waiting for a decision.</strong> {undecided === 1 ? 'It stays' : 'They stay'} “under review” in the final results; decide {undecided === 1 ? 'it' : 'them'} on the Race Control page first.
               </p>
             )}
-            <p class="callout">Results are locked, referee tablets are signed out, and phones and the projector keep showing the champion and final results until another event is made active.</p>
+            <p class="callout">Results are locked, referee devices are signed out, and phones and the projector keep showing the champion and final results until another event is made active.</p>
             <p class="footnote secondary">You can reopen it later with Make active.</p>
             <div class="sheet-actions">
               <Button kind="secondary" onClick={() => setConfirm(null)}>Cancel</Button>
@@ -109,7 +109,7 @@ export function Events({ view, api = CONTROL_API }: { view: ControlView | null; 
         )}
         {confirm?.kind === 'reopen' && (
           <Sheet title={`Reopen ${confirm.event.name}?`} onClose={() => setConfirm(null)}>
-            <p class="callout">It becomes the active event again and its results can be changed. Referee tablets need to be paired again.</p>
+            <p class="callout">It becomes the active event again and its results can be changed. Referee devices need to be paired again.</p>
             <div class="sheet-actions">
               <Button kind="secondary" onClick={() => setConfirm(null)}>Cancel</Button>
               <Button busy={runner.busy(`activate-${confirm.event.id}`)} onClick={async () => { const ev = confirm.event; setConfirm(null); await activate(ev); }}>Reopen</Button>

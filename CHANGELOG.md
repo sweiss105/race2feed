@@ -2,6 +2,18 @@
 
 Notable changes to PRC, newest first. Day-to-day detail is in the git history.
 
+## 2026-11-26 — Referee devices, not tablets
+
+Referees use their own phone or tablet; nothing is handed out. The screens and the staff guide said "tablet" for what a referee uses, which read as if tablets were supplied. They now say **device**.
+
+- On the console's Referees tab the button is **Pair device** (it was "Pair tablet").
+- A second referee tab says "The referee page is already open in another tab on this device".
+- Refusal messages say "device" too, for example "Only the device that made a tap can undo it."
+- The staff guide, design document, README, security policy and bug report form use the same word. The guide's step 8 is now **Pair the referee devices**, and its troubleshooting entry is **A referee's device was lost.**
+- "Phone or tablet" is still used where the text says what kind of device a referee can bring.
+
+Nothing about how pairing works has changed: a referee still scans a station's QR code, types their name and presses Start.
+
 ## 2026-11-26 — Tournament format settings
 
 Setup has a new **Tournament format** panel, at the top. Organisers can now choose how an event runs; until now the format was fixed.

@@ -26,8 +26,10 @@ Everything happens at **https://r2f.weiss-audio.com**:
 |---|---|
 | `r2f.weiss-audio.com` | Participants and the public, on their phones |
 | `r2f.weiss-audio.com/projector` | The computer connected to the projector |
-| `r2f.weiss-audio.com/ref` | Referee tablets (opened by scanning a QR code) |
+| `r2f.weiss-audio.com/ref` | Referee devices (opened by scanning a QR code) |
 | `r2f.weiss-audio.com/control` | Race control: the console, called **PRC** (setup, settings and events too) |
+
+Referees use their own phone or tablet. Nothing is handed out. This guide calls it the referee's **device**.
 
 **A few words we use:**
 
@@ -41,7 +43,7 @@ Everything happens at **https://r2f.weiss-audio.com**:
 
 **How a round flows:**
 
-1. Race control presses **Open round N** (the big button on the Race Control page). Everyone's phone, the projector and the referee tablets show who races at which table.
+1. Race control presses **Open round N** (the big button on the Race Control page). Everyone's phone, the projector and the referee devices show who races at which table.
 2. Each referee checks their teams are in place and presses **Ready** for each of their tables.
 3. When every table is Ready, race control (or the Companion **Start** button) starts the race. The master clock runs.
 4. Referees tap each team's button the moment the team finishes.
@@ -194,7 +196,7 @@ In **Setup**, under **Tables**, you can change how many packing tables the venue
 
 - **Tables are how many teams can race at once**, not how many teams you can have. Fewer tables means more rounds; more tables means fewer rounds, but more room and more referees.
 - **Changing the number clears the seeding groups, table assignments and brackets**, because they were built for the old number. Press **Suggest groups and brackets** afterwards to rebuild them.
-- If referee tablets are already paired and you reduce the number of tables, pair again any tablet whose tables no longer exist.
+- If referee devices are already paired and you reduce the number of tables, pair again any device whose tables no longer exist.
 - It can't be changed once setup is locked.
 
 ![The Tables box in Setup: the number of tables and Save tables](guide/images/console-setup-tables.jpg)
@@ -241,23 +243,25 @@ To stop a key working, press **Revoke** next to it. See [Bitfocus Companion](#bi
 
 ![Companion keys: name the key, then press Create key](guide/images/console-companion-keys.jpg)
 
-### 8. Pair the referee tablets
+### 8. Pair the referee devices
+
+Referees use their own phone or tablet. Nothing is handed out. Each referee pairs their device to a station with a QR code.
 
 Go to **Referees**. There's one row per station.
 
-1. Press **Pair tablet** on a station's row. A QR code and a short code appear.
-2. On the referee's tablet or phone, scan the QR code with the camera. It opens the referee page, which asks for the referee's name; once they press **Start** the tablet is paired to that station.
+1. Press **Pair device** on a station's row. A QR code and a short code appear.
+2. On the referee's phone or tablet, scan the QR code with the camera. It opens the referee page, which asks for the referee's name; once they press **Start** the device is paired to that station.
 3. Press **Done** to close the code.
 
 ![Referees: the pairing QR code and short code for Tables 1 & 2, with one row per station](guide/images/console-devices-pairing.jpg)
 
 About pairing:
 - **Codes are single-use and expire after 10 minutes.** Make a new one if needed.
-- **One station can have more than one device**, for example a spare tablet.
-- **Paired devices are listed per station** by the referee's name, with when they were last seen. **Revoke** disconnects a device immediately (for a lost tablet, say).
-- **Pairing belongs to one event.** If a different event is made active, or the event is ended, tablets must be paired again.
+- **One station can have more than one device**, for example a second referee's phone, or a spare.
+- **Paired devices are listed per station** by the referee's name, with when they were last seen. **Revoke** disconnects a device immediately (for a lost device, say).
+- **Pairing belongs to one event.** If a different event is made active, or the event is ended, referee devices must be paired again.
 - **With Rotate referees on, the station you pair a referee to is only where they start.** The heading reads **Starting station**, and once a round is open each referee's row also says where they are now, for example "this round: Tables 3 & 4", or "no tables this round". See [Referees on each station](#referees-on-each-station).
-- **A referee paired while a round is open or running** takes the station they paired to if it has teams and no referee (so a replacement tablet can take over straight away). Otherwise they have no tables until the next round opens.
+- **A referee paired while a round is open or running** takes the station they paired to if it has teams and no referee (so a replacement device can take over straight away). Otherwise they have no tables until the next round opens.
 
 ### 9. Settings
 
@@ -283,7 +287,7 @@ About pairing:
 
   ![The penalty list editor: a name, Time or DQ, and the seconds for each reason](guide/images/console-penalty-list.jpg)
 
-- **Appearance:** at the bottom of Settings. Choose **Automatic** (follow the computer's light or dark setting), **Light** or **Dark** for the console. It changes only the browser you're using, straight away, and is remembered there. Phones, referee tablets and the projector are not affected.
+- **Appearance:** at the bottom of Settings. Choose **Automatic** (follow the computer's light or dark setting), **Light** or **Dark** for the console. It changes only the browser you're using, straight away, and is remembered there. Phones, referee devices and the projector are not affected.
 
   ![Appearance: Automatic, Light or Dark, for this browser only](guide/images/console-appearance.jpg)
 
@@ -323,7 +327,7 @@ On a device set to reduce motion, the button doesn't pulse.
 ### Open a round
 
 1. Press **Open round N**.
-2. The round's tables go out to phones, the projector and the referee tablets.
+2. The round's tables go out to phones, the projector and the referee devices.
 3. Stations with no teams this round are marked **No teams** automatically.
 
 **In a Knockout event** a **Brackets** panel appears on Race Control, above Results, once seeding is finished. It shows each bracket as a tree (see [Knockout brackets](#knockout-brackets)), with the next round's teams already in place, so you can see who is about to race whom before you open the round. **Results** still lists every race of the round.
@@ -343,8 +347,8 @@ When every round has been raced, the button reads **Show champion** and the stat
 
 ### Station readiness
 
-The **Stations** panel shows every station as **Ready**, **Not ready** or **No teams**. Referees press Ready on their tablets, one Ready per table, so a referee with two tables can ready one while the other is still setting up. Until both are ready the station reads **1 of 2 tables ready**, and it still counts as not ready. You can override any station:
-- **Ready:** mark all its tables ready for the referee (for example, their tablet is having trouble).
+The **Stations** panel shows every station as **Ready**, **Not ready** or **No teams**. Referees press Ready on their devices, one Ready per table, so a referee with two tables can ready one while the other is still setting up. Until both are ready the station reads **1 of 2 tables ready**, and it still counts as not ready. You can override any station:
+- **Ready:** mark all its tables ready for the referee (for example, their device is having trouble).
 - **Unready:** clear the Ready of all its tables. A referee can't undo their own Ready, so this is the only way.
 - **Exclude:** leave the station out of the Ready check. **Include** puts it back.
 
@@ -358,7 +362,7 @@ The room can follow along on the projector: on the **Tables** screen each team h
 
 With **Rotate referees each round** switched on in **Settings** (it's on for a new event), the app decides where each referee goes when you open a round. It sends them where they've judged those teams least, and moves as few people as it can. Table assignments for teams never change; only the referees move.
 
-- **Each station's card in the Stations panel shows its referee's name.** A referee who has to move sees "Round 5: go to Tables 7 & 8" on their tablet and presses **I'm there** when they arrive, then **Ready** as usual.
+- **Each station's card in the Stations panel shows its referee's name.** A referee who has to move sees "Round 5: go to Tables 7 & 8" on their device and presses **I'm there** when they arrive, then **Ready** as usual.
 - **"No referee"** on a card means the station has teams but nobody to judge them, because fewer referees are paired than there are stations in use. The lowest-numbered stations get the referees. For the others, use your own **Ready** on the card, and **Finish**, **DNF** and **DNS** in the **Waiting on *N* teams** panel.
 - **A referee with no tables** (more referees than stations in use) sees "No tables this round" and waits for the next round.
 - **In a bracket's deciding race and in the Grand Championship**, if both teams are at one station and a referee is spare, the two share the station: the card shows both, for example "Dana (T1)" and "Sam (T2)", and each taps only their own team. With no spare referee the race runs as normal and a [Fairness](#fairness) warning tells you one referee judged the final.
@@ -375,7 +379,7 @@ While a round is **open** (before **Start**), you can change who is where:
 
 1. In the **Stations** panel, press **Swap…** next to a referee's name.
 2. Choose the referee to change places with. The list shows where each one is now ("Lee — Tables 3 & 4"), or "no tables" for a referee with a round off.
-3. Press **Swap**. Both tablets show the new tables straight away, with the "go to" notice.
+3. Press **Swap**. Both referees' devices show the new tables straight away, with the "go to" notice.
 
 Good to know:
 - **Any Ready already given at those tables is cleared**, so the referees press Ready again once they've moved.
@@ -388,7 +392,7 @@ Good to know:
 - **Start** works only when every station that has teams is Ready (or overridden). Until then it's greyed out and the status line reads, for example, "Waiting on 2 referees to be ready".
 - **Finish now** works only when every team in the round has a time, DNF or DNS. Until then it's greyed out and the status line reads "Racing — waiting on *N* teams".
 
-While a round runs, the **Waiting on *N* teams** panel lists every team without a result yet, with **Finish**, **DNF** and **DNS** buttons for each one. **Finish** stops that team's clock at the moment you press it, exactly as the referee's tap would; use it when a referee's tablet has failed or they missed the tap. If you press it by mistake, correct the time in **Results**.
+While a round runs, the **Waiting on *N* teams** panel lists every team without a result yet, with **Finish**, **DNF** and **DNS** buttons for each one. **Finish** stops that team's clock at the moment you press it, exactly as the referee's tap would; use it when a referee's device has failed or they missed the tap. If you press it by mistake, correct the time in **Results**.
 
 ![A running round: the race clock, every station Ready, "Racing — waiting on 7 teams" with Finish now greyed out, and the teams still waiting for a result](guide/images/console-race-running.jpg)
 
@@ -431,7 +435,7 @@ The newest change always wins, so you can correct a referee's tap by entering th
 ### Time penalties
 
 Penalties are switched **off** for a new event. The **Time penalties** switch in **Settings**, in the event's panel, turns them on or off for the whole event.
-- **It takes effect at once**, even mid-race: the penalty buttons appear or disappear on every referee tablet.
+- **It takes effect at once**, even mid-race: the penalty buttons appear or disappear on every referee device.
 - **Turning it off doesn't remove** penalties already given.
 - **You can still add or remove penalties** in Results while it's off.
 
@@ -533,14 +537,14 @@ While the champion is showing, the big button reads **Hide champion**. Pressing 
 
 ### Referees and Log
 
-- **Referees:** pair or revoke referee tablets (see [Pair the referee tablets](#8-pair-the-referee-tablets)). With Rotate referees on, it also shows each referee's tables this round.
+- **Referees:** pair or revoke referee devices (see [Pair the referee devices](#8-pair-the-referee-devices)). With Rotate referees on, it also shows each referee's tables this round.
 - **Log:** the latest 50 changes, newest first, with who made each one. Every tap, penalty, undo, correction, override, tie decision and round change is recorded.
 
 ---
 
 ## Referees
 
-You'll use a tablet or phone paired to your station. The top of the screen shows your **table numbers**, the **round**, and a dot showing your connection. If referees rotate at your event, the table numbers can change from round to round (see [Moving between rounds](#moving-between-rounds)).
+Referees use their own phone or tablet. Nothing is handed out. You pair your device to your station, then time your teams on it. The top of the screen shows your **table numbers**, the **round**, and a dot showing your connection. If referees rotate at your event, the table numbers can change from round to round (see [Moving between rounds](#moving-between-rounds)).
 
 ### Pairing
 
@@ -598,7 +602,7 @@ When the race starts, the clock runs and there's one large button per team.
 - **Each team gets one time.** Once tapped, its button stops responding.
 - **The screen stays on** while a round is open or running, on devices that support it.
 
-If the buttons are greyed out with **"Syncing clock…"**, wait a moment: the tablet is lining its clock up with the server.
+If the buttons are greyed out with **"Syncing clock…"**, wait a moment: your device is lining its clock up with the server.
 
 ![During the race: one big button per team, the race clock at the top right, and the smaller Penalty buttons underneath (when race control has switched penalties on)](guide/images/referee-tap-buttons.jpg)
 
@@ -611,13 +615,13 @@ Every tap gets its own bar just below the team buttons (above any penalty notes)
 - **After that, or once the round is finished,** only race control can change it. If you press Undo too late, a red message says "Too late to undo; ask race control." (or "The race is over; ask race control." once the round has finished).
 - **If the server refuses a tap that was waiting to send** (for example the team already has a result), a red message says "The saved tap for Alpha in round 3 was refused", with the reason. You see it even if the round changed while the tap was being sent. Tell race control if the time looks wrong.
 - **If a red message says "The saved tap for Alpha was not counted: That tap was for round 3, which is over."** (or just "That tap was for round 3, which is over."), the tap reached the server only after its round had finished, so it was not recorded, and it is never counted in a later round. If it was a finish or a penalty that should stand, tell race control so they can enter it.
-- **If a red message says "The server could not process that. Try again."**, the tap is not lost: it stays saved on the tablet and is sent again automatically within a few seconds. Tell race control if the message keeps coming back.
+- **If a red message says "The server could not process that. Try again."**, the tap is not lost: it stays saved on your device and is sent again automatically within a few seconds. Tell race control if the message keeps coming back.
 
 ![After a penalty tap and a finish tap for Alpha: its button shows its time marked "pending: under review", the Penalty button shows ×1, each tap has its own Undo bar counting down below the buttons, and the Penalty notes card for Alpha follows](guide/images/referee-undo.jpg)
 
 ### Only one referee tab
 
-The referee page runs in one browser tab per tablet, so two tabs never keep separate lists of saved taps. If you open it a second time, the new tab says **"The referee page is already open in another tab on this tablet"** with a **Use this tab instead** button. Press it to make this tab the live one; the other tab then shows the same message, with its own button to take it back. Browsers without this feature behave as before and allow several tabs.
+The referee page runs in one browser tab per device, so two tabs never keep separate lists of saved taps. If you open it a second time, the new tab says **"The referee page is already open in another tab on this device"** with a **Use this tab instead** button. Press it to make this tab the live one; the other tab then shows the same message, with its own button to take it back. Browsers without this feature behave as before and allow several tabs.
 
 ### Penalty button
 
@@ -647,7 +651,7 @@ Your note goes only to race control, who makes the final decision.
 
 ### If the Wi-Fi drops
 
-Keep tapping. The tablet saves your taps with their exact times and sends them automatically when the connection is back, so the results aren't affected. A notice shows how many taps are waiting to send. Leave the page open until it disappears.
+Keep tapping. Your device saves your taps with their exact times and sends them automatically when the connection is back, so the results aren't affected. A notice shows how many taps are waiting to send. Leave the page open until it disappears.
 
 ---
 
@@ -802,7 +806,7 @@ When the event is over:
 When an event ends:
 - It's marked **Ended** and is no longer active.
 - Its results are locked: no further changes are accepted.
-- All referee tablets are signed out and their pairings cancelled.
+- All referee devices are signed out and their pairings cancelled.
 - **Phones and the projector keep showing the champion and final results** until someone activates another event.
 - The **CSV**, **JSON** and **Fairness report** downloads keep working.
 
@@ -817,7 +821,7 @@ Next to **CSV** and **JSON** on every event's row in **Settings → Events** the
 ### Reopen an event
 
 On the ended event's row in **Settings → Events**, press **Make active** and confirm. Then:
-- Referee tablets must be **paired again**.
+- Referee devices must be **paired again**.
 - If a race was counting down to auto-finish when the event ended, the auto-finish delay starts again from the moment you reopen it. The same happens if you make another event active mid-countdown and then switch back.
 - If the event was ended before its last round, the champion screen is taken down automatically. If it was ended after the last round, the champion stays up; race control can press **Hide champion** at any time.
 
@@ -839,14 +843,14 @@ If phones and the projector were showing the deleted event (because it was the l
 
 ## Troubleshooting and FAQ
 
-**The referee tablet says "Scan the station QR code".**
-The tablet isn't paired, or its pairing ended. That happens when it's revoked, when another event is made active, or when the event is ended. Ask race control for a new code in **Referees**.
+**The referee device says "Scan the station QR code".**
+The device isn't paired, or its pairing ended. That happens when it's revoked, when another event is made active, or when the event is ended. Ask race control for a new code in **Referees**.
 
 **"This pairing code is invalid or already used."**
-Codes work once and last 10 minutes. Make a new one with **Pair tablet**.
+Codes work once and last 10 minutes. Make a new one with **Pair device**.
 
 **The referee's buttons are grey and say "Syncing clock…".**
-Wait a few seconds; the tablet is lining up its clock with the server. If it stays like that, check the tablet's Wi-Fi.
+Wait a few seconds; the device is lining up its clock with the server. If it stays like that, check the device's Wi-Fi.
 
 **A referee's phone keeps locking (the screen goes dark during a round).**
 Unlocking it delays the tap and adds time to the team's result. Turn off auto-lock: on an iPhone or iPad, Settings, then Display & Brightness, then Auto-Lock, then Never, and turn off Low Power Mode; on Android, Settings, then Display, then Screen timeout, then the longest option, and turn off Battery Saver. The referee page tries to keep the screen on during a round, but that doesn't work on every device.
@@ -854,7 +858,7 @@ Unlocking it delays the tap and adds time to the team's result. Turn off auto-lo
 **A referee says "*N* taps waiting to send".**
 The connection dropped. The taps are saved with their real times and will send by themselves. Keep the page open. Race control sees those teams under **Waiting on *N* teams** until the taps arrive.
 
-**The referee page says "The referee page is already open in another tab on this tablet".**
+**The referee page says "The referee page is already open in another tab on this device".**
 Only one tab can run the referee page. Close the other tab, or press **Use this tab instead** here.
 
 **Start is greyed out: "Waiting on *N* referees to be ready" (or "*N* tables").**
@@ -866,14 +870,14 @@ Use the **Waiting on *N* teams** panel: wait for the referee's tap, press **Fini
 **Open round N is greyed out or refused.**
 Read the status line or the message under the button: lock the setup, finish the current round, decide pending penalties, decide a tie, or enter a result for a team that has none in a finished round (choose that round in **Results**, then enter a time or mark DNF or DNS). See [Open a round](#open-a-round).
 
-**A referee's tablet says "No tables this round".**
+**A referee's device says "No tables this round".**
 There are more referees than stations in use this round, so that referee has a round off; or they paired after the round opened and their station already had a referee. They get tables when the next round opens. To use them now, while the round is still open, press **Swap…** next to another referee's name in the **Stations** panel and choose them. See [Swap two referees](#swap-two-referees).
 
-**A referee's tablet says "Round N: go to Tables …".**
+**A referee's device says "Round N: go to Tables …".**
 Referees rotate at this event. The referee goes to those tables and presses **I'm there**; the Ready buttons appear after that. See [Moving between rounds](#moving-between-rounds).
 
 **A station shows "No referee".**
-Fewer referees are paired than there are stations with teams. Pair another tablet for that station in **Referees** (it takes over straight away if the round is open or running), or run the station yourself: **Ready** on its card, then **Finish**, **DNF** or **DNS** in the **Waiting on *N* teams** panel.
+Fewer referees are paired than there are stations with teams. Pair another referee's device for that station in **Referees** (it takes over straight away if the round is open or running), or run the station yourself: **Ready** on its card, then **Finish**, **DNF** or **DNS** in the **Waiting on *N* teams** panel.
 
 **I turned Rotate referees on (or off) and nothing moved.**
 The switch takes effect from the next round you open. The round that's open or running keeps its referees.
@@ -884,7 +888,7 @@ That many [Fairness](#fairness) warnings are waiting. They're prompts to take a 
 **A Fairness warning disappeared by itself.**
 A result was corrected and the pattern no longer holds. Nothing else is needed.
 
-**A referee's tablet stops working during a race.**
+**A referee's device stops working during a race.**
 On the **Race Control** page, press **Finish** next to each of that referee's teams in the **Waiting on *N* teams** panel as the team finishes. It stops the team's clock at that moment, just as the referee's tap would.
 
 **A referee missed a penalty and the race is still running.**
@@ -937,7 +941,7 @@ After 5 wrong emergency passwords in 5 minutes, emergency sign-in pauses for tha
 **"Setup is locked; unlock it before changing teams, groups or brackets."**
 **Unlock setup** works only before the first round is opened. After that, only renaming teams, settings, the penalty list and the bag total can change.
 
-**A tablet was lost.**
+**A referee's device was lost.**
 Go to **Referees** and press **Revoke** next to it. It's disconnected immediately. Pair a replacement.
 
 **A phone shows the wrong team.**

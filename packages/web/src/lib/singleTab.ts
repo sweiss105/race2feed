@@ -14,7 +14,7 @@ export interface ClaimOptions {
 type Outcome = 'got' | 'refused' | 'error';
 
 /**
- * Lets only one referee tab per tablet run the tap queue. The first tab holds a Web Lock;
+ * Lets only one referee tab per device run the tap queue. The first tab holds a Web Lock;
  * later tabs are `blocked` until the person chooses `takeOver()`, which makes the holder let go.
  * Without Web Locks or BroadcastChannel (or if the lock request fails) the answer is `unsupported`
  * and nothing is enforced.

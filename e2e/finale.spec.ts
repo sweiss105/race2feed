@@ -84,7 +84,7 @@ test('penalty review, champion and the end of the event', async ({ browser }) =>
   await shot(phone, 'phone-champion');
   await shot(projector, 'projector-champion-finale');
 
-  // End the event: tablets are signed out; phones keep the champion.
+  // End the event: devices are signed out; phones keep the champion.
   await admin.getByRole('link', { name: 'Settings', exact: true }).click();
   await openEvents(admin);
   const row = admin.getByRole('row', { name: /E2E Finale/ });

@@ -5,7 +5,7 @@ import { call, command, connect, lockedEvent, settle, type As, type Socket } fro
 
 const hub = () => env.HUB.getByName('hub');
 
-/** Pairs a tablet named `name` to `station` and returns its device cookie. */
+/** Pairs a device named `name` to `station` and returns its device cookie. */
 async function pair(admin: As, name: string, station = 1): Promise<string> {
   const code = (await command({ type: 'createPairingCode', station }, admin)).body.reply.code;
   return (await call('/api/pair', { code, name })).cookie!;
@@ -82,7 +82,7 @@ describe('referee rotation', () => {
     expect((await latest(sockets.Ann)).teams.map((t: any) => t.taps.length)).toEqual([1, 0]);
   });
 
-  it('gives a reconnecting tablet its assigned tables, not the station it paired to', async () => {
+  it('gives a reconnecting device its assigned tables, not the station it paired to', async () => {
     const { admin, cookies, sockets } = await twoReferees();
     await command({ type: 'openNextRound' }, admin);
     const ctl = await consoleView(admin);
@@ -192,7 +192,7 @@ describe('referee rotation', () => {
     expect((await command({ type: 'stationReady', table: 1 }, { cookie: cookies[0]! })).status).toBe(200);
     expect((await command({ type: 'stationReady', table: 2 }, { cookie: cookies[1]! })).status).toBe(200);
     for (const s of sockets) expect((await latest(s)).station).toMatchObject({ ready: true, readyTables: [1, 2] });
-    // A tablet paired during the round is at its station straight away, as before.
+    // A device paired during the round is at its station straight away, as before.
     const late = await connect({ cookie: await pair(admin, 'Cy', 2) });
     expect((await late.next('view', 0)).view.station).toMatchObject({ number: 2, tables: [3, 4], assigned: true });
     expect((await consoleView(admin)).assignments).toEqual([]);

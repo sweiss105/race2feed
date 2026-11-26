@@ -74,7 +74,7 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       const occupied = occupiedTables(e, s);
       const already = readyTablesOf(station, tablesOfStation(s, e.setup.tableCount, perStation(e)));
       if (cmd.table === undefined) {
-        // An older tablet page: one Ready for all of the referee's tables. Ready once every occupied table is
+        // An older referee page: one Ready for all of the referee's tables. Ready once every occupied table is
         // (in a split final the other referee readies the other table).
         const readyTables = [...new Set([...already, ...occupied.filter((t) => mine.includes(t))])].sort((a, b) => a - b);
         return ok({ ...e, stations: { ...e.stations, [s]: { ...station, ready: occupied.every((t) => readyTables.includes(t)), readyTables } } });

@@ -36,7 +36,7 @@ function Appearance() {
             onClick={() => { setTheme(t); choose(t); }}>{label}</button>
         ))}
       </div>
-      <p class="footnote secondary" style={{ margin: 0 }}>Only changes this browser. Phones, referee tablets and the projector are not affected.</p>
+      <p class="footnote secondary" style={{ margin: 0 }}>Only changes this browser. Phones, referee devices and the projector are not affected.</p>
     </section>
   );
 }

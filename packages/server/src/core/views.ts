@@ -156,7 +156,7 @@ function outstanding(e: LiveEvent, d: DerivedEvent) {
 }
 
 /**
- * What one referee sees. `who`: the tablet's home station and device. Its tables this round are the saved
+ * What one referee sees. `who`: the referee's home station and device. Its tables this round are the saved
  * assignment's (rotation.ts), or the home station's when the round has none saved.
  * station.number: the station of those tables (0 without any). station.assigned: false only when the round has
  * saved assignments and this device is in none. station.moved: assigned to a different station from the

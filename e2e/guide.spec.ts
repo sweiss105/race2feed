@@ -196,16 +196,16 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await keys.getByLabel('Key name').fill('');
   await region(admin, admin.getByRole('region', { name: 'Appearance' }), 'console-appearance.jpg');
 
-  // ── Referee: an unpaired tablet ───────────────────────────────────────────
+  // ── Referee: an unpaired device ───────────────────────────────────────────
   const unpaired = await context(browser, TABLET);
   await unpaired.goto('/ref');
   await expect(unpaired.getByRole('heading', { name: 'Scan the station QR code' })).toBeVisible();
   await region(unpaired, [unpaired.getByRole('heading', { name: 'Scan the station QR code' }), unpaired.getByText(/Race control shows a QR code/)], 'referee-scan.jpg', 48);
   await unpaired.context().close();
 
-  // ── Referees: pair the tablet for tables 1 & 2 ────────────────────────────
+  // ── Referees: pair the device for tables 1 & 2 ────────────────────────────
   await admin.getByRole('link', { name: 'Referees', exact: true }).click();
-  await admin.getByRole('button', { name: 'Pair tablet for Tables 1 & 2' }).click();
+  await admin.getByRole('button', { name: 'Pair device for Tables 1 & 2' }).click();
   const qr = admin.locator('[data-qr]');
   await expect(qr).toBeVisible();
   await shot(admin, 'console-devices-pairing.jpg');
@@ -223,7 +223,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await admin.getByRole('button', { name: 'Done' }).click();
   // A referee for every other station too, so each station's card has a name once the round opens.
   for (const [station, name] of [['Tables 3 & 4', 'Dana'], ['Tables 5 & 6', 'Lee'], ['Tables 7 & 8', 'Alex']] as const) {
-    await admin.getByRole('button', { name: `Pair tablet for ${station}` }).click();
+    await admin.getByRole('button', { name: `Pair device for ${station}` }).click();
     await expect(qr).toBeVisible();
     const other = await context(browser, TABLET);
     await other.goto(`/ref?code=${(await qr.getAttribute('data-qr'))!.split('code=')[1]!}`);

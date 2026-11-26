@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { command, connect, consoleGet, pairReferee, lockedEvent } from './client';
 
 describe('ending an event', () => {
-  it('disconnects tablets, keeps results on phones, and can be reopened', async () => {
+  it('disconnects devices, keeps results on phones, and can be reopened', async () => {
     const admin = await lockedEvent();
     const { device } = await pairReferee(admin);
     const ref = await connect({ cookie: device });

@@ -180,7 +180,7 @@ describe('close_finish', () => {
     expect(ofKind(play(rotating(lockedFour()), { T1: 200_000, T2: 200_100 }, roster(2)), 'close_finish')).toEqual([]);
   });
 
-  it('falls back to the tablet that tapped both finishes when no assignment is saved, without a name', () => {
+  it('falls back to the device that tapped both finishes when no assignment is saved, without a name', () => {
     let e = heatsRunning(lockedFour());
     const [a, b] = raceAt(e, 1).entrants.map((x) => x.teamId) as [string, string];
     e = run(e, { type: 'tapFinish', teamId: a, atServerMs: startOf(3) + 100_000, clientTapId: 'a' }, referee(1), startOf(3) + 100_000);
@@ -408,7 +408,7 @@ describe('penalty_outlier', () => {
     expect(messages({ ...e, taps: [...e.taps, ...extra] })).toEqual([]);
   });
 
-  it('with no saved assignments, the referees are the tablets that tapped', () => {
+  it('with no saved assignments, the referees are the devices that tapped', () => {
     const e = playTo(lockedFour(), 3);
     const finishes = ['dev1', 'dev2', 'dev3'].map((deviceId) => tap({ kind: 'finish', round: 1, teamId: teamId(e, 'T1'), deviceId, elapsedMs: 200_000 }));
     const taps = [...e.taps, ...finishes, ...[1, 2, 3].map(() => penalty(e, 1, 'T1', 'dev1'))];
@@ -528,7 +528,7 @@ describe('fairnessWarnings', () => {
   });
 
   it('works on an event stored before rotation and fairness existed', () => {
-    // Raced with referee tablets at their home stations: finish taps, two penalties for one team, an undo.
+    // Raced with referee devices at their home stations: finish taps, two penalties for one team, an undo.
     let e = run(lockedFour(), { type: 'setPenaltiesEnabled', enabled: true });
     for (let round = 1; round <= 4; round++) {
       e = start(e);

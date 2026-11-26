@@ -18,7 +18,7 @@ function cookies(request: Request): Record<string, string> {
   return out;
 }
 
-/** The device cookie or a Bearer API key (tablets and Companion). A session cookie never counts here. */
+/** The device cookie or a Bearer API key (referee devices and Companion). A session cookie never counts here. */
 export function credentials(request: Request): Credentials {
   const c = cookies(request);
   const auth = request.headers.get('authorization') ?? '';

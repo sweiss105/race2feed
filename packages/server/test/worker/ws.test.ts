@@ -92,7 +92,7 @@ describe('live connections', () => {
     expect(snap.view.seedTotalsMs[teams[0]]).toBe(150_000);
   });
 
-  it('tells race control when a tablet pairs', async () => {
+  it('tells race control when a device pairs', async () => {
     const admin = await lockedEvent();
     const control = await connect(admin);
     await control.next('view');
@@ -134,7 +134,7 @@ describe('live connections', () => {
     expect(after.round.startedAt).toBe(startedAt);
   });
 
-  it('closes a revoked tablet with code 4401', async () => {
+  it('closes a revoked device with code 4401', async () => {
     const admin = await lockedEvent();
     const { device } = await pairReferee(admin);
     const ref = await connect({ cookie: device });
@@ -233,7 +233,7 @@ describe('live connections', () => {
     expect((await upgrade({ query: 'role=referee', bearer: key })).status).toBe(401);
   });
 
-  it('pairing a tablet sends no snapshot to a public screen', async () => {
+  it('pairing a device sends no snapshot to a public screen', async () => {
     const admin = await lockedEvent();
     const pub = await connect({ role: 'public' });
     await pub.next('snapshot', 0);

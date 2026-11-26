@@ -118,7 +118,7 @@ export function assignRound(e: LiveEvent, d: DerivedEvent, round: number, roster
 /**
  * A referee paired while the round is open takes their home station's tables if that station has teams and no
  * referee this round; otherwise nothing changes and they wait for the next round. Only for an open round with
- * saved assignments (a round opened with rotation off needs none: the tablet is at its home station).
+ * saved assignments (a round opened with rotation off needs none: the device is at its home station).
  */
 export function withLateReferee(e: LiveEvent, d: DerivedEvent, ref: RosterEntry): LiveEvent {
   const round = e.round.current;

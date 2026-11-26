@@ -6,7 +6,7 @@ export interface Reply { status: number; body: any; cookie: string | null }
 
 /**
  * Who a request comes from. `api` is where console requests go (`/api/control` or `/api/emergency`);
- * without it, commands and sockets use `/api/command` and `/api/ws` (tablets, Companion, phones).
+ * without it, commands and sockets use `/api/command` and `/api/ws` (referee devices, Companion, phones).
  */
 export interface As { cookie?: string; bearer?: string; ip?: string; api?: string; headers?: Record<string, string> }
 
@@ -117,7 +117,7 @@ export async function wsCommand(s: Socket, cmd: unknown): Promise<any> {
 
 export const settle = () => new Promise((r) => setTimeout(r, 50));
 
-/** Pairs a tablet for `station` and returns its device cookie. */
+/** Pairs a device for `station` and returns its device cookie. */
 export async function pairReferee(admin: As, station = 1): Promise<{ device: string }> {
   const code = (await command({ type: 'createPairingCode', station }, admin)).body.reply.code;
   const device = (await call('/api/pair', { code, name: 'Ref' })).cookie!;

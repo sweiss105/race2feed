@@ -409,7 +409,7 @@ describe('pairing', () => {
     };
 
     describe('while the race is running', () => {
-      /** Round 1 running with penalties on; this tablet gave T1 a pending penalty (tap `pen-mine`) at `penAt`. */
+      /** Round 1 running with penalties on; this device gave T1 a pending penalty (tap `pen-mine`) at `penAt`. */
       const runningWith = (penAt: number, extra: (e: LiveEvent) => Partial<LiveEvent> = () => ({})): LiveEvent => {
         const e = start(openNext(lockedFour()));
         const base: LiveEvent = {
@@ -423,7 +423,7 @@ describe('pairing', () => {
         id: 'fin-1', clientTapId: 'fin-mine', kind: 'finish' as const, round: 1, teamId: teamId(e, 'T1'), elapsedMs: 150_000,
         source: 'referee' as const, deviceId: 'dev1', createdAt, removedAt: null,
       });
-      /** Mounts the page as the tablet that made `pen-mine` and `fin-mine`; `show(e)` sends a new view. */
+      /** Mounts the page as the device that made `pen-mine` and `fin-mine`; `show(e)` sends a new view. */
       async function mount(e: LiveEvent) {
         const storage = new MemoryStorage();
         const q = new TapQueue(storage);

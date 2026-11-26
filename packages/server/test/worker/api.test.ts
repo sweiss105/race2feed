@@ -202,7 +202,7 @@ describe('fairness report export', () => {
 });
 
 describe('referee pairing', () => {
-  it('pairs a tablet once, accepts its commands, and stops after revoke', async () => {
+  it('pairs a device once, accepts its commands, and stops after revoke', async () => {
     const admin = await lockedEvent();
     const code = (await command({ type: 'createPairingCode', station: 1 }, admin)).body.reply.code;
     const paired = await call('/api/pair', { code, name: 'Ref' });
@@ -337,7 +337,7 @@ describe('cross-site console requests', () => {
     expect((await call('/api/emergency/login', { password: EMERGENCY_PASSWORD }, { ip: '10.2.0.5' })).status).toBe(200);
   });
 
-  it('leaves tablet, Companion and public routes alone', async () => {
+  it('leaves referee, Companion and public routes alone', async () => {
     const pub = await connect({ role: 'public', headers: FOREIGN });
     expect((await pub.next('snapshot', 0)).type).toBe('snapshot');
     pub.ws.close();

@@ -80,7 +80,7 @@ describe('admin sections', () => {
   it('shows a pairing QR code for a station', async () => {
     const send = vi.fn(async () => ({ ok: true, reply: { code: 'ABC234', expiresAt: Date.now() + 600_000 } }));
     withRunner(<Devices view={ctlViewOf(lockedFour())} />, send);
-    fireEvent.click(screen.getAllByRole('button', { name: /Pair tablet/ })[0]!);
+    fireEvent.click(screen.getAllByRole('button', { name: /Pair device/ })[0]!);
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'createPairingCode', station: 1 }));
     const qr = await waitFor(() => document.querySelector('[data-qr]')!);
     expect(qr.getAttribute('data-qr')).toMatch(/\/ref\?code=ABC234$/);
@@ -261,7 +261,7 @@ describe('admin sections', () => {
     expect(document.documentElement.classList.contains('theme-dark')).toBe(true);
     expect(localStorage.getItem('prc.theme')).toBe('dark');
     expect(within(group).getByRole('radio', { name: 'Dark' }).getAttribute('aria-checked')).toBe('true');
-    expect(screen.getByText('Only changes this browser. Phones, referee tablets and the projector are not affected.')).toBeTruthy();
+    expect(screen.getByText('Only changes this browser. Phones, referee devices and the projector are not affected.')).toBeTruthy();
     fireEvent.click(within(group).getByRole('radio', { name: 'Automatic' }));
     expect(document.documentElement.classList.contains('theme-dark')).toBe(false);
     localStorage.removeItem('prc.theme');

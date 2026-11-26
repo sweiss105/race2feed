@@ -4,7 +4,7 @@ import { checkCorrection } from './corrections';
 import { reasonsOf, reviewOf } from './reasons';
 import { tablesFor } from './rotation';
 
-/** Clock skew allowed between a synced tablet and the server. */
+/** Clock skew allowed between a synced device and the server. */
 const FUTURE_TOLERANCE_MS = 2000;
 
 export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResult {
@@ -19,7 +19,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
     e.taps.some((t) => t.clientTapId === clientTapId && t.deviceId === ctx.actor.deviceId
       && t.teamId === teamId && t.kind === kind);
   const validId = (id: unknown) => typeof id === 'string' && id.length > 0 && id.length <= 100;
-  /** The round the tablet made the tap in; older tablet pages don't send one. */
+  /** The round the device made the tap in; older referee pages don't send one. */
   const validTapRound = (round: unknown) => round === undefined || (Number.isInteger(round) && (round as number) >= 1);
   /** A tap made in another round than the current one (it arrived late) is refused, whatever the current round's state. */
   const roundOver = (round: number | undefined): CommandResult | null =>
@@ -60,7 +60,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       if (denied) return denied;
       const startedAt = e.round.startedAt!;
       if (cmd.atServerMs < startedAt || cmd.atServerMs > ctx.now + FUTURE_TOLERANCE_MS) {
-        return fail('bad_timestamp', 'The tap time is outside the race; check the tablet clock.');
+        return fail('bad_timestamp', "The tap time is outside the race; check the device's clock.");
       }
       if (buildProgress(e).results[current]?.[cmd.teamId]) return fail('already_finished', 'That team already has a result.');
       const tap = newTap({
@@ -85,7 +85,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
     case 'undoTap': {
       const tap = e.taps.find((t) => t.id === cmd.tapId);
       if (!tap || tap.removedAt !== null) return fail('not_found', 'That tap no longer exists.');
-      if (!ctx.actor.deviceId || tap.deviceId !== ctx.actor.deviceId) return fail('not_your_tap', 'Only the tablet that made a tap can undo it.');
+      if (!ctx.actor.deviceId || tap.deviceId !== ctx.actor.deviceId) return fail('not_your_tap', 'Only the device that made a tap can undo it.');
       if (e.round.phase !== 'running' || tap.round !== current) return fail('round_not_running', 'The race is over; ask race control.');
       if (ctx.now - tap.createdAt > e.settings.undoWindowMs) return fail('undo_expired', 'Too late to undo; ask race control.');
       if (tap.kind === 'penalty' && tap.review && tap.review.status !== 'pending') return fail('already_decided', 'Race control has already decided this penalty.');
@@ -128,7 +128,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
     case 'notePenalty': {
       const tap = e.taps.find((t) => t.id === cmd.tapId && t.kind === 'penalty');
       if (!tap || tap.removedAt !== null) return fail('not_found', 'That penalty no longer exists.');
-      if (!ctx.actor.deviceId || tap.deviceId !== ctx.actor.deviceId) return fail('not_your_tap', 'Only the tablet that gave the penalty can add its note.');
+      if (!ctx.actor.deviceId || tap.deviceId !== ctx.actor.deviceId) return fail('not_your_tap', 'Only the device that gave the penalty can add its note.');
       if (reviewOf(tap).status !== 'pending') return fail('already_decided', 'Race control has already decided this penalty.');
       if (tap.round === current && e.round.phase === 'running' && !buildProgress(e).results[current]?.[tap.teamId]) {
         return fail('team_not_finished', 'Add the note once this team has finished.');

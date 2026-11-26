@@ -243,7 +243,7 @@ describe('per-table Ready', () => {
     expect(ok(ready(e, station, other)).stations[station]).toMatchObject({ ready: true, readyTables: [other] });
   });
 
-  it('without a table (an older tablet page) readies every occupied table', () => {
+  it('without a table (an older referee page) readies every occupied table', () => {
     expect(ok(ready(opened(), 1)).stations[1]).toEqual({ ready: true, excluded: false, readyTables: [1, 2] });
   });
 

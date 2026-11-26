@@ -48,7 +48,7 @@ body:
       multiple: true
       options:
         - Race control console
-        - Referee tablet
+        - Referee device
         - Participant phone
         - Projector
         - Companion buttons

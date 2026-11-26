@@ -314,7 +314,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 
 **Delete event** (admin, Settings → Events, *added at the event owner's request so test events do not pile up*):
 - Every event except the active one has a **Delete** button in the event list; the active event must be ended (or another made active) first. An event that was created but never used can be deleted too.
-- A confirmation sheet, **Delete {name}?**, says the deletion is permanent and cannot be undone, offers that event's CSV and JSON exports, and asks for the event's name. **Delete event** stays disabled until the typed name (trimmed) matches the event's name exactly.
+- A confirmation sheet, **Delete {name}?**, says the deletion is permanent and cannot be undone, offers that event's CSV, JSON and fairness report exports (§3.9), and asks for the event's name. **Delete event** stays disabled until the typed name (trimmed) matches the event's name exactly.
 - The hub command is `deleteEvent { eventId, confirmName }`, admin only. Refusals, checked in this order: unknown event → `not_found` "No such event."; the active event → `event_active` "End this event or make another one active before deleting it."; `confirmName` (trimmed) not exactly the event's name → `name_mismatch` "Type the event's name exactly to delete it." A refusal shows in the sheet, which stays open.
 - In one storage transaction the hub deletes the event and every audit, device and pairing-code row for it, then writes one audit row with no event (actor, `deleteEvent`, `{ eventId, name }`) so a trace of the deletion survives. Its exports then answer 404.
 - If phones and the projector were showing the deleted event (the last ended one), they fall back to the next most recent ended event, or to the no-event screen when none is left. No sockets are closed: tablets only ever sign in to the active event, which cannot be deleted.
@@ -429,13 +429,14 @@ Race control and admin are one role. Everyone signed in to the console has every
 
 The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Setup**, **Referees** (hash `#devices`; the page is headed "Referees"), **Settings** and **Log**. There is no Events section: an old `#events` link opens Settings. The bottom of **Setup** has a **Screen links** panel: the full address of each screen (participants, projector, transparent projector, referee, race control) in a read-only box with a Copy button.
 
-**Settings** holds, top to bottom: the **Events** panel (create an event, the event list with Active/Ended, Make active, End event with its confirmation, the CSV/JSON exports, and Delete on every event but the active one, behind a type-the-name confirmation (§4.1)), then the active event's own settings, the penalty list, Companion keys, and **Appearance**. Settings works with no active event, so events can be created and activated there. The Events panel is a disclosure (`<details>`): its summary reads **Events**, with a secondary line **Active: {event name}** while an event is active. It is open when there is no active event and folded away when there is one; that default is decided when Settings mounts and again only when the console gains or loses its active event, so view updates never fold it under the user. Folded, nothing inside is reachable by keyboard or screen reader.
+**Settings** holds, top to bottom: the **Events** panel (create an event, the event list with Active/Ended, Make active, End event with its confirmation, the CSV, JSON and **Fairness report** (§3.9) export links, and Delete on every event but the active one, behind a type-the-name confirmation (§4.1)), then the active event's own settings, the penalty list, Companion keys, and **Appearance**. Settings works with no active event, so events can be created and activated there. The Events panel is a disclosure (`<details>`): its summary reads **Events**, with a secondary line **Active: {event name}** while an event is active. It is open when there is no active event and folded away when there is one; that default is decided when Settings mounts and again only when the console gains or loses its active event, so view updates never fold it under the user. Folded, nothing inside is reachable by keyboard or screen reader.
 
 **Appearance** is a per-browser preference for the console and the emergency console only: Automatic (follow the device), Light or Dark, as a three-way segmented control. It is kept in `localStorage` under `prc.theme` (`auto` | `light` | `dark`; missing or unreadable means `auto`) and applied before the first paint by setting `theme-light` / `theme-dark` on `<html>` (`auto` sets neither). It never reaches the server; phones, referee tablets and the projector are unaffected.
 
 - Manage events (Settings → Events), import and edit teams, set the venue table count.
 - Edit seeding groups and table assignments.
 - Set the referee undo window and the auto-finish delay.
+- **Rotate referees each round** (§3.7): a switch in the event's panel, under Time penalties, sending `setSettings { rotateReferees }`. A missing value shows as off. A footnote says it takes effect from the next round opened.
 - Edit the bracket plan and set Grand Championship eligibility.
 - Manage the Companion API keys. (Who may sign in is managed in Cloudflare, not in the console.)
 - Type the **bag total** shown on the champion screen.
@@ -459,13 +460,36 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
   | Otherwise | Open round M | yes | yes | Ready to open round M |
 
   M is the current round plus one. Show champion opens the bag-count sheet first. Finish now does not pulse while the auto-finish countdown runs: the race finishes itself.
+- **Referees on the station cards (§3.7).** Only while the current round has saved assignments (`assignments` not empty); otherwise the cards are exactly as above.
+  - Under the station's label, the name of its referee. When two referees share the station (a split final) each is shown with their table: "Dana (T1)", "Sam (T2)".
+  - A station that has teams and no referee reads **No referee**. A station without teams shows nothing extra.
+  - **Swap**, while the round is open only: each name has a **Swap…** button (accessible name "Swap {name}"). It opens, in that card, a list of the other paired referees from `roster` (accessible name "Swap {name} with"; "Lee — Tables 3 & 4", or "Sam — no tables" for one without tables this round) with **Swap** and **Cancel**. Swap is disabled until a referee is chosen and sends `swapReferees { a, b }`. One swap is open at a time; it closes on success, and when the round or its phase changes. A refusal shows in the card.
+- **Fairness panel (§3.8)**, after "Penalties to review" and styled like it. It is shown when there is any open or dismissed warning, and always while `settings.rotateReferees` is on.
+  - Heading "Fairness" with a count badge of open warnings, then the line "These are prompts to take a look, not proof of anything."
+  - Each open warning is a card: a short title for its kind, a secondary line "Round {n} · {referee}" (the referee is left out when unknown; `referee_wins` and `penalty_outlier` read "Whole event" in place of the round, as they cover the whole event), then the server's `message` as it is.
+
+    | Kind | Title |
+    |---|---|
+    | `fast_time` | Very fast time |
+    | `referee_wins` | One referee's teams keep doing well |
+    | `repeat_team` | Same referee, same team |
+    | `repeat_penalty` | Same referee, same team penalised again |
+    | `penalty_outlier` | Unusual number of penalties |
+    | `close_finish` | Close finish |
+    | `undo_changed_winner` | Undo changed the winner |
+    | `final_one_referee` | Final judged by one referee |
+
+  - **Dismiss** reveals a required **Note** (at most 200 characters) with **Cancel** and **Save**; Save is disabled while the note is blank and sends `dismissWarning { id, note }` with the note trimmed. A refusal shows in the card. Dismiss is not offered once the event has ended (`ended`).
+  - With no open warning: "Nothing to look at."
+  - Dismissed warnings are in a folded list, "Dismissed (n)": the message, the title and round, then the note, who dismissed it and when.
+- **Fairness count in the sidebar:** the number of open warnings as a badge beside **Race Control**, on every section (accessible name "{n} fairness warning(s)"); hidden at 0.
 - **"Waiting on N teams" list** with one-click Finish (while running: records the race clock at the press), DNF and DNS.
 - **Time penalties on/off switch** in Settings, in the event's panel (event-wide, takes effect immediately, §5.1).
 - **Penalties per team:** each team shows `raw + penalties = official`, with buttons to add or remove a penalty.
 - **Tie resolution**, time edits and clears, and the audit log.
 - **Rename a team** at any time during the event (e.g. a misspelling spotted on the projector). Other setup changes stay locked once setup is locked.
 - **Open round N** (the action button), with a results review first.
-- **Referee pairing:** a QR code per station, a paired-device list, and revoke.
+- **Referee pairing:** a QR code per station, a paired-device list, and revoke. With `settings.rotateReferees` on the station column is headed **Starting station**; while the current round has saved assignments each referee's row adds "this round: {tables}" or "no tables this round".
 - **Projector override:** pin any screen (e.g. the champion reveal) or return to automatic.
 - **Backup controls:** Start and Finish now (the action button) follow the same gates as Companion.
 
@@ -603,7 +627,7 @@ The server is reachable from the internet, so:
 - **Access application settings:** session length 14 days; the `CF_Authorization` cookie's SameSite attribute is Lax. The Worker also refuses cross-site console requests itself (§9).
 - **Deploy order for console sign-in through Access:** (1) the Access application and policy exist, so `/control` asks for the emailed code (then the old password until this version is deployed); (2) set `EMERGENCY_PASSWORD` (the Access values ship in `wrangler.jsonc`); (3) deploy; (4) after the first successful deploy, delete the old secret with `wrangler secret delete ADMIN_PASSWORD`.
 - **Plan:** the Workers Free plan likely covers an event. Over a free daily limit, requests fail instead of slowing down, so the Workers Paid plan ($5/month) is recommended for the event month.
-- **Backups:** the Durable Object's SQLite keeps 30 days of point-in-time recovery, and admin has an "export event" option (JSON and CSV).
+- **Backups:** the Durable Object's SQLite keeps 30 days of point-in-time recovery, and admin has an "export event" option (JSON and CSV), and the fairness report (§3.9).
 
 ---
 

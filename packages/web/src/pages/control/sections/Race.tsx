@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'preact/hooks';
+import { useEffect, useMemo, useState } from 'preact/hooks';
 import { parseClockTime, tablesOfStation } from '@race2feed/engine';
 import type { ControlView } from '../../../lib/types';
 import { Button } from '../../../ui/Button';
@@ -7,6 +7,7 @@ import { stationLabel, teamName } from '../../../lib/selectors';
 import { useRunner } from '../runner';
 import { PenaltyReviews, reasonLabel } from './PenaltyReviews';
 import { RaceHeader } from './RaceHeader';
+import { Fairness } from './Fairness';
 
 const SCREENS = ['welcome', 'tables', 'clock', 'seeding-results', 'brackets', 'standings', 'champion'] as const;
 
@@ -35,6 +36,7 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
       {view.ties.length > 0 && <Ties view={view} />}
       {view.blockers.length > 0 && <p class="err" role="alert">{view.blockers.join(' · ')}</p>}
       <PenaltyReviews view={view} />
+      <Fairness view={view} />
       <Results view={view} />
     </>
   );
@@ -42,10 +44,17 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
 
 function Stations({ view }: { view: ControlView }) {
   const runner = useRunner();
+  // The referee (by device id) whose Swap is open; one at a time.
+  const [swapping, setSwapping] = useState<string | null>(null);
+  // A swap left open does not come back by itself when the race starts or the next round opens.
+  useEffect(() => { setSwapping(null); }, [view.round.current, view.round.phase]);
   const entries = Object.entries(view.stations);
   if (!entries.length) return null;
   const set = (station: number, state: 'ready' | 'notReady' | 'excluded') =>
     () => void runner.run({ type: 'overrideStation', station, state }, `station-${station}`);
+  // Referees are shown only when the round has saved assignments (rotation on); swapping only before the start.
+  const rotating = view.assignments.length > 0;
+  const canSwap = rotating && view.round.phase === 'open';
   return (
     <section class="panel" aria-label="Stations">
       <h3 class="headline">Stations</h3>
@@ -56,9 +65,34 @@ function Stations({ view }: { view: ControlView }) {
           const tables = tablesOfStation(station, view.setup.tableCount, view.setup.tablesPerStation ?? 2);
           // A two-table station with one table readied by its referee: show the progress.
           const partial = !s.excluded && !s.ready && s.readyTables.length > 0;
+          const referees = view.assignments.filter((a) => a.station === station);
+          const open = canSwap ? referees.find((a) => a.deviceId === swapping) : undefined;
           return (
             <div class={`station ${cls}`} key={n}>
               <div class="headline">{stationLabel(tables)}</div>
+              {rotating && referees.length > 0 && (
+                <div class="station-refs">
+                  {referees.map((a) => (
+                    <div class="station-ref" key={a.deviceId}>
+                      {/* In a split final two referees share the station, one table each. */}
+                      <span class="callout">{referees.length > 1 ? `${a.name} (${a.tables.map((t) => `T${t}`).join(', ')})` : a.name}</span>
+                      {canSwap && (
+                        <Button kind="plain" aria-label={`Swap ${a.name}`} aria-expanded={open === a ? 'true' : 'false'}
+                          onClick={() => { runner.clear([`swap-${station}`]); setSwapping(open === a ? null : a.deviceId); }}>Swap…</Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {rotating && referees.length === 0 && !s.excluded && <div class="footnote secondary">No referee</div>}
+              {open && (
+                <SwapForm view={view} referee={open} busy={runner.busy(`swap-${station}`)} onCancel={() => setSwapping(null)}
+                  onSwap={async (b) => {
+                    const ack = await runner.run({ type: 'swapReferees', a: open.deviceId, b }, `swap-${station}`);
+                    if (ack?.ok) setSwapping(null);
+                  }} />
+              )}
+              {runner.error(`swap-${station}`) && <div class="err">{runner.error(`swap-${station}`)}</div>}
               <div class="footnote secondary">
                 {s.excluded ? 'No teams' : s.ready ? 'Ready' : partial ? `${s.readyTables.length} of ${tables.length} tables ready` : 'Not ready'}
               </div>
@@ -73,6 +107,33 @@ function Stations({ view }: { view: ControlView }) {
         })}
       </div>
     </section>
+  );
+}
+
+type Assigned = ControlView['assignments'][number];
+
+/** Pick the referee to change places with: anyone else who is paired, with or without tables this round. */
+function SwapForm({ view, referee, busy, onSwap, onCancel }: {
+  view: ControlView; referee: Assigned; busy: boolean; onSwap(deviceId: string): void; onCancel(): void;
+}) {
+  const [picked, setPicked] = useState('');
+  const others = view.roster.filter((r) => r.deviceId !== referee.deviceId);
+  const other = others.some((r) => r.deviceId === picked) ? picked : '';
+  const tablesOf = (deviceId: string) => view.assignments.find((a) => a.deviceId === deviceId)?.tables;
+  return (
+    <form class="station-swap" onSubmit={(e) => { e.preventDefault(); if (other) onSwap(other); }}>
+      <select class="input" aria-label={`Swap ${referee.name} with`} value={other} onChange={(e) => setPicked((e.target as HTMLSelectElement).value)}>
+        <option value="" disabled>{others.length ? 'Swap with…' : 'No other referee'}</option>
+        {others.map((r) => {
+          const tables = tablesOf(r.deviceId);
+          return <option key={r.deviceId} value={r.deviceId}>{r.name} — {tables ? stationLabel(tables) : 'no tables'}</option>;
+        })}
+      </select>
+      <div class="mini">
+        <Button type="submit" busy={busy} disabled={!other}>Swap</Button>
+        <Button kind="plain" onClick={onCancel}>Cancel</Button>
+      </div>
+    </form>
   );
 }
 

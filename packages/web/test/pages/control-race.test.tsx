@@ -3,7 +3,7 @@ import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-li
 import { Login } from '../../src/pages/control/Login';
 import { ConsolePage, sectionsFor } from '../../src/pages/control/ConsolePage';
 import { ctlViewOf, heatsOpen, lockedFour, openNext, runRound, seedTimes, start, teamId } from '../support/state';
-import type { Ack } from '../../src/lib/types';
+import type { Ack, ControlView } from '../../src/lib/types';
 
 const me = (role: 'admin') => ({ role, label: 'race control' });
 
@@ -236,5 +236,106 @@ describe('race section', () => {
     const outstanding = screen.getByRole('region', { name: 'Outstanding' });
     fireEvent.click(outstanding.querySelector(`[data-team="${teamId(e, 'T3')}"] button[data-action="dnf"]`)!);
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setResult', round: 1, teamId: teamId(e, 'T3'), set: { kind: 'status', status: 'dnf' } }));
+  });
+});
+
+describe('referees on the Stations panel', () => {
+  beforeEach(() => cleanup());
+
+  const dana = { deviceId: 'dev1', name: 'Dana', station: 1, tables: [1, 2] };
+  const lee = { deviceId: 'dev2', name: 'Lee', station: 2, tables: [3, 4] };
+  const roster = [
+    { deviceId: 'dev1', name: 'Dana', home: 1 }, { deviceId: 'dev2', name: 'Lee', home: 2 }, { deviceId: 'dev3', name: 'Sam', home: 2 },
+  ];
+  function show(more: Partial<ControlView>, opts: { running?: boolean; send?: (cmd: any) => Promise<Ack> } = {}) {
+    const send = vi.fn(opts.send ?? (async () => ({ ok: true })));
+    const e = opts.running ? start(openNext(lockedFour())) : openNext(lockedFour());
+    render(<ConsolePage me={me('admin')} view={{ ...ctlViewOf(e), roster, ...more }} send={send} serverNow={() => 0} status="open" />);
+    return { send, stations: screen.getByRole('region', { name: 'Stations' }) };
+  }
+  const card = (label: string) => screen.getByText(label, { selector: '.station .headline' }).closest('.station') as HTMLElement;
+
+  it("shows each station's referee by name", () => {
+    show({ assignments: [dana, lee] });
+    expect(within(card('Tables 1 & 2')).getByText('Dana')).toBeTruthy();
+    expect(within(card('Tables 3 & 4')).getByText('Lee')).toBeTruthy();
+    expect(screen.queryByText('No referee')).toBeNull();
+  });
+
+  it('shows both referees of a split final with their tables', () => {
+    show({ assignments: [{ ...dana, tables: [1] }, { deviceId: 'dev3', name: 'Sam', station: 1, tables: [2] }, lee] });
+    expect(within(card('Tables 1 & 2')).getByText('Dana (T1)')).toBeTruthy();
+    expect(within(card('Tables 1 & 2')).getByText('Sam (T2)')).toBeTruthy();
+    expect(within(card('Tables 3 & 4')).getByText('Lee')).toBeTruthy();
+  });
+
+  it('says "No referee" on a station with teams and nobody assigned, but not on one without teams', () => {
+    show({ assignments: [dana] });
+    expect(within(card('Tables 3 & 4')).getByText('No referee')).toBeTruthy();
+    expect(within(card('Tables 3 & 4')).queryByRole('button', { name: /^Swap/ })).toBeNull();
+    expect(screen.getAllByText('No referee').length).toBe(1);
+    cleanup();
+    const view = ctlViewOf(openNext(lockedFour()));
+    show({ assignments: [dana], stations: { ...view.stations, 2: { ready: false, excluded: true, readyTables: [] } } });
+    expect(within(card('Tables 3 & 4')).getByText('No teams')).toBeTruthy();
+    expect(screen.queryByText('No referee')).toBeNull();
+  });
+
+  it('adds nothing when the round has no saved assignments', () => {
+    const { stations } = show({ assignments: [] });
+    expect(within(stations).queryByText('No referee')).toBeNull();
+    expect(within(stations).queryByRole('button', { name: /^Swap/ })).toBeNull();
+    expect(within(card('Tables 1 & 2')).getAllByRole('button').map((b) => b.textContent)).toEqual(['Ready', 'Exclude']);
+  });
+
+  it('swaps a referee with another one chosen from the list', async () => {
+    const { send } = show({ assignments: [dana, lee] });
+    const first = card('Tables 1 & 2');
+    expect(within(first).queryByRole('combobox')).toBeNull();
+    fireEvent.click(within(first).getByRole('button', { name: 'Swap Dana' }));
+    const select = within(first).getByRole('combobox', { name: 'Swap Dana with' }) as HTMLSelectElement;
+    expect([...select.options].filter((o) => !o.disabled).map((o) => o.textContent)).toEqual(['Lee — Tables 3 & 4', 'Sam — no tables']);
+    const confirm = within(first).getByRole('button', { name: 'Swap' }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    fireEvent.change(select, { target: { value: 'dev2' } });
+    expect(confirm.disabled).toBe(false);
+    fireEvent.click(confirm);
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'swapReferees', a: 'dev1', b: 'dev2' }));
+    await waitFor(() => expect(within(first).queryByRole('combobox')).toBeNull());
+  });
+
+  it('can bring in a referee who has no tables this round', async () => {
+    const { send } = show({ assignments: [dana, lee] });
+    const second = card('Tables 3 & 4');
+    fireEvent.click(within(second).getByRole('button', { name: 'Swap Lee' }));
+    fireEvent.change(within(second).getByRole('combobox'), { target: { value: 'dev3' } });
+    fireEvent.click(within(second).getByRole('button', { name: 'Swap' }));
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'swapReferees', a: 'dev2', b: 'dev3' }));
+  });
+
+  it('opens one swap at a time, and Cancel closes it', () => {
+    show({ assignments: [dana, lee] });
+    fireEvent.click(screen.getByRole('button', { name: 'Swap Dana' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Swap Lee' }));
+    expect(screen.getAllByRole('combobox', { name: /^Swap .* with$/ }).length).toBe(1);
+    expect(screen.getByRole('combobox', { name: 'Swap Lee with' })).toBeTruthy();
+    fireEvent.click(within(card('Tables 3 & 4')).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('combobox', { name: /^Swap .* with$/ })).toBeNull();
+  });
+
+  it('shows a refused swap under the card and keeps it open', async () => {
+    show({ assignments: [dana, lee] }, { send: async () => ({ ok: false, code: 'round_not_open', message: 'Referees can only be swapped before the start.' }) });
+    const first = card('Tables 1 & 2');
+    fireEvent.click(within(first).getByRole('button', { name: 'Swap Dana' }));
+    fireEvent.change(within(first).getByRole('combobox'), { target: { value: 'dev2' } });
+    fireEvent.click(within(first).getByRole('button', { name: 'Swap' }));
+    expect(await within(first).findByText('Referees can only be swapped before the start.')).toBeTruthy();
+    expect(within(first).getByRole('combobox')).toBeTruthy();
+  });
+
+  it('offers no swap once the race is running, but keeps the names', () => {
+    const { stations } = show({ assignments: [dana, lee] }, { running: true });
+    expect(within(stations).queryByRole('button', { name: /^Swap/ })).toBeNull();
+    expect(within(card('Tables 1 & 2')).getByText('Dana')).toBeTruthy();
   });
 });

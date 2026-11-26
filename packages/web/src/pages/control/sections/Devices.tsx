@@ -15,6 +15,11 @@ export function Devices({ view }: { view: ControlView }) {
   const per = view.setup.tablesPerStation ?? 2;
   const stations = stationCount(view.setup.tableCount, per);
   const devices = (view.devices as Device[]).filter((d) => d.revoked_at === null);
+  // With saved assignments for the round (rotation on), say where each referee is now.
+  const thisRound = (deviceId: string) => {
+    const tables = view.assignments.find((a) => a.deviceId === deviceId)?.tables;
+    return tables ? `this round: ${stationLabel(tables)}` : 'no tables this round';
+  };
   const pair = async (station: number) => {
     const ack = await runner.run({ type: 'createPairingCode', station }, `pair-${station}`);
     const reply = ack?.ok ? (ack.reply as { code: string; expiresAt: number }) : null;
@@ -27,7 +32,7 @@ export function Devices({ view }: { view: ControlView }) {
       {pairing && <PairingCard pairing={pairing} onClose={() => setPairing(null)} />}
       <section class="panel">
         <table class="table">
-          <thead><tr><th>Station</th><th>Paired devices</th><th /></tr></thead>
+          <thead><tr><th>{view.settings.rotateReferees ? 'Starting station' : 'Station'}</th><th>Paired devices</th><th /></tr></thead>
           <tbody>
             {Array.from({ length: stations }, (_, i) => i + 1).map((s) => {
               const tables = stationLabel(tablesOfStation(s, view.setup.tableCount, per));
@@ -39,6 +44,7 @@ export function Devices({ view }: { view: ControlView }) {
                     {mine.length === 0 ? <span class="secondary">None</span> : mine.map((d) => (
                       <div key={d.id} class="race-actions">
                         <span class="callout">{d.label} — {tables}</span>
+                        {view.assignments.length > 0 && <span class="footnote secondary">{thisRound(d.id)}</span>}
                         <span class="footnote secondary">{d.last_seen ? `seen ${new Date(d.last_seen).toLocaleTimeString()}` : 'not seen yet'}</span>
                         <Button kind="destructive" busy={runner.busy(`revoke-${d.id}`)} onClick={() => void runner.run({ type: 'revokeDevice', deviceId: d.id }, `revoke-${d.id}`)}>Revoke</Button>
                       </div>

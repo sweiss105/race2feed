@@ -11,6 +11,7 @@ import { Setup } from './sections/Setup';
 import { Devices } from './sections/Devices';
 import { Settings } from './sections/Settings';
 import { Log } from './sections/Log';
+import { openWarnings } from './sections/Fairness';
 
 export type Section = 'race' | 'teams' | 'setup' | 'devices' | 'settings' | 'log';
 
@@ -52,13 +53,19 @@ export function ConsolePage(props: ConsoleProps) {
     return () => window.removeEventListener('hashchange', on);
   });
 
+  // Fairness warnings still open, shown beside "Race Control" from every section.
+  const warnings = openWarnings(props.view);
+
   return (
     <RunnerProvider send={props.send}>
       <div class="console">
         <nav class="sidebar" aria-label="Sections">
           <div class="brand"><div class="headline" title="Packing Race Coordinator">PRC</div><StatusDot status={props.status} /></div>
           {sections.map((s) => (
-            <a key={s} href={`#${s}`} aria-current={s === section ? 'page' : undefined} onClick={() => setSection(s)}>{LABELS[s]}</a>
+            <a key={s} href={`#${s}`} aria-current={s === section ? 'page' : undefined} onClick={() => setSection(s)}>
+              {LABELS[s]}
+              {s === 'race' && warnings > 0 && <span class="count-badge" aria-label={`${warnings} fairness warning${warnings === 1 ? '' : 's'}`}>{warnings}</span>}
+            </a>
           ))}
           <div class="spacer" />
           {props.signOutHref

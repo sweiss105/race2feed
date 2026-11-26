@@ -74,6 +74,7 @@ export function Events({ view, api = CONTROL_API }: { view: ControlView | null; 
                       {ev.active && <Button kind="destructive" onClick={() => setConfirm({ kind: 'end', event: ev })}>End event</Button>}
                       <a class="btn btn-plain" href={`${api}/export?event=${ev.id}&format=csv`}>CSV</a>
                       <a class="btn btn-plain" href={`${api}/export?event=${ev.id}&format=json`}>JSON</a>
+                      <a class="btn btn-plain" href={`${api}/export?event=${ev.id}&format=fairness`}>Fairness report</a>
                       {!ev.active && <Button kind="plain" style={{ color: 'var(--danger)' }}
                         onClick={() => { runner.clear(['deleteEvent']); setConfirm({ kind: 'delete', event: ev }); }}>Delete</Button>}
                     </div></td>
@@ -133,6 +134,7 @@ function DeleteSheet({ event, api, onClose, onDeleted }: { event: EventRow; api:
       <div class="actions">
         <a class="btn btn-plain" href={`${api}/export?event=${event.id}&format=csv`}>CSV</a>
         <a class="btn btn-plain" href={`${api}/export?event=${event.id}&format=json`}>JSON</a>
+        <a class="btn btn-plain" href={`${api}/export?event=${event.id}&format=fairness`}>Fairness report</a>
       </div>
       <label class="field">
         <span class="footnote secondary">Type the event's name to confirm</span>

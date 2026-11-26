@@ -217,7 +217,7 @@ After this deploy, reload every open console tab and referee tablet: pages loade
 
 Step-by-step setup for the token and the secrets is in [`packages/server/README.md`](packages/server/README.md), along with notes on the Workers plan and limits.
 
-**Backups:** the hub's SQLite storage has Cloudflare's point-in-time recovery. Admin can also export any event as CSV or JSON from the **Events** panel on the console's **Settings** page.
+**Backups:** the hub's SQLite storage has Cloudflare's point-in-time recovery. Admin can also export any event as CSV or JSON, and its fairness report, from the **Events** panel on the console's **Settings** page.
 
 ## Documentation
 

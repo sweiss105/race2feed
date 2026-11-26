@@ -163,6 +163,7 @@ describe('admin: deleting an event', () => {
     const sheet = screen.getByRole('dialog', { name: 'Delete Old Test?' });
     expect(within(sheet).getByText(/permanently removes the event, its teams, results and log\. It cannot be undone\./)).toBeTruthy();
     expect(within(sheet).getByRole('link', { name: 'CSV' }).getAttribute('href')).toContain('event=ev2&format=csv');
+    expect(within(sheet).getByRole('link', { name: 'Fairness report' }).getAttribute('href')).toContain('event=ev2&format=fairness');
     expect(within(sheet).getByRole('link', { name: 'JSON' }).getAttribute('href')).toContain('event=ev2&format=json');
     const button = within(sheet).getByRole('button', { name: 'Delete event' }) as HTMLButtonElement;
     const field = within(sheet).getByLabelText("Type the event's name to confirm");

@@ -141,6 +141,53 @@ describe('admin sections', () => {
     resolve({ ok: true });
   });
 
+  it('has a Rotate referees switch that is off for an event stored before rotation, and sends the setting', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
+    const send = vi.fn(async () => ({ ok: true }));
+    const view = ctlViewOf(lockedFour());
+    const { rotateReferees: _, ...stored } = view.settings;
+    withRunner(<Settings view={{ ...view, settings: stored }} />, send);
+    const sw = screen.getByRole('switch', { name: 'Rotate referees each round' }) as HTMLInputElement;
+    expect(sw.checked).toBe(false);
+    expect(screen.getByText('Referees are sent to different tables each round so nobody judges the same team repeatedly. Takes effect from the next round opened.')).toBeTruthy();
+    fireEvent.click(sw);
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setSettings', rotateReferees: true }));
+  });
+
+  it('shows Rotate referees on when the event has it on, and turns it off', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
+    const send = vi.fn(async () => ({ ok: true }));
+    const view = ctlViewOf(lockedFour());
+    withRunner(<Settings view={{ ...view, settings: { ...view.settings, rotateReferees: true } }} />, send);
+    const sw = screen.getByRole('switch', { name: 'Rotate referees each round' }) as HTMLInputElement;
+    expect(sw.checked).toBe(true);
+    fireEvent.click(sw);
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setSettings', rotateReferees: false }));
+  });
+
+  it("shows each referee's tables this round on the Referees page when the round has assignments", () => {
+    const view = ctlViewOf(lockedFour());
+    view.devices = [
+      { id: 'd1', station: 1, label: 'Dana', created_at: 1, revoked_at: null, last_seen: null },
+      { id: 'd2', station: 1, label: 'Sam', created_at: 2, revoked_at: null, last_seen: null },
+    ] as typeof view.devices;
+    withRunner(<Devices view={{ ...view, settings: { ...view.settings, rotateReferees: true },
+      assignments: [{ deviceId: 'd1', name: 'Dana', station: 2, tables: [3, 4] }] }} />, vi.fn(async () => ({ ok: true })));
+    expect(screen.getByRole('columnheader', { name: 'Starting station' })).toBeTruthy();
+    expect(screen.queryByRole('columnheader', { name: 'Station' })).toBeNull();
+    const row = (name: string) => screen.getByText(`${name} — Tables 1 & 2`).parentElement as HTMLElement;
+    expect(within(row('Dana')).getByText('this round: Tables 3 & 4')).toBeTruthy();
+    expect(within(row('Sam')).getByText('no tables this round')).toBeTruthy();
+  });
+
+  it('the Referees page is unchanged with rotation off', () => {
+    const view = ctlViewOf(lockedFour());
+    view.devices = [{ id: 'd1', station: 1, label: 'Dana', created_at: 1, revoked_at: null, last_seen: null }] as typeof view.devices;
+    withRunner(<Devices view={view} />, vi.fn(async () => ({ ok: true })));
+    expect(screen.getByRole('columnheader', { name: 'Station' })).toBeTruthy();
+    expect(screen.queryByText(/this round/)).toBeNull();
+  });
+
   it('has the Events panel first on Settings, with the create form and the event list, even with no active event', async () => {
     vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(url.endsWith('/events')
       ? JSON.stringify([{ id: 'ev1', name: 'Gala', date: '2026-12-01', active: true, ended: false }]) : '[]', { status: 200 })));
@@ -279,10 +326,12 @@ describe('console sign-in', () => {
     withRunner(<Settings view={null} />, vi.fn(async () => ({ ok: true })));
     expect((await screen.findByRole('link', { name: 'CSV' })).getAttribute('href')).toBe('/api/control/export?event=e1&format=csv');
     expect(screen.getByRole('link', { name: 'JSON' }).getAttribute('href')).toBe('/api/control/export?event=e1&format=json');
+    expect(screen.getByRole('link', { name: 'Fairness report' }).getAttribute('href')).toBe('/api/control/export?event=e1&format=fairness');
     expect(fetchFn).toHaveBeenCalledWith('/api/control/events');
     cleanup();
     withRunner(<Settings view={null} api="/api/emergency" />, vi.fn(async () => ({ ok: true })));
     expect((await screen.findByRole('link', { name: 'CSV' })).getAttribute('href')).toBe('/api/emergency/export?event=e1&format=csv');
+    expect(screen.getByRole('link', { name: 'Fairness report' }).getAttribute('href')).toBe('/api/emergency/export?event=e1&format=fairness');
     expect(fetchFn).toHaveBeenCalledWith('/api/emergency/events');
     await waitFor(() => expect(fetchFn).toHaveBeenCalledWith('/api/emergency/apikeys'));
   });

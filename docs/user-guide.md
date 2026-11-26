@@ -175,6 +175,8 @@ About pairing:
 - **One station can have more than one device**, for example a spare tablet.
 - **Paired devices are listed per station** by the referee's name, with when they were last seen. **Revoke** disconnects a device immediately (for a lost tablet, say).
 - **Pairing belongs to one event.** If a different event is made active, or the event is ended, tablets must be paired again.
+- **With Rotate referees on, the station you pair a referee to is only where they start.** The heading reads **Starting station**, and once a round is open each referee's row also says where they are now, for example "this round: Tables 3 & 4", or "no tables this round". See [Referees on each station](#referees-on-each-station).
+- **A referee paired while a round is open or running** takes the station they paired to if it has teams and no referee (so a replacement tablet can take over straight away). Otherwise they have no tables until the next round opens.
 
 ### 8. Settings
 
@@ -183,6 +185,7 @@ About pairing:
 ![Settings: the Events panel folded away at the top, then the active event's panel with the Time penalties switch (on), the referee undo window, the auto-finish delay and the bag total](guide/images/console-settings.jpg)
 
 - **Time penalties:** the switch that turns referee penalties on or off for the whole event (off for a new event). See [Time penalties](#time-penalties).
+- **Rotate referees each round:** on for a new event. Referees are sent to different tables each round, so nobody judges the same team again and again. It takes effect from the next round you open; the round that's open now keeps its referees. Switch it off to keep every referee at the tables they paired to. See [Referees on each station](#referees-on-each-station).
 - **Referee undo window (seconds):** how long a referee can undo their own tap (default 10 seconds). Press **Save undo window**.
 - **Auto-finish delay (seconds):** how long after the last team gets a result the race finishes by itself (default 30 seconds). It is never shorter than the undo window. Set it to 0 to turn auto-finish off, so only **Finish now** (or Companion's Finish) ends a race. Press **Save auto-finish delay**. See [Start and finish](#start-and-finish).
 - **Bags of food packed:** the number shown on the champion screen. Type just the number (for example `9,816`) and press **Save bag total**. The screen adds "bags of food packed!". Race control can also enter it when showing the champion.
@@ -267,6 +270,35 @@ The room can follow along on the projector: on the **Tables** screen each team h
 
 ![Round 1 open: the referee for Tables 1 & 2 has readied one of the two tables, so that station reads "1 of 2 tables ready"; with the other three not ready either, Start is greyed out and the status line reads "Waiting on 4 referees to be ready"](guide/images/console-race-open.jpg)
 
+### Referees on each station
+
+With **Rotate referees each round** switched on in **Settings** (it's on for a new event), the app decides where each referee goes when you open a round. It sends them where they've judged those teams least, and moves as few people as it can. Table assignments for teams never change; only the referees move.
+
+- **Each station's card in the Stations panel shows its referee's name.** A referee who has to move sees "Round 5: go to Tables 7 & 8" on their tablet and presses **I'm there** when they arrive, then **Ready** as usual.
+- **"No referee"** on a card means the station has teams but nobody to judge them, because fewer referees are paired than there are stations in use. The lowest-numbered stations get the referees. For the others, use your own **Ready** on the card, and **Finish**, **DNF** and **DNS** in the **Waiting on *N* teams** panel.
+- **A referee with no tables** (more referees than stations in use) sees "No tables this round" and waits for the next round.
+- **In a bracket's deciding race and in the Grand Championship**, if both teams are at one station and a referee is spare, the two share the station: the card shows both, for example "Dana (T1)" and "Sam (T2)", and each taps only their own team. With no spare referee the race runs as normal and a [Fairness](#fairness) warning tells you one referee judged the final.
+- **Earlier rounds never change.** Who judged a round is saved when it opens.
+- **The Referees page** shows where each referee is this round, next to the station they started at.
+
+With the switch off, every referee stays at the tables they paired to, no names appear on the cards, and nothing else here applies.
+
+<!-- screenshot: the Stations panel with a round open: each card shows its referee's name with a Swap… button, and one card has the swap list open -->
+
+### Swap two referees
+
+While a round is **open** (before **Start**), you can change who is where:
+
+1. In the **Stations** panel, press **Swap…** next to a referee's name.
+2. Choose the referee to change places with. The list shows where each one is now ("Lee — Tables 3 & 4"), or "no tables" for a referee with a round off.
+3. Press **Swap**. Both tablets show the new tables straight away, with the "go to" notice.
+
+Good to know:
+- **Any Ready already given at those tables is cleared**, so the referees press Ready again once they've moved.
+- **Choosing a referee with no tables** brings them in, and the other referee gets the round off.
+- **A swap can put a referee with a team they've already judged.** That's allowed; you'll get a "Same referee, same team" note under [Fairness](#fairness).
+- **Once the race has started, the Swap… buttons are gone.** Referees can't be swapped mid-race or for an earlier round.
+
 ### Start and finish
 
 - **Start** works only when every station that has teams is Ready (or overridden). Until then it's greyed out and the status line reads, for example, "Waiting on 2 referees to be ready".
@@ -349,6 +381,41 @@ Approved reasons are shown to everyone:
 
 To change a decision on an earlier round after a later round has opened, you'll get the same **"Change an earlier round?"** confirmation as for times.
 
+### Fairness
+
+The app watches for patterns that could mean one team is being helped or held back, and lists them in the **Fairness** panel on the Race Control page. A red number beside **Race Control** in the menu shows how many are waiting.
+
+**These are prompts to take a look, not proof of anything.** Most have an innocent explanation. A warning never stops you opening, starting or finishing a round, and nobody outside race control sees them: not referees, participants, the projector or Companion.
+
+What each one means:
+
+| Warning | When you see it |
+|---|---|
+| **Very fast time** | A team's time is at least 30 seconds faster than the fastest time in the event before it. Check it wasn't a mistaken tap. |
+| **One referee's teams keep doing well** | Over at least 6 bracket races, the teams one referee judged finished better than their seeding suggested far more often than worse. |
+| **Same referee, same team** | A referee has the same team for the third time, or two rounds running. It can't always be avoided with few referees, and a swap can cause it. |
+| **Same referee, same team penalised again** | A referee has given penalties to the same team in two or more rounds. |
+| **Unusual number of penalties** | After three rounds: a referee has given far more penalties than the others, or none when the others have given several. |
+| **Close finish** | Two teams in the same race, both judged by one referee, finished within half a second of each other. |
+| **Undo changed the winner** | A referee took back a finish tap, and with the first tap a different team would have won that race. |
+| **Final judged by one referee** | A bracket's deciding race or the Grand Championship had both teams at one referee, because no referee was spare. |
+
+Each warning says which round and referee it's about ("Whole event" for the two that look at the whole event) and gives the details in a sentence. Warnings update by themselves: if you correct a result and the pattern no longer holds, the warning goes away.
+
+To dismiss one once you've looked into it:
+
+1. Press **Dismiss** on the warning.
+2. Type a short **Note** saying what you checked (required, up to 200 characters).
+3. Press **Save**.
+
+The warning moves to the **Dismissed** list at the bottom of the panel, with your note, who dismissed it and when. Click **Dismissed** to open the list. Dismissals are recorded in the **Log** and in the [fairness report](#fairness-report).
+
+With **Rotate referees** off, the panel only appears when there's a warning to show.
+
+Once the event has ended, warnings can't be dismissed any more. They're all still in the fairness report.
+
+<!-- screenshot: the Fairness panel with one open warning (Close finish, with its Dismiss button) and the Dismissed list open showing one dismissed warning with its note -->
+
 ### Ties
 
 If two or more teams in a race have exactly the same official time (to the hundredth of a second), a **Ties to decide** panel appears:
@@ -380,7 +447,7 @@ While the champion is showing, the big button reads **Hide champion**. Pressing 
 
 ### Referees and Log
 
-- **Referees:** pair or revoke referee tablets (see [Pair the referee tablets](#7-pair-the-referee-tablets)).
+- **Referees:** pair or revoke referee tablets (see [Pair the referee tablets](#7-pair-the-referee-tablets)). With Rotate referees on, it also shows each referee's tables this round.
 - **Log:** the latest 50 changes, newest first, with who made each one. Every tap, penalty, undo, correction, override, tie decision and round change is recorded.
 
 ---
@@ -633,7 +700,15 @@ When an event ends:
 - Its results are locked: no further changes are accepted.
 - All referee tablets are signed out and their pairings cancelled.
 - **Phones and the projector keep showing the champion and final results** until someone activates another event.
-- The **CSV** and **JSON** downloads keep working.
+- The **CSV**, **JSON** and **Fairness report** downloads keep working.
+
+### Fairness report
+
+Next to **CSV** and **JSON** on every event's row in **Settings → Events** there's a third download, **Fairness report**. You can download it at any time, during the event or after it. It's one spreadsheet file (CSV) with three parts:
+
+1. **Warnings:** every [Fairness](#fairness) warning, whether it's open or dismissed, and for a dismissed one the note, who dismissed it and when.
+2. **Race control edits:** every result or penalty that race control entered, changed or removed by hand, with the time and who did it. Referees' own taps aren't listed.
+3. **Referee assignments:** one row per referee per round, with their station, tables and teams. Rounds opened with Rotate referees off have no rows.
 
 ### Reopen an event
 
@@ -647,7 +722,7 @@ On the ended event's row in **Settings → Events**, press **Make active** and c
 Use this to clear out test events, or old events you no longer need. **Deleting cannot be undone**: the event, its teams, results and log are gone for good.
 
 1. Go to **Settings** and open the **Events** panel.
-2. **Download a copy first** if you might want one: press **CSV** or **JSON** on the event's row (the same links are in the confirmation too).
+2. **Download a copy first** if you might want one: press **CSV**, **JSON** or **Fairness report** on the event's row (the same links are in the confirmation too).
 3. Press **Delete** on the event's row. Every event except the active one has it; to delete the active event, end it first (or make another event active).
 4. In the confirmation, type the event's name exactly as it's shown (capitals and spaces count; spaces at the start or end don't). **Delete event** only becomes available once the name matches.
 5. Press **Delete event**. The event disappears from the list.
@@ -686,6 +761,24 @@ Use the **Waiting on *N* teams** panel: wait for the referee's tap, press **Fini
 
 **Open round N is greyed out or refused.**
 Read the status line or the message under the button: lock the setup, finish the current round, decide pending penalties, or decide a tie. See [Open a round](#open-a-round).
+
+**A referee's tablet says "No tables this round".**
+There are more referees than stations in use this round, so that referee has a round off; or they paired after the round opened and their station already had a referee. They get tables when the next round opens. To use them now, while the round is still open, press **Swap…** next to another referee's name in the **Stations** panel and choose them. See [Swap two referees](#swap-two-referees).
+
+**A referee's tablet says "Round N: go to Tables …".**
+Referees rotate at this event. The referee goes to those tables and presses **I'm there**; the Ready buttons appear after that. See [Moving between rounds](#moving-between-rounds).
+
+**A station shows "No referee".**
+Fewer referees are paired than there are stations with teams. Pair another tablet for that station in **Referees** (it takes over straight away if the round is open or running), or run the station yourself: **Ready** on its card, then **Finish**, **DNF** or **DNS** in the **Waiting on *N* teams** panel.
+
+**I turned Rotate referees on (or off) and nothing moved.**
+The switch takes effect from the next round you open. The round that's open or running keeps its referees.
+
+**There's a red number next to Race Control.**
+That many [Fairness](#fairness) warnings are waiting. They're prompts to take a look and never block anything. Dismiss each with a short note once you've checked it.
+
+**A Fairness warning disappeared by itself.**
+A result was corrected and the pattern no longer holds. Nothing else is needed.
 
 **A referee's tablet stops working during a race.**
 On the **Race Control** page, press **Finish** next to each of that referee's teams in the **Waiting on *N* teams** panel as the team finishes. It stops the team's clock at that moment, just as the referee's tap would.

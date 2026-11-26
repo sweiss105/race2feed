@@ -47,6 +47,15 @@
 .station.excluded { opacity: 0.55; }
 .station .mini { display: flex; gap: var(--space-1); }
 .station .mini .btn { min-height: 2rem; padding: 0 var(--space-2); font-size: 0.8125rem; }
+/* Rotation: who is at the station this round, and the control to swap them before the start. */
+/* A card that is taller than its content (its neighbour has a swap open) keeps its rows together at the top. */
+.station { align-content: start; }
+.station-refs { display: grid; gap: var(--space-1); }
+.station-ref { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); min-width: 0; }
+.station-ref .callout { min-width: 0; overflow-wrap: anywhere; font-weight: 600; }
+.station-ref .btn { flex: none; min-height: 2rem; padding: 0 var(--space-2); font-size: 0.8125rem; }
+.station-swap { display: grid; gap: var(--space-2); padding-top: var(--space-2); border-top: 0.5px solid var(--separator); }
+.station-swap .input { width: 100%; min-width: 0; min-height: 2.25rem; }
 
 .panel { margin-top: var(--space-5); }
 .panel h3 { margin: 0 0 var(--space-2); }
@@ -71,6 +80,13 @@
 .review-card .actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
 .review-history { margin-top: var(--space-3); }
 .review-history summary { cursor: pointer; margin-bottom: var(--space-2); }
+.fairness-intro { margin: 0 0 var(--space-3); }
+.fairness-dismissed li { display: grid; gap: 2px; justify-items: start; }
+.sidebar a { gap: var(--space-2); }
+.sidebar a .count-badge { margin-left: auto; }
+/* Cards in one row share a height: the message takes the spare room, so Dismiss stays its own size at the bottom. */
+.fairness-card { grid-template-rows: auto 1fr; align-items: start; }
+.fairness-card form { grid-template-rows: none; }
 .events-panel > summary { display: grid; grid-template-columns: 1fr auto; align-items: center; column-gap: var(--space-3); cursor: pointer; list-style: none; }
 .events-panel > summary::-webkit-details-marker { display: none; }
 .events-panel > summary::after { content: '›'; grid-column: 2; grid-row: 1 / span 2; font-size: 1.5rem; color: var(--secondary-label); transition: transform 150ms ease-out; }

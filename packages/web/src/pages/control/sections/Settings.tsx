@@ -65,6 +65,10 @@ function EventSettings({ view }: { view: ControlView }) {
       <h3 class="headline">{view.event.name}</h3>
       <Switch checked={view.settings.penaltiesEnabled} label="Time penalties"
         onToggle={(enabled) => runner.run({ type: 'setPenaltiesEnabled', enabled })} />
+      <Switch checked={view.settings.rotateReferees ?? false} label="Rotate referees each round"
+        onToggle={(rotateReferees) => runner.run({ type: 'setSettings', rotateReferees }, 'setSettings-rotate')} />
+      <p class="footnote secondary" style={{ margin: 0 }}>Referees are sent to different tables each round so nobody judges the same team repeatedly. Takes effect from the next round opened.</p>
+      {runner.error('setSettings-rotate') && <span class="err">{runner.error('setSettings-rotate')}</span>}
       <NumberSetting label="Referee undo window (seconds)" button="Save undo window" initial={view.settings.undoWindowMs / 1000} keyName="setSettings-undo"
         onSave={(s) => void runner.run({ type: 'setSettings', undoWindowMs: Math.round(s * 1000) }, 'setSettings-undo')} />
       <NumberSetting label="Auto-finish delay (seconds)" button="Save auto-finish delay" initial={(view.settings.autoFinishMs ?? 30_000) / 1000} keyName="setSettings-autofinish"

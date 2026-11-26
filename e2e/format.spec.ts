@@ -10,8 +10,7 @@ async function setUpWithFormat(browser: Browser, name: string, choose: string[],
   await admin.getByRole('button', { name: 'Unlock setup' }).click();
   const panel = admin.getByRole('region', { name: 'Tournament format' });
   for (const choice of choose) {
-    // "Seeding only" is both a preset and a bracket format: the preset comes first.
-    const option = panel.getByRole('radio', { name: choice, exact: true }).first();
+    const option = panel.getByRole('radio', { name: choice, exact: true });
     await option.click();
     await expect(option).toHaveAttribute('aria-checked', 'true');
     await admin.waitForTimeout(200);

@@ -156,17 +156,18 @@ describe('tournament format panel', () => {
     const e = withFormat({ seedingRuns: 3, seedingRank: 'dropSlowest' });
     expect(handleSetup(e, { type: 'setFormat', format: { seedingRuns: 2 } }, ctx(admin)).ok).toBe(false);
     expect(handleSetup(e, { type: 'setFormat', format: { seedingRuns: 2, seedingRank: 'total' } }, ctx(admin)).ok).toBe(true);
-    for (const p of PRESETS.filter((x) => x.id !== 'knockout')) expect(handleSetup(e, { type: 'setFormat', format: p.format }, ctx(admin)).ok).toBe(true);
+    for (const p of PRESETS) expect(handleSetup(e, { type: 'setFormat', format: p.format }, ctx(admin)).ok).toBe(true);
   });
 
-  it('Knockout says Coming soon and cannot be chosen', () => {
+  it('Knockout can be chosen, as a preset and as a bracket format', async () => {
     const { send } = show(unlocked());
     for (const knockout of [option('Preset', 'Knockout'), option('Bracket format', 'Knockout')]) {
-      expect(knockout.disabled).toBe(true);
-      expect(within(knockout).getByText('Coming soon')).toBeTruthy();
-      fireEvent.click(knockout);
+      expect(knockout.disabled).toBe(false);
+      expect(within(knockout).queryByText('Coming soon')).toBeNull();
     }
-    expect(send).not.toHaveBeenCalled();
+    fireEvent.click(option('Bracket format', 'Knockout'));
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'setFormat', format: { brackets: 'knockout' } }));
+    expect(checked('Preset')).toEqual(['Knockout']);
   });
 
   it('a refused change goes back to the stored format and shows the reason', async () => {
@@ -205,7 +206,7 @@ describe('tournament format panel', () => {
     expect(summary.textContent).toBe('9 rounds, 150 races');
     fireEvent.click(option('Preset', 'Short'));
     await waitFor(() => expect(summary.textContent).toBe('5 rounds, 63 races'));
-    fireEvent.click(option('Bracket format', 'Seeding only'));
+    fireEvent.click(option('Bracket format', 'No brackets'));
     cleanup();
     show(withFormat({ brackets: 'none' }, unlocked(previousEvent())));
     expect(within(panel()).getByTestId('format-summary').textContent).toBe('5 rounds, 101 races');

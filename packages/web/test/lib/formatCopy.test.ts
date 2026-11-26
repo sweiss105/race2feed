@@ -17,7 +17,7 @@ describe('format copy', () => {
       ['knockout', 'Knockout', { seedingRuns: 2, seedingRank: 'total', brackets: 'knockout' }],
     ]);
     expect(PRESETS.map((p) => p.blurb)).toEqual([
-      'Two seeding rounds, then heats and a placement race in each bracket. This is how Race to Feed has been run.',
+      'Two seeding rounds, then heats and a placement race in each bracket. The original format.',
       'One seeding round, then one final race per bracket. The quickest full event.',
       'Seeding rounds decide everything. No brackets.',
       'Seeding rounds, then head-to-head knockout brackets down to a final.',
@@ -38,7 +38,7 @@ describe('format copy', () => {
     expect(BRACKET_FORMAT).toEqual({
       placement: { label: 'Heats, then placement', help: 'Teams race head-to-head in heats, top seed against bottom seed. Heat winners then race each other for the top places, and the rest race for the remaining places.' },
       finals: { label: 'Finals only', help: 'Each bracket races once, all its teams together. The finishing order is the result.' },
-      none: { label: 'Seeding only', help: "No brackets. Each category's final order is its seeding order." },
+      none: { label: 'No brackets', help: "Each category's final order is its seeding order." },
       knockout: { label: 'Knockout', help: "Head-to-head rounds. Win and you go through; lose and you're out. The last two race the final, and the semi-final losers race for third." },
     });
   });
@@ -123,6 +123,14 @@ describe('bracketsMismatch', () => {
     expect(bracketsMismatch(e.setup)).toBe(true);
     e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
     expect(bracketsMismatch(e.setup)).toBe(false);
+  });
+  it('is true for brackets that fit only knockout when the format is another one', () => {
+    let e = ok(handleSetup(blank(8), { type: 'importTeams', csv: csvFor({ T: 8 }) }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'setFormat', format: { brackets: 'knockout' } }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+    expect(e.setup.brackets.map((b) => b.size)).toEqual([8]);
+    expect(bracketsMismatch(e.setup)).toBe(false);
+    expect(bracketsMismatch({ ...e.setup, format: { brackets: 'placement' } })).toBe(true);
   });
   it('is true when brackets are left over in seeding only', () => {
     const e = unlocked();

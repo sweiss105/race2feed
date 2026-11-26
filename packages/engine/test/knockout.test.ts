@@ -534,6 +534,29 @@ describe('knockout brackets: suggestion and validation', () => {
     }
   });
 
+  it('given the tables, never suggests a bracket larger than them', () => {
+    const on = (tables: number) => (n: number) => suggestBracketPlan([cat], teamsOf(n), undefined, 'knockout', tables).map((b) => b.size);
+    // 8 tables: a remainder under 4 no longer fits the last bracket of 8, so it is its own bracket; a single
+    // leftover team takes one from the bracket before it.
+    expect([9, 10, 11, 17].map(on(8))).toEqual([[7, 2], [8, 2], [8, 3], [8, 7, 2]]);
+    // 16 tables: the remainder folds into the last bracket, as without a table count.
+    expect([9, 10, 11, 17].map(on(16))).toEqual([[9], [10], [11], [8, 9]]);
+    // Fewer than 8 tables: brackets as large as the tables.
+    expect([4, 5, 6, 7, 13].map(on(4))).toEqual([[4], [3, 2], [4, 2], [4, 3], [4, 4, 3, 2]]);
+    expect([5, 6, 12].map(on(6))).toEqual([[5], [6], [6, 6]]);
+    // The other formats ignore the table count.
+    expect(suggestBracketPlan([cat], teamsOf(12), undefined, 'placement', 4).map((b) => b.size)).toEqual([4, 4, 4]);
+  });
+
+  it('what Suggest builds for a table count is valid for every team count', () => {
+    for (let tables = 3; tables <= 26; tables++) {
+      for (let n = 1; n <= 60; n++) {
+        const plan = suggestBracketPlan([cat], teamsOf(n), undefined, 'knockout', tables);
+        expect([tables, n, validateBracketPlan({ ...input(n, [], tables), brackets: plan })]).toEqual([tables, n, []]);
+      }
+    }
+  });
+
   it('the standard and finals-only formats keep the 4–7 rule', () => {
     expect(validateBracketPlan(input(8, [8], 26, 'placement'))).toEqual(['Cat Gold: size must be 4–7']);
     expect(validateBracketPlan(input(8, [8], 26, 'finals'))).toEqual(['Cat Gold: size must be 4–7']);

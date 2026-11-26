@@ -12,17 +12,19 @@ export type PresetId = 'standard' | 'short' | 'seeding' | 'knockout';
 
 export const PANEL_INTRO = 'Choose how the event runs. You can change this until setup is locked.';
 export const LOCKED_NOTE = 'Setup is locked. Unlock it to change the format.';
-export const COMING_SOON = 'Coming soon';
 export const CUSTOM = 'Custom';
 export const CUSTOM_NOTE = 'Your own mix of the settings below.';
 export const RANK_CHANGED = 'Seeding rank changed to Total time.';
 export const BRACKETS_MISMATCH = 'Your brackets were set up for a different format. Press Suggest groups and brackets to rebuild them.';
 export const NO_BRACKETS = 'Seeding only uses no brackets.';
+/** Under each category's brackets in Setup: the sizes the bracket format takes. */
+export const bracketSizeHint = (brackets: BracketFormat, tableCount: number): string =>
+  (brackets === 'knockout' ? `A knockout bracket has 2 to ${tableCount} teams (as many as there are tables).` : 'A bracket has 4 to 7 teams.');
 
 export const PRESETS: { id: PresetId; name: string; blurb: string; format: Format }[] = [
   {
     id: 'standard', name: 'Standard',
-    blurb: 'Two seeding rounds, then heats and a placement race in each bracket. This is how Race to Feed has been run.',
+    blurb: 'Two seeding rounds, then heats and a placement race in each bracket. The original format.',
     format: { seedingRuns: 2, seedingRank: 'total', brackets: 'placement' },
   },
   {
@@ -79,8 +81,8 @@ export const BRACKET_FORMAT: Record<BracketFormat, { label: string; help: string
     help: 'Each bracket races once, all its teams together. The finishing order is the result.',
   },
   none: {
-    label: 'Seeding only',
-    help: "No brackets. Each category's final order is its seeding order.",
+    label: 'No brackets',
+    help: "Each category's final order is its seeding order.",
   },
   knockout: {
     label: 'Knockout',
@@ -140,6 +142,5 @@ export function bracketsMismatch(setup: EventInput): boolean {
   // The Grand Championship's own problem (more winners than tables) is not about the brackets.
   const fits = (brackets: BracketFormat) => validateBracketPlan({ ...setup, grandChampionship: false, format: { ...format, brackets } }).length === 0;
   if (fits(format.brackets)) return false;
-  // Knockout cannot be chosen yet, so brackets that would only fit knockout were not "set up for a different format".
-  return (Object.keys(BRACKET_FORMAT) as BracketFormat[]).some((other) => other !== format.brackets && other !== 'knockout' && fits(other));
+  return (Object.keys(BRACKET_FORMAT) as BracketFormat[]).some((other) => other !== format.brackets && fits(other));
 }

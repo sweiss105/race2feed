@@ -4,11 +4,12 @@ import '../participant/brackets.css';
 import { formatMs, hundredths } from '@race2feed/engine';
 import type { PublicView } from '../../lib/types';
 import { champions, rowsPerColumn, runHeadings, scheduleRows, SEEDING_DECIDES, seedHeading, seedingOnly, seedingTable, standingsDecided, teamName, tierOf } from '../../lib/selectors';
-import { buildBracketCards } from '../../lib/bracketModel';
+import { buildBracketCards, buildBracketTrees } from '../../lib/bracketModel';
 import { QR } from '../../ui/QR';
 import { RunTime, timeText } from '../../ui/Time';
 import { useNow } from '../../lib/useNow';
 import { BracketDiagramView } from '../participant/Brackets';
+import { KnockoutTree } from '../participant/KnockoutTree';
 
 interface Props { state: PublicView; serverNow: () => number; siteUrl: string }
 
@@ -21,7 +22,7 @@ export function ProjectorPage({ state, serverNow, siteUrl }: Props) {
       {screen === 'clock' && <Clock state={state} serverNow={serverNow} />}
       {screen === 'seeding-results' && <SeedingResults state={state} />}
       {/* Seeding only has no brackets: a pinned brackets screen shows the standings. */}
-      {screen === 'brackets' && (seedingOnly(state) ? <Standings state={state} /> : <BracketsScreen state={state} />)}
+      {screen === 'brackets' && (seedingOnly(state) ? <Standings state={state} /> : state.format.brackets === 'knockout' ? <KnockoutScreen state={state} /> : <BracketsScreen state={state} />)}
       {screen === 'standings' && <Standings state={state} />}
       {screen === 'champion' && <Champion state={state} />}
     </div>
@@ -207,6 +208,29 @@ function BracketsScreen({ state }: { state: PublicView }) {
       </header>
       <div class="proj-body proj-brackets fade-in" key={current?.categoryId}>
         {current?.brackets.filter((b) => b.stages.length).map((b) => <BracketDiagramView key={b.bracketId} card={b} teamId={null} />)}
+      </div>
+    </>
+  );
+}
+
+/** Knockout: one bracket's tree a page, sized to fill the screen; several brackets take turns as the categories do above. */
+function KnockoutScreen({ state }: { state: PublicView }) {
+  const trees = useMemo(() => buildBracketTrees(state), [state]);
+  const [page, setPage] = useState(0);
+  useEffect(() => {
+    if (trees.length < 2) return;
+    const id = setInterval(() => setPage((p) => (p + 1) % trees.length), 12_000);
+    return () => clearInterval(id);
+  }, [trees.length]);
+  const current = trees[page % Math.max(1, trees.length)];
+  return (
+    <>
+      <header>
+        <div class="proj-kicker">Brackets{trees.length > 1 ? ` · ${(page % trees.length) + 1} of ${trees.length}` : ''}</div>
+        <h2 class="proj-title">{current ? `${current.categoryName} ${current.tierName}` : 'Brackets'}</h2>
+      </header>
+      <div class={`proj-body proj-fit proj-knockout fade-in ${current ? tierOf(current.tierIndex) : ''}`} key={current?.bracketId}>
+        {current && <KnockoutTree tree={current} teamId={null} bare />}
       </div>
     </>
   );

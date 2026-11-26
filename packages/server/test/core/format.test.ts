@@ -114,11 +114,9 @@ describe('setFormat', () => {
     for (const format of [undefined, null, 'finals', 3, ['finals']]) expect(code(bad(format))).toBe('invalid');
   });
 
-  it('refuses knockout until it is built', () => {
-    const e = imported({ A: 4 }, 4);
-    const r = run(e, { type: 'setFormat', format: { brackets: 'knockout' } });
-    expect([code(r), !r.ok && r.message, detail(r)]).toEqual(['invalid', 'Knockout is not available yet.', ['Knockout is not available yet.']]);
-    expect(e.setup.format).toBeUndefined();
+  it('accepts knockout', () => {
+    const e = setFormat(imported({ A: 4 }, 4), { brackets: 'knockout' });
+    expect(e.setup.format).toEqual({ brackets: 'knockout' });
   });
 });
 
@@ -176,8 +174,8 @@ describe('format and brackets in setup', () => {
     e = { ...e, setup: { ...e.setup, format: { seedingRuns: 1, seedingRank: 'best' } } };
     const r = run(e, { type: 'lockSetup' });
     expect([code(r), detail(r)]).toEqual(['setup_invalid', ['Best run needs at least two seeding rounds.']]);
-    const knockout = run({ ...e, setup: { ...e.setup, format: { brackets: 'knockout' } } }, { type: 'lockSetup' });
-    expect([code(knockout), detail(knockout)]).toEqual(['setup_invalid', ['Knockout is not available yet.']]);
+    // Knockout locks like any other format: brackets of 4 fit it.
+    expect(code(run({ ...e, setup: { ...e.setup, format: { brackets: 'knockout' } } }, { type: 'lockSetup' }))).toBe('ok');
   });
 });
 

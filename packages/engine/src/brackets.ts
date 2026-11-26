@@ -6,26 +6,24 @@ const tierName = (i: number, names: string[]) => names[i] ?? `Tier ${i + 1}`;
 
 /**
  * Brackets of 4 by seed; 1–3 leftover teams fold into the last bracket. Seeding only ('none') has no brackets.
- * Knockout: brackets of 8 by seed; 1–3 leftover teams fold into the last bracket, and a category of fewer than 8
- * is one bracket.
+ * Knockout: brackets of 8 by seed (or as many as there are tables, when fewer), and a category that fits one
+ * bracket is one bracket. 1–3 leftover teams fold into the last bracket while it still fits the tables;
+ * otherwise they are a bracket of their own, and a single leftover team takes one from the bracket before it,
+ * so no bracket has fewer than two. `tableCount` is only used for knockout; without it nothing is capped.
  */
 export function suggestBracketPlan(
   categories: Category[],
   teams: Team[],
   tierNames: string[] = DEFAULT_TIERS,
   format: BracketFormat = 'placement',
+  tableCount: number = Infinity,
 ): BracketSpec[] {
   const plan: BracketSpec[] = [];
   if (format === 'none') return plan;
   for (const category of categories) {
     const n = teams.filter((t) => t.categoryId === category.id).length;
     if (n === 0) continue;
-    const per = format === 'knockout' ? 8 : 4;
-    const sizes = n < per ? [n] : Array.from({ length: Math.floor(n / per) }, () => per);
-    if (n >= per) {
-      if (n % per < 4) sizes[sizes.length - 1]! += n % per;
-      else sizes.push(n % per);
-    }
+    const sizes = format === 'knockout' ? knockoutSizes(n, tableCount) : placementSizes(n);
     let firstSeed = 1;
     sizes.forEach((size, tierIndex) => {
       plan.push({
@@ -40,6 +38,30 @@ export function suggestBracketPlan(
     });
   }
   return plan;
+}
+
+function placementSizes(n: number): number[] {
+  if (n < 4) return [n];
+  const sizes = Array.from({ length: Math.floor(n / 4) }, () => 4);
+  sizes[sizes.length - 1]! += n % 4;
+  return sizes;
+}
+
+function knockoutSizes(n: number, tableCount: number): number[] {
+  const per = Math.max(2, Math.min(8, tableCount));
+  if (n < per) return [n];
+  const sizes = Array.from({ length: Math.floor(n / per) }, () => per);
+  const rest = n % per;
+  const last = sizes.length - 1;
+  if (rest === 0) return sizes;
+  if (rest >= 4) sizes.push(rest);
+  else if (per + rest <= tableCount) sizes[last]! += rest;
+  else if (rest >= 2) sizes.push(rest);
+  else if (per > 2) {
+    sizes[last]! -= 1;
+    sizes.push(2);
+  } else sizes[last]! += 1; // Two tables cannot place an odd team in a bracket of two: left for the organiser.
+  return sizes;
 }
 
 /**

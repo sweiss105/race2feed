@@ -1,5 +1,4 @@
 import { describe, it, expect } from 'vitest';
-import { suggestBracketPlan, validateBracketPlan, validateSeedingGroups } from '@race2feed/engine';
 import { handleSetup } from '../../src/core/setup';
 import { handleLifecycle } from '../../src/core/lifecycle';
 import { handleTaps } from '../../src/core/taps';
@@ -9,29 +8,23 @@ import { eventCsv } from '../../src/core/export';
 import { fairnessWarnings } from '../../src/core/fairness';
 import { fairnessCsv } from '../../src/core/fairnessExport';
 import type { CommandResult, LiveEvent, RosterEntry } from '../../src/core/model';
-import { admin, blank, csvFor, ctx, ok, roster, runRound, teamId } from './helpers';
+import { admin, blank, csvFor, ctx, lockedFour, ok, roster, runRound, teamId } from './helpers';
 
 const code = (r: CommandResult) => (r.ok ? 'ok' : r.code);
 const names = (e: LiveEvent, ids: (string | null)[]) => ids.map((id) => e.setup.teams.find((t) => t.id === id)?.name ?? null);
 const s = (seconds: number) => Math.round(seconds * 1000);
 
 /**
- * A knockout event built by hand (the setFormat command still refuses knockout): A has 6 teams, B has 4, on 8
- * tables, Grand Championship on. Two seeding groups, so rounds 1–4 are seeding; 5 = A's two quarter-finals
- * (A 1 and A 2 have a bye); 6 = both brackets' semi-finals; 7 = both finals and third-place races; 8 = grand.
+ * A knockout event set up through commands: A has 6 teams, B has 4, on 8 tables, Grand Championship on. Two
+ * seeding groups, so rounds 1–4 are seeding; 5 = A's two quarter-finals (A 1 and A 2 have a bye); 6 = both
+ * brackets' semi-finals; 7 = both finals and third-place races; 8 = grand.
  */
 function lockedKnockout(): LiveEvent {
   let e = ok(handleSetup(blank(8), { type: 'importTeams', csv: csvFor({ A: 6, B: 4 }) }, ctx(admin)));
   e = ok(handleSetup(e, { type: 'setGrandChampionship', enabled: true }, ctx(admin)));
+  e = ok(handleSetup(e, { type: 'setFormat', format: { brackets: 'knockout' } }, ctx(admin)));
   e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
-  const setup = {
-    ...e.setup,
-    format: { brackets: 'knockout' as const },
-    brackets: suggestBracketPlan(e.setup.categories, e.setup.teams, undefined, 'knockout'),
-  };
-  // What lockSetup checks, apart from the knockout refusal that stays until the format can be chosen.
-  expect([...validateSeedingGroups(setup), ...validateBracketPlan(setup)]).toEqual([]);
-  return { ...e, setup, setupLocked: true };
+  return ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
 }
 
 /** Every view and export of the event as it stands; none may throw. */
@@ -60,10 +53,34 @@ const entrants = (e: LiveEvent, round: number) =>
   derive(e).rounds[round - 1]!.races.map((r) => [r.id, r.label, names(e, r.entrants.map((x) => x.teamId))]);
 
 describe('a knockout event through the server core', () => {
-  it('cannot be chosen or locked through commands yet', () => {
-    const e = ok(handleSetup(blank(8), { type: 'importTeams', csv: csvFor({ A: 6, B: 4 }) }, ctx(admin)));
-    expect(code(handleSetup(e, { type: 'setFormat', format: { brackets: 'knockout' } }, ctx(admin)))).toBe('invalid');
-    expect(code(handleSetup({ ...lockedKnockout(), setupLocked: false }, { type: 'lockSetup' }, ctx(admin)))).toBe('setup_invalid');
+  it('is chosen, suggested and locked through commands', () => {
+    const e = lockedKnockout();
+    expect([e.setupLocked, e.setup.format, e.setup.brackets.map((b) => b.size)]).toEqual([true, { brackets: 'knockout' }, [6, 4]]);
+  });
+
+  it('Suggest never builds a bracket larger than the tables, so what it builds can be locked', () => {
+    for (const [teams, tables, sizes] of [[9, 8, [7, 2]], [11, 8, [8, 3]], [17, 8, [8, 7, 2]], [11, 16, [11]]] as const) {
+      let e = ok(handleSetup(blank(tables), { type: 'importTeams', csv: csvFor({ A: teams }) }, ctx(admin)));
+      e = ok(handleSetup(e, { type: 'setFormat', format: { brackets: 'knockout' } }, ctx(admin)));
+      e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+      expect(e.setup.brackets.map((b) => b.size)).toEqual(sizes);
+      expect(code(handleSetup(e, { type: 'lockSetup' }, ctx(admin)))).toBe('ok');
+    }
+  });
+
+  it('publishes the bracket members with the first bracket round, not before; race control sees them as soon as they are drawn', () => {
+    let e = seeded();
+    const before = probe(e);
+    expect(before.pub.bracketMembers).toBeNull();
+    expect(Object.keys(before.control.bracketMembers ?? {})).toEqual(['a:0', 'b:0']);
+    e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin, 2_100_000)));
+    const pub = probe(e).pub;
+    expect(Object.fromEntries(Object.entries(pub.bracketMembers!).map(([id, ids]) => [id, names(e, ids)]))).toEqual({
+      'a:0': ['A 1', 'A 2', 'A 3', 'A 4', 'A 5', 'A 6'], 'b:0': ['B 1', 'B 2', 'B 3', 'B 4'],
+    });
+    // The standard format publishes them the same way.
+    const standard = publicView(lockedFour(), derive(lockedFour()));
+    expect(standard.bracketMembers).toBeNull();
   });
 
   it('is planned with every final in the last knockout round', () => {

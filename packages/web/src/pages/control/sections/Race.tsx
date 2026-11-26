@@ -8,6 +8,8 @@ import { useRunner } from '../runner';
 import { PenaltyReviews, reasonLabel } from './PenaltyReviews';
 import { RaceHeader } from './RaceHeader';
 import { Fairness } from './Fairness';
+import { buildBracketTrees } from '../../../lib/bracketModel';
+import { KnockoutTree } from '../../participant/KnockoutTree';
 
 const SCREENS = ['welcome', 'tables', 'clock', 'seeding-results', 'brackets', 'standings', 'champion'] as const;
 
@@ -38,6 +40,7 @@ export function Race({ view, serverNow }: { view: ControlView; serverNow(): numb
       {view.blockers.length > 0 && <p class="err" role="alert">{view.blockers.join(' · ')}</p>}
       <PenaltyReviews view={view} />
       <Fairness view={view} />
+      <KnockoutBrackets view={view} />
       <Results view={view} />
     </>
   );
@@ -209,6 +212,23 @@ function TieDecision({ raceId, group, view, run, busy }: { raceId: string; group
         <Button busy={busy} onClick={() => void run({ type: 'decideTie', raceId, order }, `tie-${raceId}`)}>Decide</Button>
       </div>
     </div>
+  );
+}
+
+/** Knockout: every bracket as its tree, from the moment the brackets are drawn. The next round's teams are already in place. */
+function KnockoutBrackets({ view }: { view: ControlView }) {
+  const trees = useMemo(() => buildBracketTrees(view), [view]);
+  if (!trees.length) return null;
+  return (
+    <section class="panel" aria-label="Brackets">
+      <h3 class="headline">Brackets</h3>
+      {view.categories.filter((c) => trees.some((t) => t.categoryId === c.id)).map((c) => (
+        <div key={c.id}>
+          <h4 class="format-group-title" style={{ margin: 'var(--space-3) 0 var(--space-2)' }}>{c.name}</h4>
+          {trees.filter((t) => t.categoryId === c.id).map((t) => <KnockoutTree key={t.bracketId} tree={t} teamId={null} />)}
+        </div>
+      ))}
+    </section>
   );
 }
 

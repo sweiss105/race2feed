@@ -118,10 +118,10 @@ If you want the event to run the way Race to Feed has been run, leave it on **St
 
 | Preset | What it does |
 |---|---|
-| **Standard** | Two seeding rounds, then heats and a placement race in each bracket. This is how Race to Feed has been run. |
+| **Standard** | Two seeding rounds, then heats and a placement race in each bracket. The original format. |
 | **Short** | One seeding round, then one final race per bracket. The quickest full event. |
 | **Seeding only** | Seeding rounds decide everything. No brackets. |
-| **Knockout** | Seeding rounds, then head-to-head knockout brackets down to a final. Marked **Coming soon**: it can't be chosen yet. |
+| **Knockout** | Seeding rounds, then head-to-head knockout brackets down to a final. |
 
 You can also change each setting on its own. The preset then reads **Custom**. Every choice has its explanation written under it in the panel; they are the same as here.
 
@@ -135,8 +135,8 @@ You can also change each setting on its own. The preset then reads **Custom**. E
 | | **Drop the slowest** | Each team's slowest run is ignored, so one bad run (or one DNF) is forgiven. |
 | **Bracket format** | **Heats, then placement** | Teams race head-to-head in heats, top seed against bottom seed. Heat winners then race each other for the top places, and the rest race for the remaining places. |
 | | **Finals only** | Each bracket races once, all its teams together. The finishing order is the result. |
-| | **Seeding only** | No brackets. Each category's final order is its seeding order. |
-| | **Knockout** | Head-to-head rounds. Win and you go through; lose and you're out. The last two race the final, and the semi-final losers race for third. Marked **Coming soon**. |
+| | **No brackets** | Each category's final order is its seeding order. |
+| | **Knockout** | Head-to-head rounds. Win and you go through; lose and you're out. The last two race the final, and the semi-final losers race for third. See [Knockout brackets](#knockout-brackets). |
 
 Good to know:
 - **"Seeding rounds" counts how many times each team races for seeding.** With more teams than tables the teams are split into groups, and each group races separately, so 2 seeding rounds with 2 groups is 4 rounds on the day.
@@ -151,21 +151,37 @@ Good to know:
 - **Short on time?** Use **Short**, or keep the brackets and drop to **1 round** of seeding.
 - **Worried that one bad run will ruin a team's evening?** Use **3 rounds** with **Drop the slowest**, or **2 rounds** with **Best run**.
 - **Want every team to race the same number of times, with no head-to-head races?** Use **Seeding only**.
+- **Want the evening to build to a final, one head-to-head race at a time?** Use **Knockout**.
 - **Not sure?** Stay on **Standard**.
 
 An event created before these settings existed runs as **Standard**, exactly as before.
+
+#### Knockout brackets
+
+In a **Knockout** event every bracket race is between two teams. The winner goes through to the next race and the loser is out, until two teams are left for the **Final**.
+
+- **Who races whom** comes from the seeding. In each bracket the top seed meets the lowest seed, the second meets the second-lowest, and so on. The two top seeds are on opposite sides, so they can only meet in the final.
+- **Byes go to the top seeds.** A bracket needs 2, 4, 8 or 16 teams for everyone to race in its first round. With any other number the top seeds skip that round and go straight to the next one. A bracket of 6 gives its top 2 seeds a bye; a bracket of 5 gives its top 3 a bye. A team with a bye has no table that round and the screens show "Bye" beside it.
+- **Third place.** The two teams that lose their semi-finals race each other for third place, in the same round as the final. A bracket of 3 has no third-place race (the team that loses the one semi-final is third), and a bracket of 2 is just a final.
+- **Places below fourth.** Teams knocked out before the semi-finals are placed by the round they went out in (later is better) and, within that round, by their time in it: fastest first, then teams that did not finish, then teams that did not start. Two teams with the same time are placed by seed.
+- **Every bracket's final is in the last knockout round.** A small bracket therefore starts later than a big one: with a bracket of 8 and a bracket of 4, the bracket of 8 races its quarter-finals first, and the bracket of 4 joins for the semi-finals.
+- **The races are called** Final, Third place, Semi-final 1, Quarter-final 3, Round of 16 · 5 and, for anything earlier, Round 1 · 5.
+- **A team that does not finish or does not start loses** to a team that finishes. **A tie** is decided by race control, as in every format (see [Ties](#ties)), and the next round can't open until it is.
+- **Bracket size:** from 2 teams up to the number of tables. **Suggest groups and brackets** proposes brackets of 8 by seed. Fewer than 4 leftover teams join the last bracket when there are enough tables for it (11 teams on 16 tables is one bracket of 11); otherwise they get a bracket of their own (11 teams on 8 tables is 8 and 3). A single leftover team takes one from the bracket before it, so no bracket has fewer than 2 (9 teams on 8 tables is 7 and 2). A category with fewer than 8 teams is one bracket. With fewer than 8 tables the brackets are as big as the tables.
+- **A category with only one team** has a bracket of one: no race, and that team wins its bracket.
+- **Phones, the projector and Race Control show each bracket as a tree**: a column for each round of the bracket, ending with the Final, with lines showing which race leads to which. See [Participants](#participants) and [Projector](#projector).
 
 ### 4. Seeding groups, tables and brackets
 
 In **Setup**, press **Suggest groups and brackets**. The app:
 - **Splits teams into seeding groups** that fit your tables (for example, 50 teams with 26 tables gives Group A with 26 and Group B with 24). It fills each group in category order, so categories stay together and only the last group is short. That last group can be much smaller (27 teams on 26 tables gives 26 and 1), so move teams between groups to even them out if you want. Each team gets a table.
-- **Suggests a bracket plan** for each category, in fours (Gold, Silver, Bronze, Copper, Tin). Leftover teams join the last bracket, making it 5, 6 or 7 teams. With the **Seeding only** format there are no brackets: the Brackets list says "Seeding only uses no brackets."
+- **Suggests a bracket plan** for each category, in fours (Gold, Silver, Bronze, Copper, Tin). Leftover teams join the last bracket, making it 5, 6 or 7 teams. In a **Knockout** event the brackets are larger: see [Knockout brackets](#knockout-brackets). With the **Seeding only** format there are no brackets: the Brackets list says "Seeding only uses no brackets."
 
 ![The top of Setup after Suggest groups and brackets: the counts of tables, groups and brackets, then Suggest groups and brackets, Lock setup and the Grand Championship switch](guide/images/console-setup.jpg)
 
 You can then adjust:
 - **Seeding groups and tables:** change any team's **Group** or **Table** in the list. Two teams can't share a table in the same group.
-- **Brackets:** for each category, rename a tier, change its number of teams, **Add tier** or **Remove last tier**, then press **Save [category] brackets**. The line "*X of Y teams placed*" must match before you can lock. Brackets hold 4 to 7 teams (a category with fewer than 4 teams gets one small bracket).
+- **Brackets:** for each category, rename a tier, change its number of teams, **Add tier** or **Remove last tier**, then press **Save [category] brackets**. The line "*X of Y teams placed*" must match before you can lock. Brackets hold 4 to 7 teams (a category with fewer than 4 teams gets one small bracket); in a **Knockout** event, 2 teams up to the number of tables. The line under each category's brackets says which applies.
 - **Grand Championship:** the switch turns the final race between the top-bracket winners on or off. It needs a table for every category winner, so with more categories than tables you can't lock until you add tables or turn it off.
 
 ![Brackets in Setup: each category's tiers, with the seeds and the number of teams in each](guide/images/console-setup-brackets.jpg)
@@ -298,6 +314,8 @@ On a device set to reduce motion, the button doesn't pulse.
 1. Press **Open round N**.
 2. The round's tables go out to phones, the projector and the referee tablets.
 3. Stations with no teams this round are marked **No teams** automatically.
+
+**In a Knockout event** a **Brackets** panel appears on Race Control, above Results, once seeding is finished. It shows each bracket as a tree (see [Knockout brackets](#knockout-brackets)), with the next round's teams already in place, so you can see who is about to race whom before you open the round. **Results** still lists every race of the round.
 
 **Before you open the first bracket round, check the seeding results.** Brackets become final the moment that round opens: later bracket rounds are built from those brackets, and a correction to seeding won't move a team to another bracket.
 
@@ -644,10 +662,17 @@ Your phone remembers your team, so next time it opens straight to it. Tap **Not 
 **The tabs below:**
 - **My team:** your seeding, then your time and place in each race. **Seeding** shows your rank in your category, each seeding run (**Run 1**, **Run 2**, …) and the time you are ranked on: **Total**, **Best run** or **Best two**, depending on the event's [tournament format](#3-tournament-format). With one seeding round it is just your **Time**. With **Drop the slowest**, the run that isn't counted is crossed out.
 - **Schedule:** every team's table for the current round, with yours highlighted.
-- **Brackets:** every category's brackets, updating live. Switch between **Cards** and **Diagram**. In a **Finals only** event each bracket is one race, the **Final**, listed in finishing order. In a **Seeding only** event there are no brackets, so this tab is called **Standings**: it says "Standings are decided by seeding" until every seeding round is finished, then lists the final standings by category.
+- **Brackets:** every category's brackets, updating live. Switch between **Cards** and **Diagram**. In a **Finals only** event each bracket is one race, the **Final**, listed in finishing order. In a **Knockout** event each bracket is a tree (see below). In a **Seeding only** event there are no brackets, so this tab is called **Standings**: it says "Standings are decided by seeding" until every seeding round is finished, then lists the final standings by category.
 - **Results:** the latest round's results.
 
 ![Brackets as cards, with your team highlighted](guide/images/phone-brackets.png)
+
+**In a Knockout event** the Brackets tab shows each bracket as a tree, and there is no Cards or Diagram choice:
+- **One column for each round of the bracket**, ending with the **Final**, with the **Third place** race under it. Lines show which two races lead to the next one.
+- **Each race is a box with two teams**: their seed, their name and, once they have raced, their time. The winner is in bold.
+- **"Bye"** beside a team means it skips that round and is already in the next column.
+- **"Winner of Quarter-final 2"** (or "Loser of Semi-final 1" in the third-place race) stands in for a team that isn't known yet. The team's name appears there when race control opens that round.
+- **The tree is wider than the phone:** swipe it sideways. Your team is highlighted, and the tab opens on your team's current race.
 
 Times include penalties. For example, `3:46.20 (incl. +10s · False Start)` means the time already includes a 10-second penalty. **pending: under review** after a time means a referee has flagged the team and race control hasn't decided yet; the time may still change. **DQ** means the team was disqualified from that race.
 
@@ -672,7 +697,7 @@ The projector follows the event by itself:
 | A round is open | **Tables**: "Go to your table", every team's table number, and the QR code. A green dot next to a team's name means its table is ready (the referee pressed **Ready**); a red dot means the start is still waiting on that table |
 | A race is running | **Clock**: a big master clock. As soon as the first team is in, the clock shrinks to the top and the list of teams appears under **Preliminary times** (see below) |
 | After a seeding round | **Seeding results** by category, coloured by bracket tier (see below) |
-| After a bracket round | **Brackets**, cycling through the categories. In a **Finals only** event each bracket is one race, the **Final**, in finishing order |
+| After a bracket round | **Brackets**, cycling through the categories. In a **Finals only** event each bracket is one race, the **Final**, in finishing order. In a **Knockout** event it shows one bracket at a time as a tree (the same tree as on phones), sized to fill the screen, and takes turns between the brackets every 12 seconds |
 | After the Grand Championship, or when race control shows the champion | **Champion**: the Grand Champion and the bags packed. While a penalty is still pending review, a tie is still undecided or a team has no result, it stays on **Brackets**, and switches to the champion once those are settled. A **Seeding only** event has no Brackets screen: the projector stays on **Seeding results** until the champion is shown |
 
 ![Projector: Welcome, with the QR code to the participant site](guide/images/projector-welcome.jpg)

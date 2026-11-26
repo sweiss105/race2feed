@@ -3,7 +3,7 @@ import type { BracketFormat, SeedingRankRule } from '@race2feed/engine';
 import type { ControlView } from '../../../lib/types';
 import { useRunner } from '../runner';
 import {
-  BRACKET_FORMAT, BRACKETS_MISMATCH, COMING_SOON, CUSTOM, CUSTOM_NOTE, LOCKED_NOTE, PANEL_INTRO, PRESETS, RANK_CHANGED,
+  BRACKET_FORMAT, BRACKETS_MISMATCH, CUSTOM, CUSTOM_NOTE, LOCKED_NOTE, PANEL_INTRO, PRESETS, RANK_CHANGED,
   SEEDING_RANK, SEEDING_RUNS, SEEDING_RUNS_HELP, SEEDING_RUNS_LABEL, bracketsMismatch, formatSummary, presetOf, rankUnavailable,
   type Format,
 } from '../../../lib/formatCopy';
@@ -53,7 +53,7 @@ export function TournamentFormat({ view }: { view: ControlView }) {
       <Group name="Preset" count={4} aside={preset === 'custom' && <><span class="format-tag current">{CUSTOM}</span><span class="format-aside">{CUSTOM_NOTE}</span></>}>
         {PRESETS.map((p) => (
           <Option key={p.id} id={`format-preset-${p.id}`} name={p.name} help={p.blurb} checked={preset === p.id}
-            tag={p.id === 'knockout' ? COMING_SOON : null} disabled={locked || p.id === 'knockout'} onChoose={() => void change(p.format)} />
+            disabled={locked} onChoose={() => void change(p.format)} />
         ))}
       </Group>
 
@@ -77,7 +77,7 @@ export function TournamentFormat({ view }: { view: ControlView }) {
       <Group name="Bracket format" count={4}>
         {(Object.keys(BRACKET_FORMAT) as BracketFormat[]).map((b) => (
           <Option key={b} id={`format-brackets-${b}`} name={BRACKET_FORMAT[b].label} help={BRACKET_FORMAT[b].help} checked={format.brackets === b}
-            tag={b === 'knockout' ? COMING_SOON : null} disabled={locked || b === 'knockout'} onChoose={() => void change({ brackets: b })} />
+            disabled={locked} onChoose={() => void change({ brackets: b })} />
         ))}
       </Group>
 

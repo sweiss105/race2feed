@@ -5,7 +5,7 @@ import { useRunner } from '../runner';
 import { Switch } from '../../../ui/Switch';
 import { Problems } from './Problems';
 import { tierOf } from '../../../lib/selectors';
-import { NO_BRACKETS } from '../../../lib/formatCopy';
+import { bracketSizeHint, NO_BRACKETS } from '../../../lib/formatCopy';
 import { TournamentFormat } from './TournamentFormat';
 
 type Bracket = ControlView['setup']['brackets'][number];
@@ -116,6 +116,8 @@ function CategoryBrackets({ view, categoryId, name, locked, onSave, busy, error 
       return b;
     });
   };
+  const knockout = view.format.brackets === 'knockout';
+  const maxSize = knockout ? view.setup.tableCount : 7;
   const update = (i: number, patch: Partial<{ tierName: string; size: number }>) => setRows((rs) => rs.map((r, j) => (j === i ? { ...r, ...patch } : r)));
   return (
     <div class="card" style={{ marginBottom: 'var(--space-3)' }}>
@@ -133,13 +135,14 @@ function CategoryBrackets({ view, categoryId, name, locked, onSave, busy, error 
                 <td><input class="input" aria-label={`${name} tier ${i + 1} name`} value={r.tierName} disabled={locked}
                   style={{ borderLeft: '0.35rem solid var(--tier)' }} onInput={(e) => update(i, { tierName: (e.target as HTMLInputElement).value })} /></td>
                 <td class="tabular secondary">{first}–{first + r.size - 1}</td>
-                <td><input class="input" type="number" min={1} max={7} aria-label={`${name} tier ${i + 1} size`} value={r.size} disabled={locked}
+                <td><input class="input" type="number" min={1} max={maxSize} aria-label={`${name} tier ${i + 1} size`} value={r.size} disabled={locked}
                   style={{ width: '5rem' }} onInput={(e) => update(i, { size: Number((e.target as HTMLInputElement).value) || 1 })} /></td>
               </tr>
             );
           })}
         </tbody>
       </table>
+      <p class="footnote secondary" style={{ margin: 'var(--space-2) 0 0' }}>{bracketSizeHint(view.format.brackets, view.setup.tableCount)}</p>
       {!locked && (
         <div class="race-actions" style={{ marginTop: 'var(--space-2)' }}>
           <Button kind="plain" onClick={() => setRows((rs) => [...rs, { tierName: `Tier ${rs.length + 1}`, size: 4 }])}>Add tier</Button>

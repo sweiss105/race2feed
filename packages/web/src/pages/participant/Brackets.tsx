@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks';
 import './brackets.css';
 import type { PublicView } from '../../lib/types';
-import { buildBracketCards, buildBracketDiagram, type BracketCard, type BracketRace } from '../../lib/bracketModel';
+import { buildBracketCards, buildBracketDiagram, buildBracketTrees, type BracketCard, type BracketRace } from '../../lib/bracketModel';
+import { KnockoutTree } from './KnockoutTree';
 import { tierOf } from '../../lib/selectors';
 import { timeText } from '../../ui/Time';
 
@@ -18,14 +19,32 @@ export function Brackets({ state, teamId, storage }: { state: PublicView; teamId
     setView(v);
   };
 
+  const knockout = state.format.brackets === 'knockout';
+  const trees = useMemo(() => buildBracketTrees(state), [state]);
+
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const mine = rootRef.current?.querySelector('[data-mine="true"]');
     if (mine && 'scrollIntoView' in mine) {
       const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      (mine as HTMLElement).scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center' });
+      // A knockout tree is wider than a phone: the team's match is brought into view sideways too.
+      (mine as HTMLElement).scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'center', ...(knockout ? { inline: 'center' as const } : {}) });
     }
-  }, [teamId, view]);
+  }, [teamId, view, knockout, trees.length]);
+
+  if (knockout) {
+    if (!trees.length) return <p class="secondary callout">Brackets appear once seeding is done and the first bracket round opens.</p>;
+    return (
+      <div ref={rootRef}>
+        {state.categories.filter((c) => trees.some((t) => t.categoryId === c.id)).map((c) => (
+          <section key={c.id}>
+            <h3 class="title-2 cat-title">{c.name}</h3>
+            {trees.filter((t) => t.categoryId === c.id).map((t) => <KnockoutTree key={t.bracketId} tree={t} teamId={teamId} />)}
+          </section>
+        ))}
+      </div>
+    );
+  }
 
   if (cards.every((c) => c.brackets.every((b) => b.stages.length === 0))) {
     return <p class="secondary callout">Brackets appear once seeding is done and the first bracket round opens.</p>;

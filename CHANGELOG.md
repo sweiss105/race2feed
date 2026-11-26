@@ -8,7 +8,7 @@ Setup has a new **Tournament format** panel, at the top. Organisers can now choo
 
 - **Seeding rounds:** 1, 2 or 3.
 - **Seeding rank:** Total time, Best run (needs at least two seeding rounds) or Drop the slowest (needs three).
-- **Bracket format:** Heats, then placement (the format until now), Finals only (each bracket races once, all its teams together) or Seeding only (no brackets; each category's final order is its seeding order).
+- **Bracket format:** Heats, then placement (the format until now), Finals only (each bracket races once, all its teams together) or No brackets (each category's final order is its seeding order).
 - **Presets** set all three at once: Standard, Short and Seeding only. Knockout is listed as "Coming soon" and can't be chosen yet.
 - Every choice has its explanation written under it, and the panel counts the rounds and races the setup makes.
 - The format can be changed until setup is locked. The Grand Championship switch works with every format.

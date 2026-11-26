@@ -118,6 +118,13 @@ export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopene
         : [],
     })),
     seedRank: d.seedRank,
+    /**
+     * bracketId → team ids in seed order (the knockout tree is drawn from it); null until the first bracket
+     * round is opened, like the matchups themselves. Race control has it as soon as the brackets are drawn.
+     */
+    bracketMembers: opts.includeUnopened || d.rounds.some((r) => r.spec.kind !== 'seeding' && r.spec.kind !== 'grand' && r.spec.round <= e.round.current)
+      ? d.bracketMembers
+      : null,
     ...seedingData(e, d, progress.results),
     standings: d.standings,
     /** categoryId → the category's winner, in every format (the top seed in seeding only); null while undecided. */

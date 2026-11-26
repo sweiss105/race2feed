@@ -14,3 +14,38 @@
 
 .bracket-diagram { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(15rem, 1fr); gap: var(--space-4); overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: var(--space-2); }
 .bracket-diagram > .col { scroll-snap-align: start; display: flex; flex-direction: column; justify-content: space-around; gap: var(--space-3); }
+
+/*
+ * Knockout tree. A column per stage; each column is a grid of equal cells, half as many as the column before,
+ * so a match sits level with the middle of the two matches that feed it. Lines are drawn in the gap between
+ * columns: each cell reaches right to the middle of the gap and up or down to its neighbour, and the next
+ * column's cell reaches left from its own middle. Everything is in em, so the projector scales it with one size.
+ */
+.ko-card { overflow: hidden; }
+.ko-scroll { overflow-x: auto; margin: 0 calc(-1 * var(--space-4)); padding: 0 var(--space-4) var(--space-2); -webkit-overflow-scrolling: touch; }
+.ko-tree { --ko-gap: 1.75em; --ko-line: var(--tertiary-label); display: grid; grid-auto-flow: column; grid-auto-columns: 16.5em; column-gap: var(--ko-gap); width: max-content; font-size: 0.875rem; }
+.ko-col { display: grid; grid-template-rows: auto 1fr; min-width: 0; }
+.ko-tree .stage-title { margin: var(--space-2) 0; white-space: nowrap; font-size: 0.8em; line-height: 1.5; }
+.ko-cells { display: grid; grid-auto-rows: 1fr; }
+.ko-cell { position: relative; display: grid; align-content: center; padding: 0.55em 0; min-width: 0; }
+/* The final sits exactly in the middle: equal space above and below it, and the third-place race in the space below. */
+.ko-cell.final { grid-template-rows: 1fr auto 1fr; align-content: stretch; }
+.ko-cell.final > .ko-match { grid-row: 2; }
+.ko-third { grid-row: 3; padding-top: 0.6em; }
+.ko-third .stage-title { margin: 0 0 0.35em; }
+.ko-col:not(:last-child) .ko-cell::after { content: ""; position: absolute; left: 100%; width: calc(var(--ko-gap) / 2); border: 0 solid var(--ko-line); box-sizing: border-box; }
+.ko-col:not(:last-child) .ko-cell:nth-child(odd)::after { top: 50%; bottom: 0; border-top-width: 0.09em; border-right-width: 0.09em; border-top-right-radius: 0.3em; }
+.ko-col:not(:last-child) .ko-cell:nth-child(even)::after { top: 0; bottom: 50%; border-bottom-width: 0.09em; border-right-width: 0.09em; border-bottom-right-radius: 0.3em; }
+.ko-col:not(:first-child) .ko-cell::before { content: ""; position: absolute; right: 100%; top: 50%; width: calc(var(--ko-gap) / 2); border-top: 0.09em solid var(--ko-line); }
+.ko-match { border-radius: var(--radius-s); background: var(--surface-2); overflow: hidden; min-width: 0; }
+.ko-row { display: grid; grid-template-columns: 1.4em minmax(0, 1fr) auto; gap: 0.5em; align-items: center; min-height: 2.2em; padding: 0.3em 0.65em; line-height: 1.2; }
+.ko-row + .ko-row { border-top: 1px solid var(--separator); }
+.ko-seed { font-size: 0.8em; font-weight: 600; color: var(--secondary-label); font-variant-numeric: tabular-nums; text-align: right; }
+.ko-name { overflow-wrap: anywhere; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+.ko-time { font-size: 0.85em; color: var(--secondary-label); white-space: nowrap; }
+.ko-row.win .ko-name { font-weight: 700; }
+.ko-row.win .ko-time { color: var(--label); font-weight: 600; }
+.ko-row.wait .ko-name { color: var(--secondary-label); }
+.ko-row.me { background: var(--highlight); }
+.ko-solo { max-width: 22rem; font-size: 0.875rem; }
+.ko-solo p { margin: var(--space-2) 0 0; }

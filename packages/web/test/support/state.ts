@@ -59,12 +59,12 @@ import type { ControlView } from '../../src/lib/types';
 export const ctlViewOf = (e: LiveEvent): ControlView => controlView(e, derive(e), { devices: [], audit: [], roster: [] });
 
 /**
- * A locked event on 4 tables in the given format, no Grand Championship unless asked: by default T1..T4 in one
+ * A locked event on 4 tables (or `tables`) in the given format, no Grand Championship unless asked: by default T1..T4 in one
  * category; `counts` gives other categories ({ A: 2, B: 2 } makes "A 1", "A 2", "B 1", "B 2").
  */
-export function lockedWith(format: TournamentFormat, opts: { counts?: Record<string, number>; grand?: boolean } = {}): LiveEvent {
+export function lockedWith(format: TournamentFormat, opts: { counts?: Record<string, number>; grand?: boolean; tables?: number } = {}): LiveEvent {
   const csv = opts.counts ? csvFor(opts.counts) : csvFor({ T: 4 }).replace(/T (\d)/g, 'T$1');
-  let e = ok(handleSetup(blank(4), { type: 'importTeams', csv }, ctx(admin)));
+  let e = ok(handleSetup(blank(opts.tables ?? 4), { type: 'importTeams', csv }, ctx(admin)));
   e = ok(handleSetup(e, { type: 'setGrandChampionship', enabled: opts.grand ?? false }, ctx(admin)));
   e = ok(handleSetup(e, { type: 'setFormat', format }, ctx(admin)));
   e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
@@ -74,4 +74,27 @@ export function lockedWith(format: TournamentFormat, opts: { counts?: Record<str
 /** Runs the next `times.length` rounds, each with its own times by team name. */
 export function runRounds(e: LiveEvent, times: Record<string, number>[]): LiveEvent {
   return times.reduce((ev, t, i) => runRound(ev, t, 2_000_000 + i * 1_000_000), e);
+}
+
+/** Seconds by team name for "T1".."Tn": T1 fastest. `base` shifts them all. */
+export const secs = (n: number, base = 100): Record<string, number> =>
+  Object.fromEntries(Array.from({ length: n }, (_, i) => [`T${i + 1}`, (base + i) * 1000]));
+
+/**
+ * A knockout event of n teams T1..Tn in one bracket (one category, as many tables as teams, one seeding run)
+ * with seeding raced: T1 is seed 1, T2 seed 2, … Rounds after seeding: one per stage.
+ */
+export function knockoutSeeded(n: number, opts: { grand?: boolean } = {}): LiveEvent {
+  const csv = csvFor({ T: n }).replace(/T (\d+)/g, 'T$1');
+  let e = ok(handleSetup(blank(Math.max(2, n)), { type: 'importTeams', csv }, ctx(admin)));
+  e = ok(handleSetup(e, { type: 'setGrandChampionship', enabled: opts.grand ?? false }, ctx(admin)));
+  e = ok(handleSetup(e, { type: 'setFormat', format: { seedingRuns: 1, brackets: 'knockout' } }, ctx(admin)));
+  e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+  e = ok(handleSetup(e, { type: 'setBrackets', brackets: e.setup.categories.map((c) => ({
+    id: `${c.id}:0`, categoryId: c.id, tierIndex: 0, tierName: 'Gold', firstSeed: 1, size: e.setup.teams.filter((t) => t.categoryId === c.id).length,
+  })) }, ctx(admin)));
+  e = ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
+  const groups = e.setup.groups.length;
+  for (let g = 0; g < groups; g++) e = runRound(e, secs(n), 1_500_000 + g * 10_000);
+  return e;
 }

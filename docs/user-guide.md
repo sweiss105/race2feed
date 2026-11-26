@@ -665,10 +665,22 @@ Only one tab can run the referee page. Close the other tab, or press **Use this 
 Look at the **Stations** panel. Ask those referees to press Ready, or use **Ready** or **Exclude** on their station yourself.
 
 **Finish now is greyed out: "Racing — waiting on *N* teams".**
-Use the **Waiting on *N* teams** panel: wait for the referee's tap, enter a time in **Results**, or mark the team **DNF** or **DNS**.
+Use the **Waiting on *N* teams** panel: wait for the referee's tap, press **Finish** to stop that team's clock yourself, enter a time in **Results**, or mark the team **DNF** or **DNS**.
 
 **Open round N is greyed out or refused.**
 Read the status line or the message under the button: lock the setup, finish the current round, decide pending penalties, or decide a tie. See [Open a round](#open-a-round).
+
+**A referee's tablet stops working during a race.**
+On the **Race Control** page, press **Finish** next to each of that referee's teams in the **Waiting on *N* teams** panel as the team finishes. It stops the team's clock at that moment, just as the referee's tap would.
+
+**A referee missed a penalty and the race is still running.**
+On the **Race Control** page, find the team in **Results**, pick a reason and press **Add**. It counts straight away. See [Enter or correct results](#enter-or-correct-results).
+
+**The import says a team name "is 41 characters; team names can be at most 35".**
+Shorten that name in your list (for example "High School" to "HS") and import again. Nothing is imported until every problem in the list is fixed.
+
+**I need the address of a screen (projector, participants, OBS).**
+Go to **Setup** and scroll to **Screen links**. Press **Copy** next to the one you need.
 
 **A referee tapped the wrong team or too early.**
 Within the undo window, the referee presses **Undo**. After that, race control fixes it in **Results**: enter the right time, or press **Clear**.

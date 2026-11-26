@@ -385,7 +385,7 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
   | Otherwise | Open round M | yes | yes | Ready to open round M |
 
   M is the current round plus one. Show champion opens the bag-count sheet first. Finish now does not pulse while the auto-finish countdown runs: the race finishes itself.
-- **"Waiting on N teams" list** with one-click DNF and DNS.
+- **"Waiting on N teams" list** with one-click Finish (while running: records the race clock at the press), DNF and DNS.
 - **Time penalties on/off switch** in Settings, in the event's panel (event-wide, takes effect immediately, §5.1).
 - **Penalties per team:** each team shows `raw + penalties = official`, with buttons to add or remove a penalty.
 - **Tie resolution**, time edits and clears, and the audit log.

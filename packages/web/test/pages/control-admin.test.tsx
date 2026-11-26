@@ -31,6 +31,25 @@ describe('admin sections', () => {
     expect(await screen.findByText('line 3: team and category are both required')).toBeTruthy();
   });
 
+  it('starts the paste box with the header row and waits for a team before allowing Import', () => {
+    withRunner(<Teams view={ctlViewOf(blank(4))} />, async () => ({ ok: true }));
+    const box = screen.getByLabelText('Paste CSV') as HTMLTextAreaElement;
+    expect(box.value).toBe('team,category\n');
+    expect((screen.getByRole('button', { name: 'Import' }) as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.input(box, { target: { value: 'team,category\nA,X' } });
+    expect((screen.getByRole('button', { name: 'Import' }) as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('sends one header row when a pasted list brings its own', async () => {
+    const send = vi.fn(async () => ({ ok: true }));
+    withRunner(<Teams view={ctlViewOf(blank(4))} />, send);
+    const box = screen.getByLabelText('Paste CSV') as HTMLTextAreaElement;
+    fireEvent.input(box, { target: { value: 'team,category\n Team , Category \nA,X\nB,Y' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Import' }));
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'importTeams', csv: 'team,category\nA,X\nB,Y' }));
+    await waitFor(() => expect(box.value).toBe('team,category\n'));
+  });
+
   it('once setup is locked, teams can only be renamed', () => {
     withRunner(<Teams view={ctlViewOf(lockedFour())} />, async () => ({ ok: true }));
     expect(screen.queryByLabelText('Paste CSV')).toBeNull();

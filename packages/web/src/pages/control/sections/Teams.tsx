@@ -28,17 +28,32 @@ export function Teams({ view }: { view: ControlView }) {
   );
 }
 
+/** The header row every team list starts with; the paste box begins with it. */
+const CSV_HEADER = 'team,category';
+const isHeader = (line: string) => line.split(',').map((f) => f.trim().toLowerCase()).join(',') === CSV_HEADER;
+
+/** Drops repeated header rows, so pasting a list that brings its own header under ours still imports cleanly. */
+function withOneHeader(csv: string): string {
+  const lines = csv.split(/\r?\n/);
+  let first = 0;
+  while (first < lines.length && isHeader(lines[first]!)) first++;
+  return first === 0 ? csv : [CSV_HEADER, ...lines.slice(first)].join('\n');
+}
+
+/** True once there is something besides header rows to import. */
+const hasTeams = (csv: string) => csv.split(/\r?\n/).some((line) => line.trim() !== '' && !isHeader(line));
+
 function Import() {
   const runner = useRunner();
-  const [csv, setCsv] = useState('');
+  const [csv, setCsv] = useState(`${CSV_HEADER}\n`);
   const [problems, setProblems] = useState<string[]>([]);
   const [done, setDone] = useState<string | null>(null);
   const importNow = async () => {
     setProblems([]);
     setDone(null);
-    const ack = await runner.run({ type: 'importTeams', csv }, 'importTeams');
+    const ack = await runner.run({ type: 'importTeams', csv: withOneHeader(csv) }, 'importTeams');
     if (!ack) return;
-    if (ack.ok) { setDone('Imported.'); setCsv(''); }
+    if (ack.ok) { setDone('Imported.'); setCsv(`${CSV_HEADER}\n`); }
     else setProblems(Array.isArray(ack.detail) ? (ack.detail as string[]) : [ack.message ?? 'Import failed.']);
   };
   const readFile = async (e: Event) => {
@@ -48,7 +63,7 @@ function Import() {
   return (
     <section class="panel card stack" aria-label="Import teams">
       <h3 class="headline">Import from CSV</h3>
-      <p class="footnote secondary" style={{ margin: 0 }}>Columns: <code>team,category</code>. Categories appear in the order they first appear in the file. Importing replaces the current team list.</p>
+      <p class="footnote secondary" style={{ margin: 0 }}>The first line, <code>team,category</code>, is already filled in: add one team per line under it. Categories appear in the order they first appear in the file. Importing replaces the current team list.</p>
       <label class="field">
         <span class="footnote secondary">Paste CSV</span>
         <textarea class="input" rows={6} style={{ padding: 'var(--space-2) var(--space-3)', fontFamily: 'var(--mono)' }} aria-label="Paste CSV"
@@ -56,7 +71,7 @@ function Import() {
       </label>
       <div class="race-actions">
         <label class="btn btn-secondary">Choose file…<input type="file" accept=".csv,text/csv" class="visually-hidden" onChange={readFile} /></label>
-        <Button busy={runner.busy('importTeams')} disabled={!csv.trim()} onClick={importNow}>Import</Button>
+        <Button busy={runner.busy('importTeams')} disabled={!hasTeams(csv)} onClick={importNow}>Import</Button>
         {done && <span class="callout" style={{ color: 'var(--success)' }}>{done}</span>}
       </div>
       <Problems items={problems} />

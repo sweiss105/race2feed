@@ -88,7 +88,7 @@ Go to **Teams**.
    Green Valley Students,High School
    Main Street Volunteers,Community
    ```
-2. Paste it into **Paste CSV**, or press **Choose file…** to pick the file.
+2. Paste it into **Paste CSV**, or press **Choose file…** to pick the file. The box already starts with the `team,category` line, so you can paste just the teams under it; pasting a list that has its own `team,category` line works too.
 3. Press **Import**.
 
 ![Teams: a team list pasted into Paste CSV, ready to import](guide/images/console-teams-import.jpg)

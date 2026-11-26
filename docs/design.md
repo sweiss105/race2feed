@@ -82,7 +82,7 @@ Weaknesses this design fixes:
 ### 3.2 Setup (admin)
 
 1. **Create the event.** Enter the name, date and **venue table count** (e.g. 26).
-2. **Import teams from CSV** (`team,category`), then add, edit or remove teams in the admin page. Late entries are allowed until seeding starts.
+2. **Import teams from CSV** (`team,category`), then add, edit or remove teams in the admin page. The paste box starts with the `team,category` header row already in it; a pasted list that brings its own header is accepted too. Late entries are allowed until seeding starts.
 3. **Seeding groups (auto-suggested, editable):**
    - The app creates the fewest groups that fit the table count (e.g. 50 teams with 26 tables gives A = 26 and B = 24).
    - It keeps categories together within a group where possible, and assigns tables in order.

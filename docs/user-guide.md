@@ -11,7 +11,7 @@ This guide explains how to run a Race to Feed event with the app. It's organised
 - [Participants](#participants): follow along on a phone
 - [Projector](#projector): the big screen
 - [Bitfocus Companion](#bitfocus-companion-start-and-finish-buttons): physical Start and Finish buttons
-- [Ending and reopening an event](#ending-and-reopening-an-event)
+- [Ending, reopening and deleting an event](#ending-reopening-and-deleting-an-event)
 - [Troubleshooting and FAQ](#troubleshooting-and-faq)
 
 ---
@@ -59,7 +59,7 @@ Race control sets up the event before the day, then runs it. Sign in at `/contro
 
 Only addresses on the console's allow list get a code. **Sign in again the day before the event** on every laptop that will run the console: a sign-in lasts 14 days on that browser, and signing in needs email, which you don't want to depend on during the event. Your email is shown in the **Log** next to everything you do.
 
-The name at the top of the menu, **PRC**, is short for **Packing Race Coordinator**: the app that runs the race. (Race to Feed is the event; phones and the projector still show the event's name.) The console's menu on the left has these sections: **Race Control, Teams, Setup, Referees, Settings, Log**. Everyone who signs in sees all of them. Events are created, made active and ended under **Settings**. An old bookmark to the Events page opens Settings. **Sign out** (bottom of the menu) signs that browser out of Cloudflare.
+The name at the top of the menu, **PRC**, is short for **Packing Race Coordinator**: the app that runs the race. (Race to Feed is the event; phones and the projector still show the event's name.) The console's menu on the left has these sections: **Race Control, Teams, Setup, Referees, Settings, Log**. Everyone who signs in sees all of them. Events are created, made active, ended and deleted under **Settings**. An old bookmark to the Events page opens Settings. **Sign out** (bottom of the menu) signs that browser out of Cloudflare.
 
 If the console says **"You are not signed in. Reload this page to sign in."**, press **Reload** and sign in again. If Cloudflare or email is down on the day, use the [emergency sign-in](#troubleshooting-and-faq).
 
@@ -70,11 +70,11 @@ If the console says **"You are not signed in. Reload this page to sign in."**, p
 3. Press **Create event**.
 4. If no event is active and none has just ended, the new event becomes **Active** straight away. Otherwise, press **Make active** on its row when you're ready. (Creating next year's event right after ending this one doesn't take the champion off everyone's phones.)
 
-![Settings → Events: the form for a new event, the active event with End event, and last year's ended event with Make active](guide/images/console-events.jpg)
+![Settings → Events: the form for a new event, the active event with End event, and last year's ended event with Make active and Delete](guide/images/console-events.jpg)
 
 ![Settings → Events folded away while an event is active: click it to open it](guide/images/console-events-folded.jpg)
 
-Only one event is active at a time. Older events are kept for history, and you can download any of them with the **CSV** or **JSON** links on its row. In the CSV, text that starts with `=`, `+`, `-` or `@` is exported with a leading apostrophe so spreadsheets show it as text instead of running it as a formula.
+Only one event is active at a time. Older events are kept for history until you [delete them](#delete-an-event), and you can download any of them with the **CSV** or **JSON** links on its row. In the CSV, text that starts with `=`, `+`, `-` or `@` is exported with a leading apostrophe so spreadsheets show it as text instead of running it as a formula.
 
 ### 2. Add teams
 
@@ -566,7 +566,7 @@ A Companion key can do only these things. It can't change results or setup.
 
 ---
 
-## Ending and reopening an event
+## Ending, reopening and deleting an event
 
 ### End the event
 
@@ -591,6 +591,20 @@ On the ended event's row in **Settings → Events**, press **Make active** and c
 - Referee tablets must be **paired again**.
 - If a race was counting down to auto-finish when the event ended, the auto-finish delay starts again from the moment you reopen it. The same happens if you make another event active mid-countdown and then switch back.
 - If the event was ended before its last round, the champion screen is taken down automatically. If it was ended after the last round, the champion stays up; race control can press **Hide champion** at any time.
+
+### Delete an event
+
+Use this to clear out test events, or old events you no longer need. **Deleting cannot be undone**: the event, its teams, results and log are gone for good.
+
+1. Go to **Settings** and open the **Events** panel.
+2. **Download a copy first** if you might want one: press **CSV** or **JSON** on the event's row (the same links are in the confirmation too).
+3. Press **Delete** on the event's row. Every event except the active one has it; to delete the active event, end it first (or make another event active).
+4. In the confirmation, type the event's name exactly as it's shown (capitals and spaces count; spaces at the start or end don't). **Delete event** only becomes available once the name matches.
+5. Press **Delete event**. The event disappears from the list.
+
+![Deleting a test event: the name typed in, Delete event ready](guide/images/console-delete-event.jpg)
+
+If phones and the projector were showing the deleted event (because it was the last one to end), they switch to the event that ended before it, or to the "no event" screen if there isn't one. The server keeps a short record of who deleted which event and when, but nothing else from the event.
 
 ---
 
@@ -634,6 +648,15 @@ Your sign-in ended (it lasts 14 days) or you pressed **Sign out**. Press **Reloa
 
 **An export link shows "cross_site".**
 This can happen when you click an export link straight after signing in again. Click the link again from the console.
+
+**Deleting an event says "End this event or make another one active before deleting it."**
+You can't delete the active event. End it first (or make another event active), then press **Delete**. See [Delete an event](#delete-an-event).
+
+**Deleting an event says "Type the event's name exactly to delete it."**
+The name you typed doesn't match. Type it exactly as it appears in the list, with the same capitals and spaces.
+
+**Deleting an event says "No such event."**
+It has already been deleted, perhaps from another laptop. Close the confirmation; the list updates when you reload Settings.
 
 **I don't get the email with the code, or Cloudflare says I'm not allowed.**
 Check the spam folder and that you typed the address on the allow list. Ask whoever manages the Cloudflare account to check the list (see [Who can sign in](#5-who-can-sign-in)).

@@ -365,4 +365,16 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await shot(admin, 'console-end-event.jpg');
   await admin.getByRole('dialog').getByRole('button', { name: 'End event' }).click();
   await expect(event.getByText('Ended')).toBeVisible();
+
+  // ── Delete an event: a throwaway test event, created and then deleted ─────
+  await create('Test run', '2026-11-01', '2');
+  const throwaway = admin.getByRole('row', { name: /Test run/ });
+  await throwaway.getByRole('button', { name: 'Delete' }).click();
+  const deleteSheet = admin.getByRole('dialog', { name: 'Delete Test run?' });
+  await deleteSheet.getByLabel("Type the event's name to confirm").fill('Test run');
+  await expect(deleteSheet.getByRole('button', { name: 'Delete event' })).toBeEnabled();
+  await shot(admin, 'console-delete-event.jpg');
+  await deleteSheet.getByRole('button', { name: 'Delete event' }).click();
+  await expect(deleteSheet).toBeHidden();
+  await expect(throwaway).toHaveCount(0);
 });

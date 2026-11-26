@@ -235,6 +235,13 @@ All times in this section are **official times**: the raw time plus any penaltie
 - Creating a new event while an ended event is on display does not activate it automatically, so the champion stays up until admin chooses **Make active**.
 - **Make active** on an ended event reopens it, after a confirmation. Tablets must be paired again. A round that was counting down to auto-finish (§4) restarts its full delay from the moment of reopening. If it was ended before its last round finished, the champion screen is taken down.
 
+**Delete event** (admin, Settings → Events, *added at the event owner's request so test events do not pile up*):
+- Every event except the active one has a **Delete** button in the event list; the active event must be ended (or another made active) first. An event that was created but never used can be deleted too.
+- A confirmation sheet, **Delete {name}?**, says the deletion is permanent and cannot be undone, offers that event's CSV and JSON exports, and asks for the event's name. **Delete event** stays disabled until the typed name (trimmed) matches the event's name exactly.
+- The hub command is `deleteEvent { eventId, confirmName }`, admin only. Refusals, checked in this order: unknown event → `not_found` "No such event."; the active event → `event_active` "End this event or make another one active before deleting it."; `confirmName` (trimmed) not exactly the event's name → `name_mismatch` "Type the event's name exactly to delete it." A refusal shows in the sheet, which stays open.
+- In one storage transaction the hub deletes the event and every audit, device and pairing-code row for it, then writes one audit row with no event (actor, `deleteEvent`, `{ eventId, name }`) so a trace of the deletion survives. Its exports then answer 404.
+- If phones and the projector were showing the deleted event (the last ended one), they fall back to the next most recent ended event, or to the no-event screen when none is left. No sockets are closed: tablets only ever sign in to the active event, which cannot be deleted.
+
 ---
 
 ## 5. Timing
@@ -315,6 +322,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 - **Audit log:** every state change goes in an append-only log, viewable in race control:
   - taps, penalties, undos, edits, overrides, tie decisions, penalty-switch changes, round transitions and logins
   - each entry records who, which device, when, and the old and new values
+  - **Delete event** (§4.1) is the one exception to append-only: it removes the deleted event's log with it, leaving a single `deleteEvent` entry that belongs to no event.
 
 ---
 
@@ -344,7 +352,7 @@ Race control and admin are one role. Everyone signed in to the console has every
 
 The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Setup**, **Referees** (hash `#devices`; the page is headed "Referees"), **Settings** and **Log**. There is no Events section: an old `#events` link opens Settings.
 
-**Settings** holds, top to bottom: the **Events** panel (create an event, the event list with Active/Ended, Make active, End event with its confirmation, and the CSV/JSON exports), then the active event's own settings, the penalty list, Companion keys, and **Appearance**. Settings works with no active event, so events can be created and activated there. The Events panel is a disclosure (`<details>`): its summary reads **Events**, with a secondary line **Active: {event name}** while an event is active. It is open when there is no active event and folded away when there is one; that default is decided when Settings mounts and again only when the console gains or loses its active event, so view updates never fold it under the user. Folded, nothing inside is reachable by keyboard or screen reader.
+**Settings** holds, top to bottom: the **Events** panel (create an event, the event list with Active/Ended, Make active, End event with its confirmation, the CSV/JSON exports, and Delete on every event but the active one, behind a type-the-name confirmation (§4.1)), then the active event's own settings, the penalty list, Companion keys, and **Appearance**. Settings works with no active event, so events can be created and activated there. The Events panel is a disclosure (`<details>`): its summary reads **Events**, with a secondary line **Active: {event name}** while an event is active. It is open when there is no active event and folded away when there is one; that default is decided when Settings mounts and again only when the console gains or loses its active event, so view updates never fold it under the user. Folded, nothing inside is reachable by keyboard or screen reader.
 
 **Appearance** is a per-browser preference for the console and the emergency console only: Automatic (follow the device), Light or Dark, as a three-way segmented control. It is kept in `localStorage` under `prc.theme` (`auto` | `light` | `dark`; missing or unreadable means `auto`) and applied before the first paint by setting `theme-light` / `theme-dark` on `<html>` (`auto` sets neither). It never reaches the server; phones, referee tablets and the projector are unaffected.
 

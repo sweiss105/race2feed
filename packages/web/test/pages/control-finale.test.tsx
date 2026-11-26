@@ -137,6 +137,56 @@ describe('show champion', () => {
   });
 });
 
+describe('admin: deleting an event', () => {
+  beforeEach(() => cleanup());
+  afterEach(() => vi.unstubAllGlobals());
+  const rows = [
+    { id: 'ev1', name: 'Live', date: '2026-11-24', active: true, ended: false },
+    { id: 'ev2', name: 'Old Test', date: '2026-10-01', active: false, ended: true },
+  ];
+  const settings = (send: (cmd: any) => Promise<Ack>) => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(rows), { status: 200 })));
+    render(<RunnerProvider send={send}><Settings view={null} /></RunnerProvider>);
+  };
+  const rowOf = async (name: string) => (await screen.findByText(name)).closest('tr')!;
+
+  it('offers Delete on every event but the active one', async () => {
+    settings(async () => ({ ok: true }));
+    expect(within(await rowOf('Live')).queryByRole('button', { name: 'Delete' })).toBeNull();
+    expect(within(await rowOf('Old Test')).getByRole('button', { name: 'Delete' })).toBeTruthy();
+  });
+
+  it('asks for the exact name before deleting, with the exports at hand', async () => {
+    const send = vi.fn(async () => ({ ok: true }));
+    settings(send);
+    fireEvent.click(within(await rowOf('Old Test')).getByRole('button', { name: 'Delete' }));
+    const sheet = screen.getByRole('dialog', { name: 'Delete Old Test?' });
+    expect(within(sheet).getByText(/permanently removes the event, its teams, results and log\. It cannot be undone\./)).toBeTruthy();
+    expect(within(sheet).getByRole('link', { name: 'CSV' }).getAttribute('href')).toContain('event=ev2&format=csv');
+    expect(within(sheet).getByRole('link', { name: 'JSON' }).getAttribute('href')).toContain('event=ev2&format=json');
+    const button = within(sheet).getByRole('button', { name: 'Delete event' }) as HTMLButtonElement;
+    const field = within(sheet).getByLabelText("Type the event's name to confirm");
+    expect(button.disabled).toBe(true);
+    fireEvent.input(field, { target: { value: 'old test' } });
+    expect(button.disabled).toBe(true);
+    fireEvent.input(field, { target: { value: ' Old Test ' } });
+    expect(button.disabled).toBe(false);
+    fireEvent.click(button);
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'deleteEvent', eventId: 'ev2', confirmName: 'Old Test' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it("keeps the sheet open with the server's refusal", async () => {
+    settings(async () => ({ ok: false, code: 'event_active', message: 'End this event or make another one active before deleting it.' }));
+    fireEvent.click(within(await rowOf('Old Test')).getByRole('button', { name: 'Delete' }));
+    const sheet = screen.getByRole('dialog', { name: 'Delete Old Test?' });
+    fireEvent.input(within(sheet).getByLabelText("Type the event's name to confirm"), { target: { value: 'Old Test' } });
+    fireEvent.click(within(sheet).getByRole('button', { name: 'Delete event' }));
+    expect(await within(sheet).findByText('End this event or make another one active before deleting it.')).toBeTruthy();
+    expect(screen.getByRole('dialog', { name: 'Delete Old Test?' })).toBeTruthy();
+  });
+});
+
 describe('admin: penalty list and ending the event', () => {
   beforeEach(() => cleanup());
   afterEach(() => vi.unstubAllGlobals());

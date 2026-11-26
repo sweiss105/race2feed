@@ -14,14 +14,14 @@ function roundsLeft(view: ControlView | null): number {
   return Math.max(0, view.rounds.length - raced);
 }
 
-/** The Events panel on Settings: create, activate, end and export events. */
+/** The Events panel on Settings: create, activate, end, export and delete events. */
 export function Events({ view, api = CONTROL_API }: { view: ControlView | null; api?: ApiBase }) {
   const runner = useRunner();
   const [events, setEvents] = useState<EventRow[]>([]);
   const [name, setName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [tables, setTables] = useState('26');
-  const [confirm, setConfirm] = useState<{ kind: 'end' | 'reopen'; event: EventRow } | null>(null);
+  const [confirm, setConfirm] = useState<{ kind: 'end' | 'reopen' | 'delete'; event: EventRow } | null>(null);
   const load = () => void getJson<EventRow[]>(api, '/events').then((e) => setEvents(e ?? [])).catch(() => {});
   useEffect(load, []);
 
@@ -74,6 +74,8 @@ export function Events({ view, api = CONTROL_API }: { view: ControlView | null; 
                       {ev.active && <Button kind="destructive" onClick={() => setConfirm({ kind: 'end', event: ev })}>End event</Button>}
                       <a class="btn btn-plain" href={`${api}/export?event=${ev.id}&format=csv`}>CSV</a>
                       <a class="btn btn-plain" href={`${api}/export?event=${ev.id}&format=json`}>JSON</a>
+                      {!ev.active && <Button kind="plain" style={{ color: 'var(--danger)' }}
+                        onClick={() => { runner.clear(['deleteEvent']); setConfirm({ kind: 'delete', event: ev }); }}>Delete</Button>}
                     </div></td>
                   </tr>
                 ))}
@@ -113,6 +115,38 @@ export function Events({ view, api = CONTROL_API }: { view: ControlView | null; 
             </div>
           </Sheet>
         )}
+        {confirm?.kind === 'delete' && (
+          <DeleteSheet event={confirm.event} api={api} onClose={() => setConfirm(null)} onDeleted={() => { setConfirm(null); load(); }} />
+        )}
     </>
+  );
+}
+
+/** Asks for the event's name, typed exactly, before deleting it for good. */
+function DeleteSheet({ event, api, onClose, onDeleted }: { event: EventRow; api: ApiBase; onClose(): void; onDeleted(): void }) {
+  const runner = useRunner();
+  const [typed, setTyped] = useState('');
+  const matches = typed.trim() === event.name;
+  return (
+    <Sheet title={`Delete ${event.name}?`} onClose={onClose}>
+      <p class="callout">This permanently removes the event, its teams, results and log. It cannot be undone. Download the CSV or JSON first if you want a copy.</p>
+      <div class="actions">
+        <a class="btn btn-plain" href={`${api}/export?event=${event.id}&format=csv`}>CSV</a>
+        <a class="btn btn-plain" href={`${api}/export?event=${event.id}&format=json`}>JSON</a>
+      </div>
+      <label class="field">
+        <span class="footnote secondary">Type the event's name to confirm</span>
+        <input class="input" aria-label="Type the event's name to confirm" placeholder={event.name} autoComplete="off" value={typed}
+          onInput={(e) => setTyped((e.target as HTMLInputElement).value)} />
+      </label>
+      {runner.error('deleteEvent') && <p class="err">{runner.error('deleteEvent')}</p>}
+      <div class="sheet-actions">
+        <Button kind="secondary" onClick={onClose}>Cancel</Button>
+        <Button kind="destructive" busy={runner.busy('deleteEvent')} disabled={!matches} onClick={async () => {
+          const ack = await runner.run({ type: 'deleteEvent', eventId: event.id, confirmName: typed.trim() });
+          if (ack?.ok) onDeleted();
+        }}>Delete event</Button>
+      </div>
+    </Sheet>
   );
 }

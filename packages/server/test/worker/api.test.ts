@@ -242,7 +242,8 @@ describe('hub commands by role', () => {
     const device = (await call('/api/pair', { code, name: 'Ref' })).cookie!;
     const key = (await command({ type: 'createApiKey', label: 'Deck' }, admin)).body.reply.key;
     const cmds = [{ type: 'endEvent', eventId: 'x' }, { type: 'createPairingCode', station: 1 },
-      { type: 'revokeDevice', deviceId: 'x' }, { type: 'createApiKey', label: 'x' }];
+      { type: 'revokeDevice', deviceId: 'x' }, { type: 'createApiKey', label: 'x' },
+      { type: 'deleteEvent', eventId: 'x', confirmName: 'x' }];
     for (const cmd of cmds) {
       expect((await command(cmd, { cookie: device })).body.code, `referee ${cmd.type}`).toBe('forbidden');
       expect((await command(cmd, { bearer: key })).body.code, `companion ${cmd.type}`).toBe('forbidden');

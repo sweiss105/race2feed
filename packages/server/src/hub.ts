@@ -17,6 +17,7 @@ export type HubCommand =
   | { type: 'createEvent'; name: string; date: string; tableCount: number }
   | { type: 'activateEvent'; eventId: string }
   | { type: 'endEvent'; eventId: string }
+  | { type: 'deleteEvent'; eventId: string; confirmName: string }
   | { type: 'createApiKey'; label: string }
   | { type: 'revokeApiKey'; id: string }
   | { type: 'createPairingCode'; station: number }
@@ -63,6 +64,7 @@ const HUB_COMMANDS: Record<HubCommand['type'], Actor['role'][]> = {
   createEvent: ['admin'],
   activateEvent: ['admin'],
   endEvent: ['admin'],
+  deleteEvent: ['admin'],
   createApiKey: ['admin'],
   revokeApiKey: ['admin'],
   createPairingCode: ['admin'],
@@ -297,6 +299,27 @@ export class Hub extends DurableObject<Env> {
         await this.afterChange(cmd);
         return reply({ eventId: event.id }, { eventId: event.id }, event.id);
       }
+      case 'deleteEvent': {
+        const row = this.sql.exec<{ name: string; active: number }>('SELECT name, active FROM events WHERE id = ?', cmd.eventId).toArray()[0];
+        if (!row) return fail('not_found', 'No such event.');
+        if (row.active === 1) return fail('event_active', 'End this event or make another one active before deleting it.');
+        if (typeof cmd.confirmName !== 'string' || cmd.confirmName.trim() !== row.name) {
+          return fail('name_mismatch', "Type the event's name exactly to delete it.");
+        }
+        this.ctx.storage.transactionSync(() => {
+          this.sql.exec('DELETE FROM events WHERE id = ?', cmd.eventId);
+          for (const table of ['audit', 'devices', 'pairing_codes']) {
+            this.sql.exec(`DELETE FROM ${table} WHERE event_id = ?`, cmd.eventId);
+          }
+          // The trace that survives: not tied to the event, so it is not deleted with it.
+          this.audit(null, actor, 'deleteEvent', { eventId: cmd.eventId, name: row.name });
+        });
+        if (this.ended?.id === cmd.eventId) {
+          this.ended = this.loadEnded();
+          await this.afterChange(cmd);
+        }
+        return { ok: true as const, reply: { eventId: cmd.eventId } };
+      }
       case 'createApiKey': {
         const id = crypto.randomUUID();
         const key = randomToken();
@@ -514,6 +537,8 @@ export class Hub extends DurableObject<Env> {
         const shown = this.display;
         const sd = shown ? this.safeDerive(shown) : null;
         if (shown && sd) this.send('public', JSON.stringify({ type: 'snapshot', view: publicView(shown, sd) }));
+        // The event phones were showing was deleted and none is left: back to the no-event screen.
+        else if (!shown && cmd.type === 'deleteEvent') this.send('public', JSON.stringify({ type: 'snapshot', view: null }));
       }
       await this.scheduleAlarm();
       return;

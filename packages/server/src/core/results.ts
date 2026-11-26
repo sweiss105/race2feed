@@ -1,29 +1,53 @@
-import { deriveEvent, type DerivedEvent, type EntryResult, type EventProgress } from '@race2feed/engine';
+import { deriveEvent, officialMs, type DerivedEvent, type EntryResult, type EventProgress } from '@race2feed/engine';
 import type { LiveEvent } from './model';
 
 type Fact = { at: number; result: Omit<EntryResult, 'penaltiesMs'> | null };
 
-/**
- * Results per round and team. The latest fact (finish tap or override) decides
- * the status; penalties are the sum of the team's active penalty taps.
- */
-export function buildProgress(e: LiveEvent): EventProgress {
-  const facts = new Map<string, Fact[]>();
-  const penalties = new Map<string, number>();
-  const key = (round: number, teamId: string) => `${round}\u0000${teamId}`;
-  const push = (k: string, f: Fact) => facts.set(k, [...(facts.get(k) ?? []), f]);
+const key = (round: number, teamId: string) => `${round}\u0000${teamId}`;
 
+/** Every finish tap and console entry per round and team, in stored order. */
+function collectFacts(e: LiveEvent): Map<string, Fact[]> {
+  const facts = new Map<string, Fact[]>();
+  const push = (k: string, f: Fact) => facts.set(k, [...(facts.get(k) ?? []), f]);
   for (const tap of e.taps) {
-    if (tap.removedAt !== null) continue;
-    const k = key(tap.round, tap.teamId);
-    if (tap.kind === 'penalty') penalties.set(k, (penalties.get(k) ?? 0) + (tap.amountMs ?? 0));
-    else if (Number.isFinite(tap.elapsedMs)) push(k, { at: tap.createdAt, result: { status: 'finished', rawMs: tap.elapsedMs as number } });
+    if (tap.removedAt !== null || tap.kind !== 'finish' || !Number.isFinite(tap.elapsedMs)) continue;
+    push(key(tap.round, tap.teamId), { at: tap.createdAt, result: { status: 'finished', rawMs: tap.elapsedMs as number } });
   }
   for (const o of e.overrides) {
     const k = key(o.round, o.teamId);
     if (o.set.kind === 'clear') push(k, { at: o.at, result: null });
     else if (o.set.kind === 'status') push(k, { at: o.at, result: { status: o.set.status, rawMs: null } });
     else if (Number.isFinite(o.set.rawMs)) push(k, { at: o.at, result: { status: 'finished', rawMs: o.set.rawMs } });
+  }
+  return facts;
+}
+
+/** The fact that decides: the latest one. */
+const latest = (list: Fact[]): Fact | undefined => [...list].sort((a, b) => a.at - b.at).at(-1);
+
+/** When each team's current result was recorded (its deciding finish tap or console entry): round → teamId → time. */
+export function recordedAt(e: LiveEvent): Record<number, Record<string, number>> {
+  const out: Record<number, Record<string, number>> = {};
+  for (const [k, list] of collectFacts(e)) {
+    const last = latest(list);
+    if (!last?.result) continue;
+    const [roundText, teamId] = k.split('\u0000') as [string, string];
+    (out[Number(roundText)] ??= {})[teamId] = last.at;
+  }
+  return out;
+}
+
+/**
+ * Results per round and team. The latest fact (finish tap or override) decides
+ * the status; penalties are the sum of the team's active penalty taps.
+ */
+export function buildProgress(e: LiveEvent): EventProgress {
+  const facts = collectFacts(e);
+  const penalties = new Map<string, number>();
+  for (const tap of e.taps) {
+    if (tap.removedAt !== null || tap.kind !== 'penalty') continue;
+    const k = key(tap.round, tap.teamId);
+    penalties.set(k, (penalties.get(k) ?? 0) + (tap.amountMs ?? 0));
   }
 
   // An approved DQ penalty disqualifies the team from that race, whatever its time.
@@ -40,8 +64,8 @@ export function buildProgress(e: LiveEvent): EventProgress {
       (results[Number(roundText)] ??= {})[teamId] = { status: 'dnf', rawMs: null, penaltiesMs: penalties.get(k) ?? 0 };
       continue;
     }
-    const last = [...list].sort((a, b) => a.at - b.at).at(-1)!;
-    if (!last.result) continue;
+    const last = latest(list);
+    if (!last?.result) continue;
     const [roundText, teamId] = k.split('\u0000') as [string, string];
     const round = Number(roundText);
     (results[round] ??= {})[teamId] = { ...last.result, penaltiesMs: penalties.get(k) ?? 0 };
@@ -61,4 +85,17 @@ export function derive(e: LiveEvent): DerivedEvent {
 
 export function teamsInRound(d: DerivedEvent, round: number): { teamId: string; table: number }[] {
   return d.rounds[round - 1]?.races.flatMap((r) => r.entrants) ?? [];
+}
+
+/** Each team's summed official time over the seeding rounds that have results so far. */
+export function seedTotals(d: DerivedEvent, results: Record<number, Record<string, EntryResult>>): Record<string, number> {
+  const totals: Record<string, number> = {};
+  for (const r of d.rounds) {
+    if (r.spec.kind !== 'seeding') continue;
+    for (const [teamId, result] of Object.entries(results[r.spec.round] ?? {})) {
+      const ms = officialMs(result);
+      if (ms !== null) totals[teamId] = (totals[teamId] ?? 0) + ms;
+    }
+  }
+  return totals;
 }

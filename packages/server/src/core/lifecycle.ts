@@ -4,6 +4,7 @@ import { buildProgress, derive, teamsInRound } from './results';
 import { checkCorrection } from './corrections';
 import { saveLineup } from './lineups';
 import { assignmentOf, assignRound, rotationOn, tablesFor } from './rotation';
+import { fairnessWarnings } from './fairness';
 
 /** Referee penalties still waiting for race control, in rounds raced so far. */
 export function pendingPenalties(e: LiveEvent) {
@@ -150,5 +151,11 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
     }
     case 'hideChampion':
       return ok({ ...e, championShown: false });
+    case 'dismissWarning': {
+      const note = typeof cmd.note === 'string' ? cmd.note.trim() : '';
+      if (!note || note.length > 200) return fail('invalid', 'Write a short note (up to 200 characters) to dismiss a warning.');
+      if (!fairnessWarnings(e, derive(e)).some((w) => w.id === cmd.id)) return fail('not_found', 'That warning no longer applies.');
+      return ok({ ...e, dismissed: { ...e.dismissed, [cmd.id]: { by: ctx.actor.label, at: ctx.now, note } } });
+    }
   }
 }

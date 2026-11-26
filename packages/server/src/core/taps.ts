@@ -30,6 +30,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
     ...t,
     id: ctx.newId(),
     ...(ctx.actor.deviceId ? { deviceId: ctx.actor.deviceId } : {}),
+    ...(t.source === 'control' ? { by: ctx.actor.label } : {}),
     createdAt: ctx.now,
     removedAt: null,
   });
@@ -91,7 +92,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       if (!validSet) return fail('invalid', 'Result must be a time, DNF, DNS or clear.');
       if (!inRound(cmd.round, cmd.teamId)) return fail('not_in_round', 'That team is not in this round.');
       return correct(cmd.round, cmd.confirmUnlock,
-        { ...e, overrides: [...e.overrides, { round: cmd.round, teamId: cmd.teamId, at: ctx.now, set: cmd.set }] });
+        { ...e, overrides: [...e.overrides, { round: cmd.round, teamId: cmd.teamId, at: ctx.now, set: cmd.set, by: ctx.actor.label }] });
     }
     case 'addPenalty': {
       if (!validRound(cmd.round)) return fail('invalid', `Round ${cmd.round} has not been raced.`);
@@ -112,7 +113,7 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       const tap = e.taps.find((t) => t.id === cmd.tapId && t.kind === 'penalty');
       if (!tap || tap.removedAt !== null) return fail('not_found', 'That penalty no longer exists.');
       return correct(tap.round, cmd.confirmUnlock,
-        { ...e, taps: e.taps.map((t) => (t.id === tap.id ? { ...t, removedAt: ctx.now } : t)) });
+        { ...e, taps: e.taps.map((t) => (t.id === tap.id ? { ...t, removedAt: ctx.now, removedBy: ctx.actor.label } : t)) });
     }
     case 'setPenaltiesEnabled':
       return ok({ ...e, settings: { ...e.settings, penaltiesEnabled: cmd.enabled } });
@@ -140,12 +141,13 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       if (tap.removedAt !== null && previous.status === 'pending') return fail('not_found', 'That penalty was undone.');
       let updated: Tap;
       if (cmd.decision === 'reject') {
-        updated = { ...tap, removedAt: tap.removedAt ?? ctx.now, review: { ...previous, status: 'rejected', decidedAt: ctx.now, dq: false } };
+        updated = { ...tap, removedAt: tap.removedAt ?? ctx.now, removedBy: ctx.actor.label, review: { ...previous, status: 'rejected', decidedAt: ctx.now, dq: false } };
       } else if (cmd.decision === 'approve') {
         const reason = reasonsOf(e).find((r) => r.id === cmd.reasonId);
         if (!reason) return fail('invalid', 'Choose a reason from the penalty list to approve.');
+        const { removedBy: _restored, ...kept } = tap;
         updated = {
-          ...tap,
+          ...kept,
           removedAt: null,
           amountMs: reason.kind === 'time' ? reason.amountMs ?? 0 : 0,
           review: { ...previous, status: 'approved', reasonId: reason.id, reasonName: reason.name, decidedAt: ctx.now, dq: reason.kind === 'dq' },

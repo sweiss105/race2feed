@@ -1,9 +1,10 @@
 import { officialMs, stationOfTable, tablesOfStation, type DerivedEvent, type EntryResult } from '@race2feed/engine';
 import { perStation, readyTablesOf, type LiveEvent, type ProjectorScreen, type RosterEntry } from './model';
-import { buildProgress, teamsInRound } from './results';
+import { buildProgress, seedTotals, teamsInRound } from './results';
 import { reasonsOf, reviewOf } from './reasons';
 import { pendingPenalties } from './lifecycle';
 import { assignmentOf, tablesFor } from './rotation';
+import { fairnessOf } from './fairness';
 
 interface PenaltyInfo { notes: string[]; pending: boolean; dq: string | null }
 
@@ -82,19 +83,6 @@ function racesOf(e: LiveEvent, d: DerivedEvent, round: number, results: Record<s
       };
     }),
   }));
-}
-
-/** Each team's summed official time over the seeding rounds that have results so far. */
-function seedTotals(d: DerivedEvent, results: Record<number, Record<string, EntryResult>>): Record<string, number> {
-  const totals: Record<string, number> = {};
-  for (const r of d.rounds) {
-    if (r.spec.kind !== 'seeding') continue;
-    for (const [teamId, result] of Object.entries(results[r.spec.round] ?? {})) {
-      const ms = officialMs(result);
-      if (ms !== null) totals[teamId] = (totals[teamId] ?? 0) + ms;
-    }
-  }
-  return totals;
 }
 
 /** Matchups are published when a round is opened, not before (spec §4); race control sees them early. */
@@ -224,6 +212,8 @@ export function controlView(e: LiveEvent, d: DerivedEvent, extras: { devices: un
     /** Who judges which tables in the current round ([] when none is saved), and every paired referee. Race control only. */
     assignments: e.assignments?.[e.round.current] ?? [],
     roster: extras.roster,
+    /** Fairness warnings (fairness.ts): open ones, and dismissed ones with who dismissed them, when and why. Race control only. */
+    fairness: fairnessOf(e, d),
     devices: extras.devices,
     audit: extras.audit,
   };

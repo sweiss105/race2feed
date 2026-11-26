@@ -18,8 +18,12 @@ export interface Tap {
   amountMs?: number;
   source: 'referee' | 'control';
   deviceId?: string;
+  /** Who entered it at the console (source 'control'). Missing on taps stored before it was recorded. */
+  by?: string;
   createdAt: number;
   removedAt: number | null;
+  /** Who removed or rejected it at the console. Missing when a referee undid their own tap, and on older taps. */
+  removedBy?: string;
   /** Penalty taps only. Missing on taps stored before reviews existed (treated as approved). */
   review?: PenaltyReview;
 }
@@ -42,7 +46,8 @@ export type OverrideSet =
   | { kind: 'status'; status: 'dnf' | 'dns' }
   | { kind: 'time'; rawMs: number }
   | { kind: 'clear' };
-export interface Override { round: number; teamId: string; at: number; set: OverrideSet }
+/** by: who entered it at the console. Missing on overrides stored before it was recorded. */
+export interface Override { round: number; teamId: string; at: number; set: OverrideSet; by?: string }
 
 export type ProjectorScreen = 'welcome' | 'tables' | 'clock' | 'seeding-results' | 'brackets' | 'standings' | 'champion';
 
@@ -84,7 +89,12 @@ export interface LiveEvent {
    * A round without an entry was opened with rotation off: every referee is at their home station.
    */
   assignments?: Record<number, Assignment[]>;
+  /** Fairness warning id → race control's dismissal; see fairness.ts. Missing means none. */
+  dismissed?: Record<string, Dismissal>;
 }
+
+/** Race control has looked at a fairness warning and set it aside. */
+export interface Dismissal { by: string; at: number; note: string }
 
 /** One paired referee that has not been revoked. home: the station the device was paired to. */
 export interface RosterEntry { deviceId: string; name: string; home: number }
@@ -122,7 +132,9 @@ export type LifecycleCommand =
   | { type: 'decideTie'; raceId: string; order: string[]; confirmUnlock?: boolean }
   | { type: 'pinProjector'; screen: ProjectorScreen | null }
   | { type: 'showChampion'; bagTotal: string }
-  | { type: 'hideChampion' };
+  | { type: 'hideChampion' }
+  /** id: a current fairness warning's id (fairness.ts). note: 1–200 characters. Dismissing again replaces the note. */
+  | { type: 'dismissWarning'; id: string; note: string };
 
 export type TapCommand =
   | { type: 'tapFinish'; teamId: string; atServerMs: number; clientTapId: string }

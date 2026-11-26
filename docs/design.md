@@ -251,6 +251,35 @@ All times in this section are **official times**: the raw time plus any penaltie
   - **Revoking** takes the referee out of the open or running round's assignment, saved together with the revocation. Their tables then have no referee, and race control uses its own controls. Rounds that are over keep who judged them.
   - Race control's view also carries the current round's assignments (`assignments`, empty when none is saved) and the roster (`roster`). No other view does.
 
+### 3.8 Fairness warnings
+
+*Added at the owner's request, to tell race control when a pattern looks like favouritism. Spec: `docs/superpowers/specs/2026-11-26-referee-rotation-fairness-design.md`.*
+
+- **A warning is a prompt to look, nothing more.** No warning ever blocks opening, starting or finishing a round, or any other action.
+- **Computed, not stored.** The server works the warnings out from the saved event (taps, results, line-ups, assignments) each time race control's view is built. So they are the same on every console and after a restart, and a corrected result removes a warning that no longer applies.
+- **Who judged a team in a round:** the referee whose saved assignment (§3.7) has the team's table that round. Without one (rotation off, an event stored before rotation, or a table whose referee was revoked), the tablet that made the team's finish tap. If neither exists, checks that need the referee skip that result.
+- **The referee's name** comes from the saved assignments. A referee who was never in one (rotation off) has no name here: the warning's `referee` is null and its message says "A referee".
+- **Which rounds count:** finished rounds, for every kind. The open or running round also counts for `repeat_team` and `final_one_referee` (known as soon as the round opens) and for `fast_time`, `close_finish` and `undo_changed_winner` (as results arrive).
+- **The kinds.** The thresholds are constants in `packages/server/src/core/fairness.ts`, not settings.
+
+  | Kind | Fires when | Constants |
+  |---|---|---|
+  | `fast_time` | A team's official time (penalties included) is at least 30 000 ms faster than the fastest official time recorded before it, in any round. "Before" goes by when each current result was recorded: its finish tap, or race control's entry. | `FAST_MS = 30_000` |
+  | `referee_wins` | Over the finished bracket and Grand Championship races with two or more teams (seeding rounds are not counted, nor a race whose teams all had the same referee), each team a referee judged counts once per race: *better* if it finished ahead of the place its seeding total predicted within that race, *worse* if behind. Fires for a referee with at least 6 counted and better minus worse at least 4. | `WINS_MIN_RACES = 6`, `WINS_MARGIN = 4` |
+  | `repeat_team` | A referee's assignment gives them a team for the third time, or in two rounds running. One warning per referee and team, at the latest such round. A swap by race control can cause it. | `REPEAT_TEAM_TIMES = 3` |
+  | `repeat_penalty` | A referee's tablet has penalty taps for the same team in 2 or more rounds. Undone and rejected penalties do not count; one still waiting for review does. | `REPEAT_PENALTY_ROUNDS = 2` |
+  | `penalty_outlier` | Once 3 rounds are finished. The referees are everyone with tables in a finished round's assignment and every tablet that tapped in one. Counting each referee's penalty taps that stand: fires for a referee with at least 3 and more than twice the average per referee, or with none while the average is at least 2. Race control's own penalties are not counted. | `OUTLIER_FROM_ROUND = 3`, `OUTLIER_MIN = 3`, `OUTLIER_AVG_FOR_NONE = 2` |
+  | `close_finish` | Two teams of one race, both judged by the same referee, have official times 500 ms apart or less. | `CLOSE_MS = 500` |
+  | `undo_changed_winner` | A referee undid a finish tap in a race with two or more teams, every team of the race has a result, and the race's winner would be a different team had the undone tap stood (with the team's current penalties). | |
+  | `final_one_referee` | Rotation is on, with one referee per two tables: a race that decides a bracket or the Grand Championship has two teams and one referee's assignment holds both tables, because no spare referee was free to split it (§3.7). | |
+
+- **Each warning** has: `id`, `kind`, `round`, `referee` (name or null), `refereeId` (the referee's device id, or null), `teamIds` and `message`, one plain sentence for staff naming the referee, the team(s) and the round. `referee_wins` and `penalty_outlier` cover the whole event: their `round` is the latest finished round and their `teamIds` are empty.
+- **Ids are stable.** An id is built only from the kind, the round, the referee's device id (`-` when unknown) and the sorted team ids, for example `close_finish:5:dev3:tA,tB`; `referee_wins:dev3` and `penalty_outlier:dev3` have no round. So an id does not change when unrelated results change.
+- **Order:** newest round first, then kind (alphabetical), then id.
+- **Dismissing** (`dismissWarning { id, note }`, race control only): the note is trimmed and must be 1–200 characters (`invalid`); the id must be a warning that applies now (`not_found`). The event saves who, when and the note (`dismissed`: id → `{ by, at, note }`), and the command is logged like any other. Dismissing again replaces the note. A dismissed warning that stops applying is no longer listed; if it applies again under the same id it is still dismissed.
+- **Where they are visible:** only in race control's view, as `fairness: { open, dismissed }` (each dismissed warning carries its `dismissal`), and in the fairness report. Never in the participant, projector, referee or Companion payloads.
+- **Who entered what:** a result or penalty entered at the console saves who entered it (`by` on the override or tap), and a penalty removed or rejected at the console saves who did (`removedBy`). Records stored before this have neither.
+
 ### 4.1 Show champion and end the event
 
 *Added after the first live test, at the user's request.*

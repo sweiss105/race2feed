@@ -36,4 +36,4 @@ Open a pull request against `main` that says what changed and why, and how you t
 
 Merging to `main` deploys to the live site and restarts the server, which drops live connections for a moment. Changes are therefore not merged while an event is running.
 
-By contributing, you agree that your work is released under this repository's license (AGPL-3.0).
+By contributing, you agree that your work is released under this repository's license (GPL-3.0).

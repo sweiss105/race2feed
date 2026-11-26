@@ -147,8 +147,8 @@ function outstanding(e: LiveEvent, d: DerivedEvent) {
  * What one referee sees. `who`: the tablet's home station and device. Its tables this round are the saved
  * assignment's (rotation.ts), or the home station's when the round has none saved.
  * station.number: the station of those tables (0 without any). station.assigned: false only when the round has
- * saved assignments and this device is in none. station.moved: assigned tables that differ from the ones this
- * device had the round before (its home station's when it had none).
+ * saved assignments and this device is in none. station.moved: assigned to a different station from the
+ * round before (from its home station when it had none).
  */
 export function refereeView(e: LiveEvent, d: DerivedEvent, who: { station?: number; deviceId?: string }) {
   const current = e.round.current;
@@ -156,9 +156,10 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, who: { station?: numb
   const mine = assignmentOf(e, current, who.deviceId);
   const station = saved ? mine?.station ?? 0 : who.station ?? 0;
   const tables = tablesFor(e, who, current);
-  const home = who.station === undefined ? [] : tablesOfStation(who.station, e.setup.tableCount, perStation(e));
-  const before = assignmentOf(e, current - 1, who.deviceId)?.tables ?? home;
-  const moved = Boolean(mine) && (before.length !== tables.length || tables.some((t) => !before.includes(t)));
+  // Moved means a different station from the round before (the home station when it had none): keeping one table
+  // of the same station, in a split final or a half-empty station, is not a move.
+  const before = assignmentOf(e, current - 1, who.deviceId)?.station ?? who.station;
+  const moved = Boolean(mine) && mine!.station !== before;
   const results = buildProgress(e).results[current] ?? {};
   const name = new Map(e.setup.teams.map((t) => [t.id, t.name]));
   const pens = penaltyIndex(e);

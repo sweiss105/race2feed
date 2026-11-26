@@ -123,7 +123,7 @@ export function assignRound(e: LiveEvent, d: DerivedEvent, round: number, roster
 export function withLateReferee(e: LiveEvent, d: DerivedEvent, ref: RosterEntry): LiveEvent {
   const round = e.round.current;
   const saved = e.assignments?.[round];
-  if (e.round.phase !== 'open' || !saved) return e;
+  if ((e.round.phase !== 'open' && e.round.phase !== 'running') || !saved) return e;
   if (saved.some((a) => a.deviceId === ref.deviceId || a.station === ref.home)) return e;
   const occupied = new Set(entrantsOf(d, round).map((x) => x.table));
   const tables = tablesOfStation(ref.home, e.setup.tableCount, perStation(e)).filter((t) => occupied.has(t));

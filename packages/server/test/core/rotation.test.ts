@@ -361,6 +361,15 @@ describe('the referee view follows the assignment', () => {
     expect(refereeView(e, derive(e), { station: 1 }).station.assigned).toBe(false);
   });
 
+  it('keeping one table of the same station in a split final is not a move', () => {
+    const e = openRound(rotating(lockedFour()), 4, roster(3));
+    const d = derive(e);
+    for (const a of e.assignments![4]!) {
+      const prev = e.assignments![3]!.find((x) => x.deviceId === a.deviceId)?.station ?? roster(3).find((r) => r.deviceId === a.deviceId)!.home;
+      expect(refereeView(e, d, refereeDev(a.deviceId, roster(3).find((r) => r.deviceId === a.deviceId)!.home)).station.moved).toBe(a.station !== prev);
+    }
+  });
+
   it('says a referee moved when the tables differ from the round before', () => {
     let e = race(open(rotating(lockedFour()), roster(2)));
     e = open(e, roster(2));
@@ -516,9 +525,15 @@ describe('a referee paired while a round is open', () => {
     expect(withLateReferee(e, d, { ...late, home: 99 })).toBe(e);
   });
 
-  it('changes nothing once the race is running or finished, before the first round, or with rotation off', () => {
+  it('a replacement tablet paired mid-race takes a station nobody is judging', () => {
+    const e = start(open(rotating(lockedFour()), one));
+    expect(withLateReferee(e, derive(e), late).assignments![1]).toContainEqual({ deviceId: 'dev9', name: 'Late', station: 2, tables: [3, 4] });
+    expect(withLateReferee(e, derive(e), { ...late, home: 1 })).toBe(e);
+  });
+
+  it('changes nothing once the race is finished, before the first round, or with rotation off', () => {
     const opened = open(rotating(lockedFour()), one);
-    for (const e of [start(opened), race(opened), rotating(lockedFour()), open(lockedFour(), one)]) {
+    for (const e of [race(opened), rotating(lockedFour()), open(lockedFour(), one)]) {
       expect(withLateReferee(e, derive(e), late)).toBe(e);
     }
   });

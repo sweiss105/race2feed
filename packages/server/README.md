@@ -1,4 +1,4 @@
-# Race to Feed — live server
+# PRC — live server
 
 The event app runs as one Cloudflare Worker plus one Durable Object (the "hub"):
 - The **hub** keeps the event's live state, the master clock and every live connection.
@@ -33,7 +33,7 @@ Nothing goes live unless every test passes. Pull requests run the same tests wit
 2. **Add two secrets** in GitHub, under the repository's **Settings → Secrets and variables → Actions → New repository secret**:
    - `CLOUDFLARE_API_TOKEN`: the token from step 1.
    - `CLOUDFLARE_ACCOUNT_ID`: your account ID, shown in the Cloudflare dashboard on the right of any domain's **Overview** page.
-3. **Console sign-in is Cloudflare Access.** The Access application "Race to Feed console" protects `r2f.weiss-audio.com/control*` and `r2f.weiss-audio.com/api/control/*` with an emailed one-time code. Who may sign in is the allow list on its policy, in Cloudflare's Zero Trust dashboard. The team domain and audience tag the Worker checks are in `wrangler.jsonc` (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`); without them the console refuses everyone.
+3. **Console sign-in is Cloudflare Access.** The Access application "PRC console" protects `r2f.weiss-audio.com/control*` and `r2f.weiss-audio.com/api/control/*` with an emailed one-time code. Who may sign in is the allow list on its policy, in Cloudflare's Zero Trust dashboard. The team domain and audience tag the Worker checks are in `wrangler.jsonc` (`ACCESS_TEAM_DOMAIN`, `ACCESS_AUD`); without them the console refuses everyone.
 4. **Set the emergency password** before deploying. In Cloudflare, go to **Workers & Pages → race2feed → Settings → Variables and Secrets → Add**, choose type **Secret**, name it `EMERGENCY_PASSWORD` and enter a long password (or run `npx wrangler secret put EMERGENCY_PASSWORD -c packages/server/wrangler.jsonc`). It opens the console at `/emergency` when Access or email is down. Keep it somewhere safe off-site. Without it, `/emergency` is off.
 5. **After the first deploy with Access sign-in,** delete the old `ADMIN_PASSWORD` secret there (or `npx wrangler secret delete ADMIN_PASSWORD -c packages/server/wrangler.jsonc`). Nothing reads it any more.
 

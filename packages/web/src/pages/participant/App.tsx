@@ -22,7 +22,7 @@ export function App() {
   }, []);
   return (
     <>
-      <Header title={state?.event.name ?? 'Race to Feed'} trailing={<StatusDot status={status} />} />
+      <Header title={state?.event.name ?? 'PRC'} trailing={<StatusDot status={status} />} />
       {state ? <ParticipantPage state={state} storage={window.localStorage} /> : (
         <div class="center-page"><p class="secondary">{status === 'open' ? 'No event is running yet.' : 'Connecting…'}</p></div>
       )}

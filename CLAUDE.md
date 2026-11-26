@@ -8,6 +8,7 @@ PRC is the app; Race to Feed is the event it runs. In docs and screens, call the
 - When user-facing UI or the guide changes, regenerate the screenshots and PDF with `npm run guide` and commit them (`docs/guide/images/`, `docs/PRC-User-Guide.pdf`) with the change. If a screen changes in a way the guide's screenshot flow doesn't cover, update `e2e/guide.spec.ts` too.
 - `README.md` covers architecture, local development, testing and deployment. Update it when any of those change (new package, script, secret, route or workflow).
 - `docs/design.md` is the spec. Change it before or alongside behavior changes.
+- `CHANGELOG.md` records notable changes by date (naming, renamed files, things staff or operators would want to look up later). Add an entry when one happens; routine fixes don't need one.
 
 ## Commands
 

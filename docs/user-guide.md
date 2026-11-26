@@ -148,7 +148,7 @@ At the bottom of **Setup**, the **Screen links** panel lists the address of ever
 
 ### 5. Who can sign in
 
-The console has no password. The list of email addresses allowed to sign in is kept in Cloudflare, not in the console: whoever manages the Cloudflare account adds or removes addresses in Cloudflare's Zero Trust dashboard, on the policy of the Access application **Race to Feed console**. Ask them to add every member of race control well before the day, and have each person sign in once to check.
+The console has no password. The list of email addresses allowed to sign in is kept in Cloudflare, not in the console: whoever manages the Cloudflare account adds or removes addresses in Cloudflare's Zero Trust dashboard, on the policy of the Access application **PRC console**. Ask them to add every member of race control well before the day, and have each person sign in once to check.
 
 ### 6. Companion keys
 

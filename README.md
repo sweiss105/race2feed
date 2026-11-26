@@ -13,6 +13,7 @@ It covers the whole day: setup, seeding rounds, brackets, the Grand Championship
 
 - **Spec:** [`docs/design.md`](docs/design.md). It is the source of truth for the rules.
 - **Guide for event staff:** [`docs/PRC-User-Guide.pdf`](docs/PRC-User-Guide.pdf) (printable, with screenshots), built from [`docs/user-guide.md`](docs/user-guide.md).
+- **History of notable changes:** [`CHANGELOG.md`](CHANGELOG.md).
 - **Explainer video for event planners:** [`docs/PRC-Race2Feed-Event-Planner-Guide.mp4`](docs/PRC-Race2Feed-Event-Planner-Guide.mp4) (about 4½ minutes; a walk-through of running an event with PRC).
 
 ## How it works
@@ -93,7 +94,7 @@ Session, device and API-key tokens are stored only as SHA-256 hashes. There is o
 
 ### Console sign-in
 
-- **Cloudflare Access** (application "Race to Feed console") covers `r2f.weiss-audio.com/control*` and `r2f.weiss-audio.com/api/control/*`, with an emailed one-time code and an allow list kept in Cloudflare's Zero Trust dashboard. Sessions last 14 days.
+- **Cloudflare Access** (application "PRC console") covers `r2f.weiss-audio.com/control*` and `r2f.weiss-audio.com/api/control/*`, with an emailed one-time code and an allow list kept in Cloudflare's Zero Trust dashboard. Sessions last 14 days.
 - **The Worker checks Access's token** (`src/auth/access.ts`, `src/auth/console.ts`) on every `/api/control/*` request: the `Cf-Access-Jwt-Assertion` header must be an RS256 token signed by one of the team's keys (`https://{ACCESS_TEAM_DOMAIN}/cdn-cgi/access/certs`, cached for an hour; if a later fetch fails the cached keys stay in use), from issuer `https://{ACCESS_TEAM_DOMAIN}`, for audience `ACCESS_AUD`, unexpired and with an email. The email is the actor in the log.
 - **Cross-site requests are refused** on the console routes, since Access's `CF_Authorization` cookie (SameSite Lax, set on the Access application) and the emergency session are cookies. A console socket that stays silent is still closed (4401) at the first update after its token expires.
 - **Console sockets:** the Worker passes the signed-in name and token expiry to the hub in the internal `x-r2f-console` header (URI-encoded JSON, so any email fits in a header; a value that does not decode counts as absent). It deletes that header from every incoming request first, and the hub reads it only on `/api/control/ws` and `/api/emergency/ws`.

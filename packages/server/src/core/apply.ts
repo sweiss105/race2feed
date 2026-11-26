@@ -5,7 +5,7 @@ import { handleTaps } from './taps';
 import { withAutoFinish } from './autofinish';
 
 const SETUP = ['importTeams', 'addTeam', 'renameTeam', 'removeTeam', 'setTableCount', 'setTablesPerReferee', 'suggestSetup', 'setGroups',
-  'setBrackets', 'setGrandChampionship', 'lockSetup', 'unlockSetup', 'setSettings', 'setBagTotal', 'setPenaltyReasons'] as const;
+  'setBrackets', 'setGrandChampionship', 'setFormat', 'lockSetup', 'unlockSetup', 'setSettings', 'setBagTotal', 'setPenaltyReasons'] as const;
 const LIFECYCLE = ['openNextRound', 'stationReady', 'overrideStation', 'swapReferees', 'startRace', 'finishRace', 'decideTie', 'pinProjector', 'showChampion', 'hideChampion', 'dismissWarning'] as const;
 const TAPS = ['tapFinish', 'tapPenalty', 'undoTap', 'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled', 'notePenalty', 'decidePenalty'] as const;
 

@@ -1,4 +1,4 @@
-import { deriveEvent, officialMs, type DerivedEvent, type EntryResult, type EventProgress } from '@race2feed/engine';
+import { deriveEvent, formatOf, officialMs, seedingScore, type DerivedEvent, type EntryResult, type EventInput, type EventProgress } from '@race2feed/engine';
 import type { LiveEvent } from './model';
 
 type Fact = { at: number; result: Omit<EntryResult, 'penaltiesMs'> | null };
@@ -98,4 +98,27 @@ export function seedTotals(d: DerivedEvent, results: Record<number, Record<strin
     }
   }
   return totals;
+}
+
+/**
+ * Each team's official time per seeding run, in run order: one entry per run of the format, null where the team
+ * has no time (not raced yet, cleared, DNF or DNS). Every team of the event has an entry.
+ */
+export function seedRuns(setup: EventInput, d: DerivedEvent, results: Record<number, Record<string, EntryResult>>): Record<string, (number | null)[]> {
+  const count = formatOf(setup).seedingRuns;
+  const runs: Record<string, (number | null)[]> = Object.fromEntries(setup.teams.map((t) => [t.id, Array.from({ length: count }, () => null)]));
+  for (const { spec } of d.rounds) {
+    if (spec.kind !== 'seeding') continue;
+    for (const teamId of setup.groups.find((g) => g.id === spec.groupId)?.teamIds ?? []) {
+      const result = results[spec.round]?.[teamId];
+      if (runs[teamId] && result) runs[teamId]![spec.run - 1] = officialMs(result);
+    }
+  }
+  return runs;
+}
+
+/** The value each team is ranked on in seeding under the event's rule (the engine's seedingScore); null with nothing to count. */
+export function seedScores(setup: EventInput, runs: Record<string, (number | null)[]>): Record<string, number | null> {
+  const rule = formatOf(setup).seedingRank;
+  return Object.fromEntries(Object.entries(runs).map(([teamId, times]) => [teamId, seedingScore(times, rule)]));
 }

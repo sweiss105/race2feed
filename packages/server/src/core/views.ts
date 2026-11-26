@@ -1,6 +1,6 @@
-import { officialMs, stationOfTable, tablesOfStation, type DerivedEvent, type EntryResult } from '@race2feed/engine';
+import { formatOf, officialMs, stationOfTable, tablesOfStation, type DerivedEvent, type EntryResult } from '@race2feed/engine';
 import { perStation, readyTablesOf, type LiveEvent, type ProjectorScreen, type RosterEntry } from './model';
-import { buildProgress, seedTotals, teamsInRound } from './results';
+import { buildProgress, seedRuns, seedScores, seedTotals, teamsInRound } from './results';
 import { reasonsOf, reviewOf } from './reasons';
 import { championBlock } from './lifecycle';
 import { assignmentOf, tablesFor } from './rotation';
@@ -37,8 +37,10 @@ export function projectorScreen(e: LiveEvent, d: DerivedEvent): ProjectorScreen 
       const kind = d.rounds[e.round.current - 1]?.spec.kind;
       if (kind === 'seeding') return 'seeding-results';
       // The champion is announced only once it is decided: no penalty, tie or missing result can still change it.
-      if (kind === 'grand') return d.grandChampion !== null && championBlock(e, d) === null ? 'champion' : 'brackets';
-      return 'brackets';
+      // Seeding only has no brackets screen: until the champion is decided it stays on the seeding results.
+      const undecided = formatOf(e.setup).brackets === 'none' ? 'seeding-results' : 'brackets';
+      if (kind === 'grand') return d.grandChampion !== null && championBlock(e, d) === null ? 'champion' : undecided;
+      return undecided;
     }
   }
 }
@@ -85,12 +87,24 @@ function racesOf(e: LiveEvent, d: DerivedEvent, round: number, results: Record<s
   }));
 }
 
+/**
+ * Seeding as the full views carry it. seedTotalsMs: teamId → sum of the finished runs (teams with none are absent).
+ * seedRuns: teamId → official ms per seeding run, in run order (null = no time yet, DNF or DNS).
+ * seedScoreMs: teamId → the value the team is ranked on under the event's rule (null with nothing to count).
+ */
+function seedingData(e: LiveEvent, d: DerivedEvent, results: Record<number, Record<string, EntryResult>>) {
+  const runs = seedRuns(e.setup, d, results);
+  return { seedTotalsMs: seedTotals(d, results), seedRuns: runs, seedScoreMs: seedScores(e.setup, runs) };
+}
+
 /** Matchups are published when a round is opened, not before (spec §4); race control sees them early. */
 export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopened?: boolean } = {}) {
   const progress = buildProgress(e);
   const pens = penaltyIndex(e);
   return {
     event: { id: e.id, name: e.name, date: e.date },
+    /** The tournament format with every field filled in (a missing one has the standard value). */
+    format: formatOf(e.setup),
     categories: e.setup.categories,
     brackets: e.setup.brackets,
     teams: e.setup.teams.map(({ id, name, categoryId }) => ({ id, name, categoryId })),
@@ -104,8 +118,10 @@ export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopene
         : [],
     })),
     seedRank: d.seedRank,
-    seedTotalsMs: seedTotals(d, progress.results),
+    ...seedingData(e, d, progress.results),
     standings: d.standings,
+    /** categoryId → the category's winner, in every format (the top seed in seeding only); null while undecided. */
+    categoryWinners: d.categoryWinners,
     grandChampion: d.grandChampion,
     bagTotal: e.bagTotal,
     championShown: Boolean(e.championShown || e.endedAt),
@@ -121,6 +137,7 @@ export function publicRoundUpdate(e: LiveEvent, d: DerivedEvent) {
     round: roundState(e),
     projector: projectorScreen(e, d),
     races: racesOf(e, d, e.round.current, all[e.round.current] ?? {}, penaltyIndex(e)),
+    // Only the totals: the update has to stay small. seedRuns and seedScoreMs come with the next full snapshot.
     seedTotalsMs: seedTotals(d, all),
   };
 }

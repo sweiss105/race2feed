@@ -344,6 +344,32 @@ The value a team is ranked on is its **seeding score** (`seedingScore()`): the t
 
 **Grand Championship** works with every format: each category's winner races. With seeding only that is each category's top seed, and the round is scheduled when at least two categories have a team; with one such category there is no Grand Championship round and the event ends after the last seeding round.
 
+**Setting it (`setFormat`).** One setup command, `setFormat {format}`, for the console only, refused with `setup_locked` once setup is locked (so never after the first round has opened).
+
+- The given fields are merged over the stored format; fields left out keep their value. Only the three fields are stored.
+- The merged format is checked: a refused combination or an unknown value answers `invalid` with the sentences above in `detail`. `knockout` answers `invalid`, "Knockout is not available yet."
+- Changing `brackets` to `none` also clears the brackets in the setup.
+- It sends every phone a full snapshot, like the other setup commands.
+
+**Suggest and lock.** "Suggest groups and brackets" (`suggestSetup`) builds the brackets for the chosen format: none for seeding only. `lockSetup` lists format problems with the group and bracket problems, and needs no brackets for seeding only. A format change that leaves the brackets wrong for the new format (for example seeding only, then back to finals only, which leaves none) is caught at lock with the usual list, and Suggest rebuilds them.
+
+**Views.** The public and console views carry:
+
+- `format`: the format with every field filled in.
+- `seedRuns`: team → official time per seeding run, in run order, one entry per run of the format (nothing where the team has no time: not raced yet, cleared, DNF or DNS).
+- `seedScoreMs`: team → its seeding score under the event's rule (nothing when it has no run to count). It is the engine's own value, so it always agrees with `seedRank`.
+- `seedTotalsMs` stays the sum of the finished runs.
+- `categoryWinners`: category → its winner, in every format.
+- A round's `kind` can also be `finals`.
+
+The small current-round update that public screens get while a round is open or running is unchanged and carries only `seedTotalsMs`, to stay within its size; `seedRuns` and `seedScoreMs` arrive with the next full snapshot (every round finish and every correction sends one).
+
+**Champion.** Unchanged rules (§4.1) cover every format: the champion can be shown once the last round is finished with no pending penalty, undecided tie or missing result. In seeding only without a Grand Championship round the last round is the last seeding round, and the champion screen shows each category's winner.
+
+**Projector.** After a finished `finals` round the automatic screen is the brackets, as after a placement round. In seeding only it is never the brackets: after every seeding round, and after a Grand Championship that is not decided yet, it shows the seeding results, until the champion is decided or shown.
+
+**Everything else.** Saved line-ups and saved bracket members work the same for `finals` rounds; seeding only saves no bracket members. Referee rotation splits a two-team final of a finals-only bracket as it does any final. Exports list every round of any format. The "tables keep winning" fairness warning predicts each race from the value the teams were seeded on (the total under the standard rule, otherwise the seeding score).
+
 ### 4.1 Show champion and end the event
 
 *Added after the first live test, at the user's request.*

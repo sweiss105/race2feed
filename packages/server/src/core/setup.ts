@@ -1,6 +1,6 @@
 import {
-  suggestBracketPlan, suggestSeedingGroups, validateBracketPlan, validateSeedingGroups,
-  type Category, type EventInput, type Team,
+  formatOf, suggestBracketPlan, suggestSeedingGroups, validateBracketPlan, validateFormat, validateSeedingGroups,
+  type Category, type EventInput, type Team, type TournamentFormat,
 } from '@race2feed/engine';
 import { parseTeamsCsv, TEAM_NAME_MAX, teamNameTooLong } from './csv';
 import { validateReasons } from './reasons';
@@ -25,6 +25,15 @@ function validGroups(groups: unknown, tableOf: unknown): boolean {
 function validBrackets(brackets: unknown): boolean {
   return Array.isArray(brackets) && brackets.every((b) => b && isStr(b.id) && isStr(b.categoryId)
     && isInt(b.tierIndex, 0) && typeof b.tierName === 'string' && isInt(b.firstSeed, 1) && isInt(b.size, 1));
+}
+
+const NO_KNOCKOUT = 'Knockout is not available yet.';
+
+/** Problems with a format: the engine's (validateFormat), and knockout, which is not built yet. */
+function formatProblems(format: TournamentFormat | undefined): string[] {
+  const problems = validateFormat(format);
+  if (problems.length) return problems;
+  return formatOf({ format }).brackets === 'knockout' ? [NO_KNOCKOUT] : [];
 }
 
 function withSetup(e: LiveEvent, setup: Partial<EventInput>): LiveEvent {
@@ -108,7 +117,7 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
       if (!e.setup.teams.length) return fail('no_teams', 'Import teams first.');
       if (e.setup.tableCount < 1) return fail('invalid', 'Table count must be at least 1.');
       const { groups, tableOf } = suggestSeedingGroups(e.setup.categories, e.setup.teams, e.setup.tableCount);
-      return ok(withSetup(e, { groups, tableOf, brackets: suggestBracketPlan(e.setup.categories, e.setup.teams) }));
+      return ok(withSetup(e, { groups, tableOf, brackets: suggestBracketPlan(e.setup.categories, e.setup.teams, undefined, formatOf(e.setup).brackets) }));
     }
     case 'setGroups':
       if (!validGroups(cmd.groups, cmd.tableOf)) return fail('invalid', 'Groups or tables are malformed.');
@@ -118,10 +127,23 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
       return ok(withSetup(e, { brackets: cmd.brackets }));
     case 'setGrandChampionship':
       return ok(withSetup(e, { grandChampionship: cmd.enabled }));
+    case 'setFormat': {
+      const given = cmd.format;
+      if (!given || typeof given !== 'object' || Array.isArray(given)) return fail('invalid', 'The format has problems.', ['The format is not valid.']);
+      // Only the three settings are stored, and only those given replace what is stored.
+      const format: TournamentFormat = { ...e.setup.format };
+      if (given.seedingRuns !== undefined) format.seedingRuns = given.seedingRuns;
+      if (given.seedingRank !== undefined) format.seedingRank = given.seedingRank;
+      if (given.brackets !== undefined) format.brackets = given.brackets;
+      const problems = formatProblems(format);
+      if (problems.length) return fail('invalid', problems[0] === NO_KNOCKOUT ? NO_KNOCKOUT : 'The format has problems.', problems);
+      // Seeding only has no brackets, so the ones set up for another format go.
+      return ok(withSetup(e, { format, ...(given.brackets === 'none' ? { brackets: [] } : {}) }));
+    }
     case 'lockSetup': {
       if (e.setup.tableCount < 1) return fail('setup_invalid', 'Setup has problems.', ['Table count must be at least 1.']);
       if (!e.setup.teams.length) return fail('setup_invalid', 'Setup has problems.', ['There are no teams.']);
-      const errors = [...validateSeedingGroups(e.setup), ...validateBracketPlan(e.setup)];
+      const errors = [...formatProblems(e.setup.format), ...validateSeedingGroups(e.setup), ...validateBracketPlan(e.setup)];
       if (errors.length) return fail('setup_invalid', 'Setup has problems.', errors);
       return ok({ ...e, setupLocked: true });
     }

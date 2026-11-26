@@ -1,6 +1,6 @@
-import { formatMs, hundredths, officialMs, rankRace, type DerivedEvent, type EntryResult } from '@race2feed/engine';
+import { formatMs, formatOf, hundredths, officialMs, rankRace, type DerivedEvent, type EntryResult } from '@race2feed/engine';
 import { perStation, type Dismissal, type LiveEvent } from './model';
-import { buildProgress, recordedAt, seedTotals } from './results';
+import { buildProgress, recordedAt, seedRuns, seedScores, seedTotals } from './results';
 import { refereeTeams, rotationOn } from './rotation';
 
 export type { Dismissal };
@@ -180,7 +180,11 @@ export function fairnessWarnings(e: LiveEvent, d: DerivedEvent): FairnessWarning
   }
 
   // referee_wins: over the bracket races, teams at one referee keep finishing better than their seeding predicted.
-  const totals = seedTotals(d, results);
+  // Predicted from the value the teams were seeded on: the total of their runs under the standard rule, otherwise
+  // the score of the event's rule (best run, or the total without the slowest run).
+  const totals: Record<string, number | null> = formatOf(e.setup).seedingRank === 'total'
+    ? seedTotals(d, results)
+    : seedScores(e.setup, seedRuns(e.setup, d, results));
   const tally = new Map<string, { races: number; better: number; worse: number }>();
   for (const { round, seeding, race } of races) {
     if (round > finished || seeding || race.entrants.length < 2) continue;

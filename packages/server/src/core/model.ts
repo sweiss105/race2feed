@@ -1,4 +1,4 @@
-import type { BracketSpec, EventInput, SavedRace, SeedingGroup } from '@race2feed/engine';
+import type { BracketSpec, EventInput, SavedRace, SeedingGroup, TournamentFormat } from '@race2feed/engine';
 import { STARTER_REASONS } from './starter';
 
 export type Role = 'admin' | 'referee' | 'companion' | 'public';
@@ -113,6 +113,8 @@ export type SetupCommand =
   | { type: 'setGroups'; groups: SeedingGroup[]; tableOf: Record<string, number> }
   | { type: 'setBrackets'; brackets: BracketSpec[] }
   | { type: 'setGrandChampionship'; enabled: boolean }
+  /** The given fields are merged over the stored format; changing `brackets` to 'none' also clears the brackets. */
+  | { type: 'setFormat'; format: TournamentFormat }
   | { type: 'lockSetup' }
   | { type: 'unlockSetup' }
   | { type: 'setSettings'; undoWindowMs?: number; autoFinishMs?: number; rotateReferees?: boolean }

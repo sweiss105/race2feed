@@ -11,7 +11,9 @@ export async function signInAdmin(page: Page) {
     .then((ws) => ws.waitForEvent('framereceived', (f) => String(f.payload).includes('"type":"view"')));
   await page.goto('/control');
   await firstView;
-  await expect(page.getByRole('link', { name: 'Race Control', exact: true })).toBeVisible();
+  // An earlier spec's event may still be active with fairness warnings open: the link then reads
+  // "Race Control 2 fairness warnings".
+  await expect(page.getByRole('link', { name: /^Race Control/ })).toBeVisible();
 }
 
 /** Opens Settings' Events panel if it is folded away (it is while an event is active). */

@@ -182,7 +182,7 @@ About pairing:
 
 **Settings** starts with the **Events** panel (see [Create the event](#1-create-the-event)), folded away while an event is active. Below it, for the active event:
 
-![Settings: the Events panel folded away at the top, then the active event's panel with the Time penalties switch (on), the referee undo window, the auto-finish delay and the bag total](guide/images/console-settings.jpg)
+![Settings: the Events panel folded away at the top, then the active event's panel with the Time penalties switch (on), the Rotate referees each round switch (on), the referee undo window, the auto-finish delay and the bag total](guide/images/console-settings.jpg)
 
 - **Time penalties:** the switch that turns referee penalties on or off for the whole event (off for a new event). See [Time penalties](#time-penalties).
 - **Rotate referees each round:** on for a new event. Referees are sent to different tables each round, so nobody judges the same team again and again. It takes effect from the next round you open; the round that's open now keeps its referees. Switch it off to keep every referee at the tables they paired to. See [Referees on each station](#referees-on-each-station).
@@ -283,7 +283,7 @@ With **Rotate referees each round** switched on in **Settings** (it's on for a n
 
 With the switch off, every referee stays at the tables they paired to, no names appear on the cards, and nothing else here applies.
 
-<!-- screenshot: the Stations panel with a round open: each card shows its referee's name with a Swap… button, and one card has the swap list open -->
+![The Stations panel with round 2 open: each card shows its referee's name with a Swap… button, and the card for Tables 3 & 4 has the swap list open, with Swap and Cancel](guide/images/console-stations-referees.jpg)
 
 ### Swap two referees
 
@@ -414,7 +414,7 @@ With **Rotate referees** off, the panel only appears when there's a warning to s
 
 Once the event has ended, warnings can't be dismissed any more. They're all still in the fairness report.
 
-<!-- screenshot: the Fairness panel with one open warning (Close finish, with its Dismiss button) and the Dismissed list open showing one dismissed warning with its note -->
+![The Fairness panel: one Close finish warning to look at, with its Dismiss button, and the Dismissed list opened to show another Close finish with the note, who dismissed it and when](guide/images/console-fairness.jpg)
 
 ### Ties
 
@@ -489,7 +489,7 @@ When race control has switched on **Rotate referees**, you may be sent to differ
 
 If the race starts before you pressed **I'm there**, the finish buttons appear anyway, so you can't miss a tap.
 
-<!-- screenshot: a referee phone with the round open, showing the large notice "Round 2: go to Tables 3 & 4" and the I'm there button -->
+![Round 2 has opened and this referee has to move: the notice reads "Round 2: go to Tables 3 & 4", with the I'm there button to press on arrival](guide/images/referee-go-to-tables.jpg)
 
 ### Before the race: Ready
 

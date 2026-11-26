@@ -128,7 +128,7 @@ npm workspaces (`packages/*`), TypeScript throughout.
 | `packages/engine` | **Pure race rules, no I/O.** Time parsing and formatting, stations, race ranking and ties, seeding rank, bracket plans and formats, seeding groups, round schedule, table layout, and `deriveEvent`. |
 | `packages/server` | **Cloudflare Worker + the `Hub` Durable Object.** `src/worker.ts` (routes), `src/hub.ts` (storage, auth, sockets, broadcasts), `src/core/` (pure command handlers and views), `src/auth/` (Cloudflare Access token check, console sign-in, token hashing, rate limiting). Config is in `wrangler.jsonc`. |
 | `packages/web` | **Vite multi-page Preact app.** Entry points are `index.html` (participants), `projector/`, `ref/`, `control/`, `emergency/` and `404.html`. Pages are in `src/pages/`, and the console sections are in `src/pages/control/sections/`. Shared code is in `src/lib/` (live connection, clock sync, tap queue, selectors, the console's light/dark preference in `theme.ts`) and `src/ui/`. Builds to `packages/web/dist`. |
-| `e2e/` | **Playwright tests.** `event.spec.ts` runs a seeding round across every page. `screens.spec.ts` captures screens for visual review. `guide.spec.ts` (run only by `guide.config.ts`) takes the user guide's screenshots. |
+| `e2e/` | **Playwright tests.** `event.spec.ts` runs a seeding round across every page. `finale.spec.ts` covers penalty review, the champion and ending the event. `rotation.spec.ts` covers referee rotation, swapping referees, a fairness warning and the fairness report. `screens.spec.ts` captures screens for visual review. `guide.spec.ts` (run only by `guide.config.ts`) takes the user guide's screenshots. |
 | `scripts/` | `build-guide.mjs` turns the user guide into the PDF. |
 | `docs/` | The design spec, the staff user guide (Markdown, its screenshots in `docs/guide/images/`, and the PDF), and implementation plans (`docs/superpowers/plans/`). |
 | `.github/workflows/` | CI (`ci.yml`) and deploy (`deploy.yml`). |
@@ -173,7 +173,7 @@ npm run deploy           # wrangler deploy (normally done by GitHub Actions; see
 - **Run one project:** for example `npx vitest run --project server-core`.
 - **The web tests read the built pages.** Use `npm test` (which builds first), or run `npm run build` before running the `web` project on its own.
 
-**End-to-end:** `npm run e2e` builds the pages and starts `wrangler dev` on port 8787. It uses a throwaway store in `.wrangler/e2e` and signs the console in with `--var DEV_CONSOLE_USER:e2e@example.com`. Then it drives real browser windows: console, referee tablet, phone and projector.
+**End-to-end:** `npm run e2e` builds the pages and starts `wrangler dev` on port 8787. It uses a throwaway store in `.wrangler/e2e` and signs the console in with `--var DEV_CONSOLE_USER:e2e@example.com`. Then it drives real browser windows: console, referee tablets, phone and projector. Four specs run: `event`, `finale`, `rotation` and `screens`.
 - The first time, install the browser with `npx playwright install --with-deps chromium` (as CI does).
 - Screenshots of every screen are saved to `test-results/screens/`.
 

@@ -212,6 +212,19 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await ref.getByRole('button', { name: 'Continue' }).click();
   await expect(ref.getByText('Tables 1 & 2')).toBeVisible();
   await admin.getByRole('button', { name: 'Done' }).click();
+  // A referee for every other station too, so each station's card has a name once the round opens.
+  for (const [station, name] of [['Tables 3 & 4', 'Dana'], ['Tables 5 & 6', 'Lee'], ['Tables 7 & 8', 'Alex']] as const) {
+    await admin.getByRole('button', { name: `Pair tablet for ${station}` }).click();
+    await expect(qr).toBeVisible();
+    const other = await context(browser, TABLET);
+    await other.goto(`/ref?code=${(await qr.getAttribute('data-qr'))!.split('code=')[1]!}`);
+    await other.getByLabel('Your name').fill(name);
+    await other.getByRole('button', { name: 'Start' }).click();
+    await other.getByLabel("I've turned off auto-lock on this device").check();
+    await other.getByRole('button', { name: 'Continue' }).click();
+    await expect(other.getByText(station)).toBeVisible();
+    await admin.getByRole('button', { name: 'Done' }).click();
+  }
 
   // ── Phone and projector, before the first round ───────────────────────────
   const phone = await publicPage(browser, PHONE, baseURL!);
@@ -338,6 +351,53 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await expect(phone.getByText(/\(incl\. \+10s · False Start\)/).first()).toBeVisible();
   await shot(phone, 'phone-results-penalty.png');
 
+  // ── Round 2: the referees change stations; Sam is sent to Tables 3 & 4 ────
+  const stations = admin.getByRole('region', { name: 'Stations' });
+  const rotationShots = async () => {
+    const card = stations.locator('.station', { has: admin.locator('.headline', { hasText: 'Tables 3 & 4' }) });
+    const there = (await card.locator('.station-ref .callout').innerText()).trim();
+    // The swap list open on the card for Tables 3 & 4. Who the app put there differs from run to run,
+    // so swap Sam in unless Sam is there already.
+    await card.getByRole('button', { name: `Swap ${there}` }).click();
+    const select = card.getByRole('combobox', { name: `Swap ${there} with` });
+    const options = await select.locator('option:not([disabled])').allTextContents();
+    await select.selectOption({ label: there === 'Sam' ? options[0]! : options.find((o) => o.startsWith('Sam — '))! });
+    await region(admin, stations, 'console-stations-referees.jpg');
+    if (there === 'Sam') await card.getByRole('button', { name: 'Cancel' }).click();
+    else await card.getByRole('button', { name: 'Swap', exact: true }).click();
+    await expect(card.locator('.station-ref .callout')).toHaveText('Sam');
+    await expect(ref.getByRole('heading', { level: 1, name: 'Round 2: go to Tables 3 & 4' })).toBeVisible();
+    await shot(ref, 'referee-go-to-tables.jpg');
+    await ref.getByRole('button', { name: "I'm there" }).click();
+    await expect(ref.getByRole('button', { name: /^Ready/ }).first()).toBeVisible();
+  };
+
+  // ── Round 3, head to head: two races finish 0.30 s apart, each at one referee's tables ──
+  const CLOSE: [string, string][] = [['Bravo', 'Delta'], ['Hotel', 'Foxtrot']];
+  const closeFinishes = (times: Record<string, string>) => {
+    const out = { ...times };
+    for (const [a, b] of CLOSE) {
+      const [, min, sec, hundredths] = /^(\d+):(\d\d)\.(\d\d)$/.exec(out[a]!)!;
+      const total = Number(min) * 6000 + Number(sec) * 100 + Number(hundredths) + 30;
+      const pad = (n: number) => String(n).padStart(2, '0');
+      out[b] = `${Math.floor(total / 6000)}:${pad(Math.floor(total / 100) % 60)}.${pad(total % 100)}`;
+    }
+    return out;
+  };
+  const fairnessShot = async () => {
+    const fairness = admin.getByRole('region', { name: 'Fairness' });
+    const close = fairness.locator('.card', { hasText: 'Close finish' });
+    await expect(close).toHaveCount(CLOSE.length);
+    // Race control has looked into one of them.
+    await close.last().getByRole('button', { name: 'Dismiss' }).click();
+    await close.last().getByLabel('Note').fill('Watched the video with both captains. The finish was clean.');
+    await close.last().getByRole('button', { name: 'Save' }).click();
+    await expect(close).toHaveCount(CLOSE.length - 1);
+    await fairness.locator('details > summary').click();
+    await expect(fairness.locator('details')).toContainText('Watched the video');
+    await region(admin, fairness, 'console-fairness.jpg');
+  };
+
   // ── The rest of the event, raced from the console ─────────────────────────
   let round = 1;
   let shownBrackets = false;
@@ -346,8 +406,10 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
     if (!(await open.isVisible())) break;
     await open.click();
     round += 1;
+    await expect(admin.locator('.pill')).toHaveText('open');
+    if (round === 2) await rotationShots();
     await readyAndStart(admin);
-    await timeEveryone(admin, roundTimes(round));
+    await timeEveryone(admin, round === 3 ? closeFinishes(roundTimes(3)) : roundTimes(round));
     await admin.getByRole('button', { name: 'Finish now' }).click();
     await expect(admin.locator('.pill')).toHaveText('finished');
 
@@ -362,6 +424,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
       await expect(phone.locator('.bracket-card').first()).toBeVisible();
       await shot(phone, 'phone-brackets.png');
       await phone.getByRole('tab', { name: 'My team' }).click();
+      await fairnessShot();
     }
   }
   await expect(status).toHaveText('Event complete');

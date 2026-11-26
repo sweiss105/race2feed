@@ -337,6 +337,10 @@ All times in this section are **official times**: the raw time plus any penaltie
   - Each referee tablet continually estimates its clock offset from the server, NTP-style: repeated ping round trips over the live connection, using a median of recent samples.
   - A tap is recorded as `tablet_time_at_touch + offset`, and elapsed time is that minus the round start.
   - If a tap is made while Wi-Fi is down, the tablet **queues** it and sends it with its original timestamp when the connection comes back. The result is unaffected.
+  - **A tap belongs to the round it was made in.** `tapFinish` and `tapPenalty` carry the tablet's own tap id (`clientTapId`) and the round (`round`):
+    - A tap the server already has from that tablet for that team and kind (same `clientTapId`), in any round and whether or not it was since undone, removed or rejected, is a resend: it is answered as a success and creates nothing.
+    - Otherwise a tap whose `round` is not the current round is refused with `round_over` ("That tap was for round 1, which is over.") and creates nothing. The tablet drops it from its queue and shows the refusal.
+    - A command without `round` (a tablet page loaded before this rule) is treated as made in the current round, as before.
 - **Precision and display:**
   - Times are stored in milliseconds and displayed to hundredths (`m:ss.hh`).
   - Ties are compared at the displayed precision (hundredths).
@@ -522,7 +526,7 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
   - It shows the number of penalties flagged (e.g. **×2**). Each penalty tap has its own **Undo** countdown.
 - **Penalty notes** (§5.2): during the race, a card for each pending penalty this tablet gave appears below the team buttons as soon as that team has a result (its finish button is tapped, or race control marks it DNF, DNS or DQ). After the round, every pending penalty has a card. A half-written card survives the round finishing.
 - Shows connection status and any taps queued offline.
-- A saved tap the server refuses for good is always reported ("The saved tap for {team} in round {round} was refused: {reason}"), even if the round or connection changed while the answer was in flight.
+- A saved tap the server refuses for good is always reported ("The saved tap for {team} in round {round} was refused: {reason}"), even if the round or connection changed while the answer was in flight. A tap refused because its round is over (`round_over`, §5) reads "The saved tap for {team} was not counted: That tap was for round {round}, which is over."
 - **One live tab per tablet.** The page holds the Web Lock `r2f-referee`. A second tab shows "The referee page is already open in another tab on this tablet" and a **Use this tab instead** button, and creates neither the live connection nor the tap queue. The button posts `takeover` on `BroadcastChannel('r2f-referee')`; the holder releases the lock and shows the same message, and the new tab acquires it. Without Web Locks or BroadcastChannel the page behaves as before.
 
 ### 7.4 Participant (public, read-only, phone-first)

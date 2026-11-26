@@ -18,6 +18,10 @@ describe('TapQueue', () => {
     q.settle('b', { ok: false, code: 'already_finished' });
     q.settle('c', { ok: false, code: 'something_temporary' });
     expect(q.all().map((e) => e.clientTapId)).toEqual(['c']);
+    // A tap made in a round that is over can never be recorded.
+    q.add(entry('d'));
+    q.settle('d', { ok: false, code: 'round_over' });
+    expect(q.all().map((e) => e.clientTapId)).toEqual(['c']);
   });
 
   it('ignores a stored queue that is not a list', () => {

@@ -70,17 +70,84 @@ describe('input validation', () => {
     expect(code(set({ kind: 'status', status: 'won' }))).toBe('invalid');
     expect(code(set({ kind: 'time', rawMs: -5 }))).toBe('invalid');
   });
-  it('a tap id reused in a later round is a new tap', () => {
-    const times = { T1: 100_000, T2: 110_000, T3: 120_000, T4: 130_000 };
-    let e = ok(tapFinish(running(), 'T1', START + 100_000, 'tap-1'));
-    e = { ...e, overrides: ['T2', 'T3', 'T4'].map((n) => ({ round: 1, teamId: teamId(e, n), at: 1, set: { kind: 'time' as const, rawMs: 1 } })) };
+});
+
+describe('taps resent or delayed into a later round', () => {
+  const others = (e: LiveEvent, round: number, names: string[]) =>
+    ({ ...e, overrides: [...e.overrides, ...names.map((n) => ({ round, teamId: teamId(e, n), at: 1, set: { kind: 'time' as const, rawMs: 1 } }))] });
+  /** Finishes the running round 1 and starts round 2 (same teams at the same tables: one seeding group). */
+  function intoRound2(e: LiveEvent): LiveEvent {
     e = ok(handleLifecycle(e, { type: 'finishRace' }, ctx(admin, START + 400_000)));
     e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin, START + 500_000)));
     for (const station of [1, 2]) e = ok(handleLifecycle(e, { type: 'overrideStation', station, state: 'ready' }, ctx(admin)));
+    return ok(handleLifecycle(e, { type: 'startRace' }, ctx(admin, START + 600_000)));
+  }
+
+  it('a penalty resent after it was rejected does not flag the team in the next round', () => {
+    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(admin)));
+    // The command as an older tablet page sends it: no round.
+    const cmd = { type: 'tapPenalty' as const, teamId: teamId(e, 'T1'), clientTapId: 'pen-1' };
+    e = ok(handleTaps(e, cmd, ctx(referee(1), START + 100_000)));
+    e = ok(handleLifecycle(others(e, 1, ['T1', 'T2', 'T3', 'T4']), { type: 'finishRace' }, ctx(admin, START + 400_000)));
+    e = ok(applyCommand(e, { type: 'decidePenalty', tapId: e.taps[0]!.id, decision: 'reject' }, ctx(admin, START + 401_000)));
+    e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin, START + 500_000)));
+    for (const station of [1, 2]) e = ok(handleLifecycle(e, { type: 'overrideStation', station, state: 'ready' }, ctx(admin)));
     e = ok(handleLifecycle(e, { type: 'startRace' }, ctx(admin, START + 600_000)));
-    e = ok(handleTaps(e, { type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: START + 700_000, clientTapId: 'tap-1' }, ctx(referee(1), START + 800_000)));
-    expect(result(e, 'T1', 2)?.rawMs).toBe(100_000);
-    void times;
+    const again = handleTaps(e, cmd, ctx(referee(1), START + 700_000));
+    expect(code(again)).toBe('ok');
+    if (again.ok) expect(again.event.taps).toEqual(e.taps);
+    expect(e.taps.filter((t) => t.round === 2)).toEqual([]);
+    // The same answer when the tablet names the round.
+    const named = handleTaps(e, { ...cmd, round: 1 }, ctx(referee(1), START + 700_000));
+    expect(code(named)).toBe('ok');
+    if (named.ok) expect(named.event.taps).toEqual(e.taps);
+  });
+
+  it('a finish tap already delivered in an earlier round records nothing when resent', () => {
+    let e = ok(tapFinish(running(), 'T1', START + 100_000, 'tap-1'));
+    e = intoRound2(others(e, 1, ['T2', 'T3', 'T4']));
+    const again = handleTaps(e, { type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: START + 700_000, clientTapId: 'tap-1' }, ctx(referee(1), START + 800_000));
+    expect(code(again)).toBe('ok');
+    expect(result(ok(again), 'T1', 2)).toBeUndefined();
+  });
+
+  it('a resend is recognised after the tap was undone', () => {
+    let e = ok(tapFinish(running(), 'T1', START + 100_000, 'tap-1', START + 100_000));
+    e = ok(handleTaps(e, { type: 'undoTap', tapId: e.taps[0]!.id }, ctx(referee(1), START + 101_000)));
+    const again = tapFinish(e, 'T1', START + 100_000, 'tap-1', START + 102_000);
+    expect(code(again)).toBe('ok');
+    expect(result(ok(again), 'T1')).toBeUndefined();
+  });
+
+  it('the same tap id from another device, team or kind is a new tap', () => {
+    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(admin)));
+    e = ok(tapFinish(e, 'T1', START + 100_000, 'tap-1'));
+    e = ok(tapFinish(e, 'T2', START + 110_000, 'tap-1'));
+    e = ok(handleTaps(e, { type: 'tapPenalty', teamId: teamId(e, 'T1'), clientTapId: 'tap-1' }, ctx(referee(1), START + 120_000)));
+    e = ok(handleTaps(e, { type: 'tapFinish', teamId: teamId(e, 'T3'), atServerMs: START + 130_000, clientTapId: 'tap-1' }, ctx(referee(2), START + 140_000)));
+    expect(e.taps.map((t) => t.kind)).toEqual(['finish', 'finish', 'penalty', 'finish']);
+  });
+
+  it('a tap that names an earlier round is refused and records nothing', () => {
+    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(admin)));
+    e = intoRound2(others(e, 1, ['T1', 'T2', 'T3', 'T4']));
+    // Never delivered in round 1; they arrive once round 2 is running.
+    const finish = handleTaps(e, { type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: START + 650_000, clientTapId: 'late-f', round: 1 }, ctx(referee(1), START + 700_000));
+    const penalty = handleTaps(e, { type: 'tapPenalty', teamId: teamId(e, 'T1'), clientTapId: 'late-p', round: 1 }, ctx(referee(1), START + 700_000));
+    for (const r of [finish, penalty]) {
+      expect(code(r)).toBe('round_over');
+      if (!r.ok) expect(r.message).toBe('That tap was for round 1, which is over.');
+    }
+    expect(result(e, 'T1', 2)).toBeUndefined();
+  });
+
+  it('a tap that names the current round, or no round, is recorded', () => {
+    let e = ok(handleTaps(running(), { type: 'setPenaltiesEnabled', enabled: true }, ctx(admin)));
+    e = ok(handleTaps(e, { type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: START + 100_000, clientTapId: 'f1', round: 1 }, ctx(referee(1), START + 100_000)));
+    e = ok(handleTaps(e, { type: 'tapPenalty', teamId: teamId(e, 'T1'), clientTapId: 'p1', round: 1 }, ctx(referee(1), START + 100_000)));
+    e = ok(tapFinish(e, 'T2', START + 110_000));
+    expect(e.taps.map((t) => [t.kind, t.round])).toEqual([['finish', 1], ['penalty', 1], ['finish', 1]]);
+    expect(code(handleTaps(e, { type: 'tapPenalty', teamId: teamId(e, 'T1'), clientTapId: 'p2', round: 'x' } as never, ctx(referee(1), START + 100_000)))).toBe('invalid');
   });
 });
 

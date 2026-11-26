@@ -137,8 +137,9 @@ export type LifecycleCommand =
   | { type: 'dismissWarning'; id: string; note: string };
 
 export type TapCommand =
-  | { type: 'tapFinish'; teamId: string; atServerMs: number; clientTapId: string }
-  | { type: 'tapPenalty'; teamId: string; clientTapId: string }
+  /** round: the round the tablet made the tap in; refused (`round_over`) when it is not the current round. Older tablet pages send none. */
+  | { type: 'tapFinish'; teamId: string; atServerMs: number; clientTapId: string; round?: number }
+  | { type: 'tapPenalty'; teamId: string; clientTapId: string; round?: number }
   | { type: 'undoTap'; tapId: string }
   | { type: 'setResult'; round: number; teamId: string; set: OverrideSet; confirmUnlock?: boolean }
   | { type: 'addPenalty'; round: number; teamId: string; reasonId: string; confirmUnlock?: boolean }

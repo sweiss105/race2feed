@@ -92,7 +92,7 @@ describe('referee page', () => {
     const e = start(openNext(lockedFour()));
     const { sent, queue, utils } = setup(e);
     fireEvent.click(await enabledButton(/^T1/));
-    await waitFor(() => expect(sent).toContainEqual({ type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: NOW, clientTapId: 'tap-1' }));
+    await waitFor(() => expect(sent).toContainEqual({ type: 'tapFinish', teamId: teamId(e, 'T1'), atServerMs: NOW, clientTapId: 'tap-1', round: 1 }));
     expect(queue.all()).toEqual([]);
     // The server's next view carries the tap; Undo targets it.
     const withTap = { ...e, taps: [{ id: 'srv-1', clientTapId: 'tap-1', kind: 'finish' as const, round: 1, teamId: teamId(e, 'T1'), elapsedMs: 200_000, source: 'referee' as const, deviceId: 'dev1', createdAt: NOW, removedAt: null }] };
@@ -277,6 +277,37 @@ describe('referee page', () => {
     render(<RefereePage view={refViewOf(e)} status="open" clock={clock} queue={queue}
       send={async () => ({ ok: false, code: 'already_finished', message: 'That team already has a result.' })} newId={() => 'x'} />);
     expect((await screen.findByRole('alert')).textContent).toBe('The saved tap for T1 in round 1 was refused: That team already has a result.');
+    expect(queue.all()).toEqual([]);
+  });
+
+  it('sends the round with a penalty tap', async () => {
+    const e = start(openNext(lockedFour()));
+    const { sent } = setup({ ...e, settings: { ...e.settings, penaltiesEnabled: true } });
+    fireEvent.click(await enabledButton(/Penalty for T1/));
+    await waitFor(() => expect(sent).toContainEqual({ type: 'tapPenalty', teamId: teamId(e, 'T1'), clientTapId: 'tap-1', round: 1 }));
+  });
+
+  it('a saved tap the server refuses because its round is over is dropped, with a plain message', async () => {
+    const e = start(openNext(lockedFour()));
+    const storage = new MemoryStorage();
+    // A tap saved by an older page (no round on the entry, so it is not dropped before sending).
+    new TapQueue(storage).add({ clientTapId: 'old-1', cmd: { type: 'tapPenalty', teamId: teamId(e, 'T1'), clientTapId: 'old-1', round: 1 } });
+    const queue = new TapQueue(storage);
+    const send = vi.fn(async () => ({ ok: false, code: 'round_over', message: 'That tap was for round 1, which is over.' }));
+    render(<RefereePage view={refViewOf(e)} status="open" clock={{ synced: () => true, serverNow: () => NOW }} queue={queue} send={send} newId={() => 'x'} retryMs={10} />);
+    expect((await screen.findByRole('alert')).textContent).toBe('The saved tap for T1 was not counted: That tap was for round 1, which is over.');
+    expect(queue.all()).toEqual([]);
+    await new Promise((r) => setTimeout(r, 40));
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+
+  it('a tap refused because the round just ended is dropped and the reason shown', async () => {
+    const e = start(openNext(lockedFour()));
+    const queue = new TapQueue(new MemoryStorage());
+    const send = vi.fn(async () => ({ ok: false, code: 'round_over', message: 'That tap was for round 1, which is over.' }));
+    render(<RefereePage view={refViewOf(e)} status="open" clock={{ synced: () => true, serverNow: () => NOW }} queue={queue} send={send} newId={() => 'x'} />);
+    fireEvent.click(await enabledButton(/^T1/));
+    expect((await screen.findByRole('alert')).textContent).toBe('That tap was for round 1, which is over.');
     expect(queue.all()).toEqual([]);
   });
 

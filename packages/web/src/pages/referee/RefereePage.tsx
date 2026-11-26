@@ -60,6 +60,8 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
         if (ack.ok || !ack.code || !NON_RETRYABLE.has(ack.code)) return;
         const id = (entry.cmd as { teamId?: string }).teamId;
         const name = teamsRef.current.find((t) => t.teamId === id)?.name ?? 'a team';
+        // round_over: the server's message already names the round the tap was made in.
+        if (ack.code === 'round_over') return setError(`The saved tap for ${name} was not counted: ${ack.message ?? 'its round is over.'}`);
         const inRound = entry.round !== undefined ? ` in round ${entry.round}` : '';
         setError(`The saved tap for ${name}${inRound} was refused: ${ack.message ?? ack.code}`);
       }).then(() => { if (live) { setFlushed(true); refreshQueue(); } });
@@ -91,9 +93,10 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   const tap = async (team: Team, kind: 'finish' | 'penalty') => {
     if (!clock.synced()) return;
     const clientTapId = newId();
+    // The round goes with the tap, so the server never counts a late or resent tap in a later round.
     const cmd = kind === 'finish'
-      ? { type: 'tapFinish', teamId: team.teamId, atServerMs: clock.serverNow(), clientTapId }
-      : { type: 'tapPenalty', teamId: team.teamId, clientTapId };
+      ? { type: 'tapFinish', teamId: team.teamId, atServerMs: clock.serverNow(), clientTapId, round: round.current }
+      : { type: 'tapPenalty', teamId: team.teamId, clientTapId, round: round.current };
     mine.current!.add(clientTapId);
     queue.add({ clientTapId, cmd, round: round.current });
     refreshQueue();

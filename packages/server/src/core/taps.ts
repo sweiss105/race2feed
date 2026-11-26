@@ -11,11 +11,19 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
   const ok = (event: LiveEvent) => done(event, cmd, ctx);
   const current = e.round.current;
 
-  /** A resend of a tap this device already delivered for this team, round and kind (from its offline queue). */
+  /**
+   * A resend of a tap this device already delivered for this team and kind (from its offline queue), in any
+   * round and whatever became of the tap since (undone, removed, rejected): it must never make a second tap.
+   */
   const isResend = (clientTapId: string, teamId: string, kind: Tap['kind']) =>
     e.taps.some((t) => t.clientTapId === clientTapId && t.deviceId === ctx.actor.deviceId
-      && t.round === current && t.teamId === teamId && t.kind === kind);
+      && t.teamId === teamId && t.kind === kind);
   const validId = (id: unknown) => typeof id === 'string' && id.length > 0 && id.length <= 100;
+  /** The round the tablet made the tap in; older tablet pages don't send one. */
+  const validTapRound = (round: unknown) => round === undefined || (Number.isInteger(round) && (round as number) >= 1);
+  /** A tap made in another round than the current one (it arrived late) is refused, whatever the current round's state. */
+  const roundOver = (round: number | undefined): CommandResult | null =>
+    round === undefined || round === current ? null : fail('round_over', `That tap was for round ${round}, which is over.`);
 
   const refereeCheck = (teamId: string): CommandResult | null => {
     if (e.round.phase !== 'running') return fail('round_not_running', 'No race is running.');
@@ -46,9 +54,9 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
 
   switch (cmd.type) {
     case 'tapFinish': {
-      if (!validId(cmd.clientTapId) || !Number.isFinite(cmd.atServerMs)) return fail('invalid', 'A tap needs an id and a time.');
+      if (!validId(cmd.clientTapId) || !Number.isFinite(cmd.atServerMs) || !validTapRound(cmd.round)) return fail('invalid', 'A tap needs an id and a time.');
       if (isResend(cmd.clientTapId, cmd.teamId, 'finish')) return ok(e);
-      const denied = refereeCheck(cmd.teamId);
+      const denied = roundOver(cmd.round) ?? refereeCheck(cmd.teamId);
       if (denied) return denied;
       const startedAt = e.round.startedAt!;
       if (cmd.atServerMs < startedAt || cmd.atServerMs > ctx.now + FUTURE_TOLERANCE_MS) {
@@ -62,9 +70,9 @@ export function handleTaps(e: LiveEvent, cmd: TapCommand, ctx: Ctx): CommandResu
       return ok({ ...e, taps: [...e.taps, tap] });
     }
     case 'tapPenalty': {
-      if (!validId(cmd.clientTapId)) return fail('invalid', 'A tap needs an id.');
+      if (!validId(cmd.clientTapId) || !validTapRound(cmd.round)) return fail('invalid', 'A tap needs an id.');
       if (isResend(cmd.clientTapId, cmd.teamId, 'penalty')) return ok(e);
-      const denied = refereeCheck(cmd.teamId);
+      const denied = roundOver(cmd.round) ?? refereeCheck(cmd.teamId);
       if (denied) return denied;
       if (!e.settings.penaltiesEnabled) return fail('penalties_disabled', 'Time penalties are switched off.');
       const tap = newTap({

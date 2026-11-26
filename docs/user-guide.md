@@ -1,10 +1,10 @@
-# Race to Feed: Event Staff Guide
+# PRC: Event Staff Guide
 
 > **Note:** this guide is kept up to date as features change. If a button or screen looks different from what's described here, the app has probably moved ahead of the guide. Ask the person who looks after the app.
 
 **Prefer to watch first?** The [event planner explainer video](https://github.com/sweiss105/race2feed/blob/main/docs/PRC-Race2Feed-Event-Planner-Guide.mp4) (about 4½ minutes) walks through running an event from start to finish. This guide has the detail.
 
-This guide explains how to run a Race to Feed event with the app. It's organised by job, so you can skip to your part:
+This guide explains how to run a Race to Feed event with **PRC** (Packing Race Coordinator), the app built for it. It's organised by job, so you can skip to your part:
 
 - [The big picture](#the-big-picture)
 - [Setup before the day](#setup-before-the-day): create the event, teams and settings
@@ -55,7 +55,7 @@ Everything happens at **https://r2f.weiss-audio.com**:
 
 Race control sets up the event before the day, then runs it. Sign in at `/control` with your email address:
 
-1. Open `/control`. Before the console appears, a Cloudflare sign-in page (Cloudflare's own page, not the Race to Feed app) asks for your email address.
+1. Open `/control`. Before the console appears, a Cloudflare sign-in page (Cloudflare's own page, not PRC) asks for your email address.
 2. Type it and press the button to send a code. Wait for the email with a one-time code.
 3. Type the code on the same Cloudflare page. The console opens on the **Race Control** page.
 

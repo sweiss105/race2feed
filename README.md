@@ -1,6 +1,6 @@
-# Race to Feed
+# PRC – Packing Race Coordinator
 
-Race to Feed is the live web app that runs a charity food-packing race. It is intended to replace the Google Sheet that is currently used to run the event.
+PRC (Packing Race Coordinator) is the live web app that runs Race to Feed, a charity food-packing race. It is intended to replace the Google Sheet that is currently used to run the event.
 
 On event day:
 - **Teams** race at numbered tables.
@@ -12,7 +12,7 @@ On event day:
 It covers the whole day: setup, seeding rounds, brackets, the Grand Championship, final standings and the champion screen. It runs on Cloudflare at **https://r2f.weiss-audio.com**.
 
 - **Spec:** [`docs/design.md`](docs/design.md). It is the source of truth for the rules.
-- **Guide for event staff:** [`docs/Race-to-Feed-User-Guide.pdf`](docs/Race-to-Feed-User-Guide.pdf) (printable, with screenshots), built from [`docs/user-guide.md`](docs/user-guide.md).
+- **Guide for event staff:** [`docs/PRC-User-Guide.pdf`](docs/PRC-User-Guide.pdf) (printable, with screenshots), built from [`docs/user-guide.md`](docs/user-guide.md).
 - **Explainer video for event planners:** [`docs/PRC-Race2Feed-Event-Planner-Guide.mp4`](docs/PRC-Race2Feed-Event-Planner-Guide.mp4) (about 4½ minutes; a walk-through of running an event with PRC).
 
 ## How it works
@@ -230,7 +230,7 @@ Step-by-step setup for the token and the secrets is in [`packages/server/README.
 
 ## Documentation
 
-- [`docs/Race-to-Feed-User-Guide.pdf`](docs/Race-to-Feed-User-Guide.pdf): the printable staff guide, with screenshots. Hand this to event staff.
+- [`docs/PRC-User-Guide.pdf`](docs/PRC-User-Guide.pdf): the printable staff guide, with screenshots. Hand this to event staff.
 - [`docs/PRC-Race2Feed-Event-Planner-Guide.mp4`](docs/PRC-Race2Feed-Event-Planner-Guide.mp4): the explainer video for event planners (about 4½ minutes). It is a recording, not generated from the app: re-record it when the screens change.
 - [`docs/user-guide.md`](docs/user-guide.md): the source of that guide: how to run an event, by role (race control, referees, participants, projector, Companion). Its screenshots are in `docs/guide/images/`.
   - **Regenerate the screenshots and the PDF with `npm run guide`.** It builds the pages and starts its own `wrangler dev` on port 8788 (throwaway store in `.wrangler/guide`), runs a fake event ("Race to Feed 2026", made-up teams) through `e2e/guide.spec.ts`, saves the screenshots, then runs `scripts/build-guide.mjs`. Like `npm run e2e`, it signs the console in with `--var DEV_CONSOLE_USER:...` (and `--local-upstream`), and it sets a throwaway `EMERGENCY_PASSWORD` so it can capture the `/emergency` page. Cloudflare's own sign-in page can't be captured locally, so the guide describes it in words.

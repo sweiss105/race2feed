@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Builds docs/Race-to-Feed-User-Guide.pdf from docs/user-guide.md and the screenshots in docs/guide/images.
+ * Builds docs/PRC-User-Guide.pdf from docs/user-guide.md and the screenshots in docs/guide/images.
  *
  *   npm run guide:pdf   (or `npm run guide` to retake the screenshots first)
  *
@@ -19,7 +19,7 @@ import { chromium } from '@playwright/test';
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const DOCS = join(ROOT, 'docs');
 const SOURCE = join(DOCS, 'user-guide.md');
-const OUTPUT = join(DOCS, 'Race-to-Feed-User-Guide.pdf');
+const OUTPUT = join(DOCS, 'PRC-User-Guide.pdf');
 const SITE = 'r2f.weiss-audio.com';
 const ACCENT = '#D71920';
 
@@ -215,9 +215,9 @@ function pageHtml({ title, intro, body, headings, pages, generated }) {
 </head>
 <body>
   <section class="cover">
-    <div class="kicker">Staff manual</div>
+    <div class="kicker">Event Staff Guide</div>
     <h1>${escapeHtml(title)}</h1>
-    <div class="subtitle">Event Staff Guide</div>
+    <div class="subtitle">Packing Race Coordinator</div>
     <div class="hero">
       <img class="console" src="${pathToFileURL(join(DOCS, 'guide/images/console-race-running.jpg')).href}" alt="">
       <img class="phone" src="${pathToFileURL(join(DOCS, 'guide/images/phone-next-race.png')).href}" alt="">
@@ -308,7 +308,7 @@ function headingPages(pdf) {
 
 const markdown = readFileSync(SOURCE, 'utf8');
 const titleMatch = /^# (.+)$/m.exec(markdown);
-const title = 'Race to Feed';
+const title = 'PRC';
 // The intro (before the first chapter) goes before the contents; everything from the first chapter on is the body.
 const firstChapter = markdown.search(/^## /m);
 const introMd = markdown.slice(titleMatch ? titleMatch.index + titleMatch[0].length : 0, firstChapter).replace(/^---\s*$/gm, '');
@@ -321,7 +321,7 @@ const generated = new Date().toLocaleDateString('en-US', { year: 'numeric', mont
 // nothing shows there.
 const footer = `<style>html, body { height: 100%; margin: 0; }</style>
 <div style="box-sizing:border-box; width:100%; height:100%; overflow:hidden; display:flex; align-items:flex-start; justify-content:space-between; padding:0.32in 0.85in 0; font-size:7.5pt; color:#86868b; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, Roboto, Arial, sans-serif;">
-  <span>Race to Feed · Event Staff Guide</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`;
+  <span>PRC · Event Staff Guide</span><span><span class="pageNumber"></span> / <span class="totalPages"></span></span></div>`;
 
 const work = mkdtempSync(join(tmpdir(), 'r2f-guide-'));
 const browser = await chromium.launch();

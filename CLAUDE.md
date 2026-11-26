@@ -1,9 +1,11 @@
-# Race to Feed — working notes
+# PRC (Packing Race Coordinator) — working notes
+
+PRC is the app; Race to Feed is the event it runs. In docs and screens, call the software PRC.
 
 ## Keep the docs current
 
 - `docs/user-guide.md` is the staff-facing user guide. Any change that alters what an admin, race control, referee, participant, projector or Companion user sees or does must update the guide in the same commit.
-- When user-facing UI or the guide changes, regenerate the screenshots and PDF with `npm run guide` and commit them (`docs/guide/images/`, `docs/Race-to-Feed-User-Guide.pdf`) with the change. If a screen changes in a way the guide's screenshot flow doesn't cover, update `e2e/guide.spec.ts` too.
+- When user-facing UI or the guide changes, regenerate the screenshots and PDF with `npm run guide` and commit them (`docs/guide/images/`, `docs/PRC-User-Guide.pdf`) with the change. If a screen changes in a way the guide's screenshot flow doesn't cover, update `e2e/guide.spec.ts` too.
 - `README.md` covers architecture, local development, testing and deployment. Update it when any of those change (new package, script, secret, route or workflow).
 - `docs/design.md` is the spec. Change it before or alongside behavior changes.
 

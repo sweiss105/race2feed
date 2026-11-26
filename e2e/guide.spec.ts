@@ -1,5 +1,5 @@
 /**
- * Screenshots for the staff user guide (docs/user-guide.md → docs/Race-to-Feed-User-Guide.pdf).
+ * Screenshots for the staff user guide (docs/user-guide.md → docs/PRC-User-Guide.pdf).
  * Run with `npm run guide:shots` (or `npm run guide` for screenshots and PDF). Not part of `npm run e2e`.
  *
  * Drives a whole fake event, "Race to Feed 2026", with made-up teams, on a throwaway local server.

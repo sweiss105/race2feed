@@ -1,4 +1,6 @@
-# Race to Feed — Event App Design
+# PRC (Packing Race Coordinator) — Design
+
+PRC is the app; Race to Feed is the event it runs.
 
 Status: **Implemented; kept current with the code** · 2026-11-23
 

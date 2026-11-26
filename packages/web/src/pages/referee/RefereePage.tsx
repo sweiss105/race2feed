@@ -80,7 +80,9 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   const canTap = clock.synced() && flushed;
   // Round, station and tables: a swap by race control gives a new place, so the notice shows again.
   const place = `${round.current}:${station.number}:${station.tables.join(',')}`;
-  const mustGo = station.moved && round.phase === 'open' && there !== place;
+  // Sent to another station than last round, or moved again (a swap) after confirming a place in this round.
+  const confirmedElsewhere = there !== null && there !== place && there.startsWith(`${round.current}:`);
+  const mustGo = station.assigned && (station.moved || confirmedElsewhere) && round.phase === 'open' && there !== place;
   const arrived = () => {
     setThere(place);
     try { window.sessionStorage.setItem(THERE_KEY, place); } catch { /* remembered for this page load only */ }

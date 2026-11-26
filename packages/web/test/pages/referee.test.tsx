@@ -580,6 +580,16 @@ describe('referee rotation: where to go', () => {
     expect(screen.queryByRole('button', { name: /Ready/ })).toBeNull();
   });
 
+  it('asks again when a swap sends the referee back to the station they had last round', async () => {
+    const e = openNext(lockedFour());
+    const { rerender } = render(<RefereePage {...props()} view={movedView(e)} />);
+    fireEvent.click(await screen.findByRole('button', { name: "I'm there" }));
+    // Swapped to station 2, which the server does not call a move (it is where they were last round).
+    rerender(<RefereePage {...props()} view={refViewOf(e, 2)} />);
+    expect(await screen.findByRole('heading', { name: 'Round 1: go to Tables 3 & 4' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Ready/ })).toBeNull();
+  });
+
   it('does not ask again after a reload', async () => {
     const view = movedView(openNext(lockedFour()));
     render(<RefereePage {...props()} view={view} />);

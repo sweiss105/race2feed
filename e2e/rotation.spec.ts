@@ -150,10 +150,8 @@ test('referees rotate, race control swaps them, and a close finish is flagged an
   expect(csv).toContain('Referee assignments');
 });
 
-// Product behaviour found while writing the test above, left for the owner to decide: the "go to" notice compares
-// this round's station with last round's, so a referee who has walked to their new tables and pressed "I'm there",
-// and is then swapped back to the tables they had last round, gets no notice: only the small header changes.
-test.fixme('a referee swapped back to last round\'s tables after pressing "I\'m there" is told to go', async ({ browser }) => {
+// A swap after "I'm there" sends the referee on again, even back to the tables they had last round.
+test('a referee swapped back to last round\'s tables after pressing "I\'m there" is told to go', async ({ browser }) => {
   const admin = await setUpEvent(browser, 'E2E Swap back');
   const dana = await pair(browser, admin, 'Tables 1 & 2', 'Dana');
   await pair(browser, admin, 'Tables 3 & 4', 'Lee');

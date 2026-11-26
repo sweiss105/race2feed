@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { stationOfTable, tablesOfStation } from '@race2feed/engine';
-import { newEvent, type Ctx, type LiveEvent, type RosterEntry } from '../../src/core/model';
+import { newEvent, type Actor, type CommandResult, type Ctx, type LiveEvent, type RosterEntry } from '../../src/core/model';
 import { handleSetup } from '../../src/core/setup';
 import { handleLifecycle } from '../../src/core/lifecycle';
+import { handleTaps } from '../../src/core/taps';
+import { applyCommand } from '../../src/core/apply';
+import { refereeView } from '../../src/core/views';
 import { derive, teamsInRound } from '../../src/core/results';
 import { assignmentOf, assignRound, refereeTeams, rotationOn, tablesFor } from '../../src/core/rotation';
 import { admin, blank, csvFor, ctx, lockedFour, ok, referee, refereeDev, roster } from './helpers';
@@ -263,5 +266,214 @@ describe('finals split', () => {
     e = openRound(rotating(e), 4, roster(6));
     expect(e.assignments![4]).toHaveLength(4);
     expect(e.assignments![4]!.map((a) => a.tables)).toEqual([[1], [2], [3], [4]]);
+  });
+});
+
+const code = (r: CommandResult) => (r.ok ? 'ok' : r.code);
+/** Readies every station and starts the open round at `now`. */
+function start(e: LiveEvent, now = 3_000_000): LiveEvent {
+  for (const s of Object.keys(e.stations)) {
+    e = ok(handleLifecycle(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, ctx(admin, now)));
+  }
+  return ok(handleLifecycle(e, { type: 'startRace' }, ctx(admin, now)));
+}
+const atTable = (e: LiveEvent, table: number) => teamsInRound(derive(e), e.round.current).find((t) => t.table === table)!.teamId;
+const tap = (e: LiveEvent, who: Actor, table: number, now = 3_100_000) =>
+  handleTaps(e, { type: 'tapFinish', teamId: atTable(e, table), atServerMs: now, clientTapId: `c-${who.deviceId}-${table}` }, ctx(who, now));
+const ready = (e: LiveEvent, who: Actor, table?: number) =>
+  handleLifecycle(e, { type: 'stationReady', ...(table === undefined ? {} : { table }) }, ctx(who));
+/** Both referees paired to station 1: rotation puts dev1 on station 1 and dev2 on station 2. */
+const bothHomeOne: RosterEntry[] = [{ deviceId: 'dev1', name: 'Ref 1', home: 1 }, { deviceId: 'dev2', name: 'Ref 2', home: 1 }];
+const dev1 = refereeDev('dev1', 1);
+const dev2 = refereeDev('dev2', 1);
+const dev3 = refereeDev('dev3', 1);
+
+describe('permissions follow the assignment', () => {
+  const opened = () => open(rotating(lockedFour()), bothHomeOne);
+
+  it('lets a referee tap for the assigned tables only, wherever the tablet was paired', () => {
+    const e = start(opened());
+    expect(e.assignments![1]!.map((a) => [a.deviceId, a.station])).toEqual([['dev1', 1], ['dev2', 2]]);
+    expect(code(tap(e, dev2, 3))).toBe('ok');
+    expect(code(tap(e, dev2, 1))).toBe('not_your_team');
+    expect(code(tap(e, dev1, 3))).toBe('not_your_team');
+    expect(code(tap(e, dev1, 2))).toBe('ok');
+    const penalties = { ...e, settings: { ...e.settings, penaltiesEnabled: true } };
+    const penalty = (who: Actor, table: number) =>
+      handleTaps(penalties, { type: 'tapPenalty', teamId: atTable(e, table), clientTapId: `p-${who.deviceId}-${table}` }, ctx(who, 3_100_000));
+    expect(code(penalty(dev2, 4))).toBe('ok');
+    expect(code(penalty(dev2, 2))).toBe('not_your_team');
+  });
+
+  it('gives a referee without an assignment nothing to do', () => {
+    const e = opened();
+    expect(code(ready(e, dev3))).toBe('not_your_station');
+    expect(code(ready(e, dev3, 1))).toBe('not_your_station');
+    expect(code(tap(start(e), dev3, 1))).toBe('not_your_team');
+  });
+
+  it('marks the assigned station ready, not the one the tablet was paired to', () => {
+    let e = ok(ready(opened(), dev2, 3));
+    expect(e.stations[2]).toEqual({ ready: false, excluded: false, readyTables: [3] });
+    expect(e.stations[1]!.readyTables).toEqual([]);
+    expect(code(ready(e, dev2, 1))).toBe('not_your_table');
+    e = ok(ready(e, dev2));
+    expect(e.stations[2]).toEqual({ ready: true, excluded: false, readyTables: [3, 4] });
+    expect(e.stations[1]!.ready).toBe(false);
+  });
+
+  it('splits Ready and taps between the two referees of a final', () => {
+    let e = openRound(rotating(lockedFour()), 4, roster(3));
+    const split = e.assignments![4]!.filter((a) => a.station === 1);
+    expect(split.map((a) => a.tables)).toEqual([[1], [2]]);
+    const lower = refereeDev(split[0]!.deviceId, 2);
+    const higher = refereeDev(split[1]!.deviceId, 2);
+    expect(code(ready(e, lower, 2))).toBe('not_your_table');
+    expect(code(ready(e, higher, 1))).toBe('not_your_table');
+    e = ok(ready(e, lower));
+    expect(e.stations[1]).toEqual({ ready: false, excluded: false, readyTables: [1] });
+    e = ok(ready(e, higher, 2));
+    expect(e.stations[1]).toEqual({ ready: true, excluded: false, readyTables: [1, 2] });
+    e = start(e);
+    expect(code(tap(e, lower, 2))).toBe('not_your_team');
+    expect(code(tap(e, higher, 1))).toBe('not_your_team');
+    expect(code(tap(e, lower, 1))).toBe('ok');
+    expect(code(tap(e, higher, 2))).toBe('ok');
+  });
+});
+
+describe('the referee view follows the assignment', () => {
+  it('lists exactly the teams at the assigned tables', () => {
+    const e = open(rotating(lockedFour()), bothHomeOne);
+    const v = refereeView(e, derive(e), dev2);
+    expect(v.station).toEqual({ number: 2, tables: [3, 4], ready: false, excluded: false, readyTables: [], assigned: true, moved: true });
+    expect(v.teams.map((t) => [t.name, t.table])).toEqual([['T3', 3], ['T4', 4]]);
+    const home = refereeView(e, derive(e), dev1);
+    expect(home.station).toMatchObject({ number: 1, tables: [1, 2], assigned: true, moved: false });
+    expect(home.teams.map((t) => t.table)).toEqual([1, 2]);
+  });
+
+  it('shows a referee without an assignment no tables and no teams', () => {
+    const e = open(rotating(lockedFour()), bothHomeOne);
+    const v = refereeView(e, derive(e), dev3);
+    expect(v.station).toEqual({ number: 0, tables: [], ready: false, excluded: true, readyTables: [], assigned: false, moved: false });
+    expect(v.teams).toEqual([]);
+    expect(refereeView(e, derive(e), { station: 1 }).station.assigned).toBe(false);
+  });
+
+  it('says a referee moved when the tables differ from the round before', () => {
+    let e = race(open(rotating(lockedFour()), roster(2)));
+    e = open(e, roster(2));
+    const d = derive(e);
+    for (const r of roster(2)) {
+      const before = assignmentOf(e, 1, r.deviceId)!.tables;
+      const now = assignmentOf(e, 2, r.deviceId)!.tables;
+      expect(refereeView(e, d, refereeDev(r.deviceId, r.home)).station.moved).toBe(before.join() !== now.join());
+    }
+    // Rotation moves both in round 2: each would otherwise have the same teams again.
+    expect(refereeView(e, d, dev1).station).toMatchObject({ number: 2, tables: [3, 4], moved: true });
+    // The same tables as the round before: not moved.
+    const same: LiveEvent = { ...e, assignments: { ...e.assignments, 2: e.assignments![1]! } };
+    expect(refereeView(same, d, dev1).station).toMatchObject({ number: 1, tables: [1, 2], moved: false });
+  });
+
+  it('shows each referee of a split final their own table and its Ready', () => {
+    let e = openRound(rotating(lockedFour()), 4, roster(3));
+    const [lower, higher] = e.assignments![4]!.filter((a) => a.station === 1).map((a) => refereeDev(a.deviceId, 2));
+    e = ok(ready(e, lower!));
+    const mine = refereeView(e, derive(e), lower!);
+    expect(mine.station).toMatchObject({ number: 1, tables: [1], ready: false, readyTables: [1], assigned: true });
+    expect(mine.teams.map((t) => [t.table, t.ready])).toEqual([[1, true]]);
+    const theirs = refereeView(e, derive(e), higher!);
+    expect(theirs.station).toMatchObject({ number: 1, tables: [2], ready: false, readyTables: [] });
+    expect(theirs.teams.map((t) => [t.table, t.ready])).toEqual([[2, false]]);
+  });
+
+  it('is what it was with rotation off, plus assigned and not moved', () => {
+    const e = ok(ready(open(lockedFour(), roster(2)), referee(1), 2));
+    const v = refereeView(e, derive(e), { station: 1 });
+    expect(v).toEqual({
+      round: { current: 1, phase: 'open', startedAt: null, finishedAt: null, autoFinishAt: null },
+      settings: { ...e.settings },
+      reasons: e.penaltyReasons,
+      station: { number: 1, tables: [1, 2], ready: false, excluded: false, readyTables: [2], assigned: true, moved: false },
+      teams: [
+        { teamId: atTable(e, 1), name: 'T1', table: 1, result: null, dq: null, ready: false, penaltyPending: false, taps: [] },
+        { teamId: atTable(e, 2), name: 'T2', table: 2, result: null, dq: null, ready: true, penaltyPending: false, taps: [] },
+      ],
+    });
+    expect(refereeView(e, derive(e), referee(1))).toEqual(v);
+    // A device paired to a station that does not exist, and one with no station: as an excluded station.
+    expect(refereeView(e, derive(e), {}).station).toEqual({ number: 0, tables: [], ready: false, excluded: true, readyTables: [], assigned: true, moved: false });
+  });
+});
+
+describe('swapReferees', () => {
+  const swap = (e: LiveEvent, a: string, b: string, r: RosterEntry[]) =>
+    handleLifecycle(e, { type: 'swapReferees', a, b }, withRoster(r));
+
+  it('exchanges two referees while the round is open', () => {
+    const before = open(rotating(lockedFour()), roster(2));
+    const e = ok(swap(before, 'dev1', 'dev2', roster(2)));
+    expect(e.assignments![1]).toEqual([
+      { deviceId: 'dev2', name: 'Ref 2', station: 1, tables: [1, 2] },
+      { deviceId: 'dev1', name: 'Ref 1', station: 2, tables: [3, 4] },
+    ]);
+    expect(code(ready(e, refereeDev('dev1', 1), 3))).toBe('ok');
+    expect(code(ready(e, refereeDev('dev1', 1), 1))).toBe('not_your_table');
+    expect(ok(swap(e, 'dev2', 'dev1', roster(2))).assignments).toEqual(before.assignments);
+  });
+
+  it('takes away a Ready already given at the tables involved', () => {
+    let e = open(rotating(lockedFour()), roster(2));
+    e = ok(ready(e, refereeDev('dev1', 1)));
+    e = ok(ready(e, refereeDev('dev2', 2), 3));
+    expect(e.stations[1]!.ready).toBe(true);
+    e = ok(swap(e, 'dev1', 'dev2', roster(2)));
+    expect(e.stations).toEqual({ 1: { ready: false, excluded: false, readyTables: [] }, 2: { ready: false, excluded: false, readyTables: [] } });
+  });
+
+  it('moves a referee without tables in, and the other out', () => {
+    const before = open(rotating(lockedFour()), roster(3));
+    expect(assignmentOf(before, 1, 'dev3')).toBeUndefined();
+    const e = ok(swap(ok(ready(before, refereeDev('dev2', 2))), 'dev2', 'dev3', roster(3)));
+    expect(e.assignments![1]).toEqual([
+      { deviceId: 'dev1', name: 'Ref 1', station: 1, tables: [1, 2] },
+      { deviceId: 'dev3', name: 'Ref 3', station: 2, tables: [3, 4] },
+    ]);
+    expect(e.stations[2]).toEqual({ ready: false, excluded: false, readyTables: [] });
+    // Either way round.
+    expect(ok(swap(before, 'dev3', 'dev2', roster(3))).assignments![1]).toEqual(e.assignments![1]);
+  });
+
+  it('swaps the two tables of a split final', () => {
+    const before = openRound(rotating(lockedFour()), 4, roster(3));
+    const [lower, higher] = before.assignments![4]!.filter((a) => a.station === 1);
+    const e = ok(swap(ok(ready(before, refereeDev(lower!.deviceId, 1))), lower!.deviceId, higher!.deviceId, roster(3)));
+    expect(assignmentOf(e, 4, lower!.deviceId)).toMatchObject({ station: 1, tables: [2] });
+    expect(assignmentOf(e, 4, higher!.deviceId)).toMatchObject({ station: 1, tables: [1] });
+    expect(e.stations[1]).toEqual({ ready: false, excluded: false, readyTables: [] });
+    expect(e.assignments![3]).toEqual(before.assignments![3]);
+  });
+
+  it('is refused unless a round is open with saved assignments and both are paired referees', () => {
+    const opened = open(rotating(lockedFour()), roster(3));
+    expect(code(swap(rotating(lockedFour()), 'dev1', 'dev2', roster(2)))).toBe('round_not_open');
+    expect(code(swap(start(opened), 'dev1', 'dev2', roster(3)))).toBe('round_not_open');
+    expect(code(swap(race(opened), 'dev1', 'dev2', roster(3)))).toBe('round_not_open');
+    expect(code(swap(open(lockedFour(), roster(2)), 'dev1', 'dev2', roster(2)))).toBe('rotation_off');
+    expect(code(swap(opened, 'dev1', 'dev9', roster(3)))).toBe('not_found');
+    expect(code(swap(opened, 'dev9', 'dev1', roster(3)))).toBe('not_found');
+    expect(code(handleLifecycle(opened, { type: 'swapReferees', a: 'dev1', b: 'dev2' }, ctx(admin)))).toBe('not_found');
+    expect(code(swap(opened, 'dev1', 'dev1', roster(3)))).toBe('invalid');
+    expect(code(swap(open(rotating(lockedFour()), roster(0)), 'dev1', 'dev2', roster(2)))).toBe('not_assigned');
+  });
+
+  it('is for race control only', () => {
+    const opened = open(rotating(lockedFour()), roster(2));
+    const cmd = { type: 'swapReferees' as const, a: 'dev1', b: 'dev2' };
+    expect(code(applyCommand(opened, cmd, { ...ctx(refereeDev('dev1', 1)), roster: roster(2) }))).toBe('forbidden');
+    expect(code(applyCommand(opened, cmd, { ...ctx({ role: 'companion', label: 'c' }), roster: roster(2) }))).toBe('forbidden');
+    expect(code(applyCommand(opened, cmd, withRoster(roster(2))))).toBe('ok');
   });
 });

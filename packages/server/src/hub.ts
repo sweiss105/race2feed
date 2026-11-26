@@ -1,7 +1,7 @@
 import { DurableObject } from 'cloudflare:workers';
 import type { Env } from './worker';
 import { applyCommand } from './core/apply';
-import { fail, newEvent, type Actor, type Command, type CommandResult, type LiveEvent } from './core/model';
+import { fail, newEvent, type Actor, type Command, type CommandResult, type LiveEvent, type RosterEntry } from './core/model';
 import { derive } from './core/results';
 import { backfillLineups } from './core/lineups';
 import { eventCsv } from './core/export';
@@ -213,6 +213,13 @@ export class Hub extends DurableObject<Env> {
     return { ok: true, deviceToken: token, station: row.station };
   }
 
+  /** The active event's paired referees that have not been revoked, for the core (rotation.ts). */
+  private roster(): RosterEntry[] {
+    return this.sql.exec<{ id: string; station: number; label: string | null }>(
+      'SELECT id, station, label FROM devices WHERE event_id = ? AND revoked_at IS NULL ORDER BY id', this.active?.id ?? '').toArray()
+      .map((r) => ({ deviceId: r.id, name: r.label || `Referee ${r.station}`, home: r.station }));
+  }
+
   // ---------- commands ----------
 
   async command(actor: Actor, cmd: Command | HubCommand): Promise<CommandResult | { ok: true; reply: unknown }> {
@@ -222,7 +229,7 @@ export class Hub extends DurableObject<Env> {
       return this.hubCommand(actor, hubCmd);
     }
     if (!this.active) return fail('no_active_event', 'Create or activate an event first.');
-    const result = applyCommand(this.active, cmd as Command, { now: Date.now(), actor, newId: () => crypto.randomUUID() });
+    const result = applyCommand(this.active, cmd as Command, { now: Date.now(), actor, newId: () => crypto.randomUUID(), roster: this.roster() });
     if (!result.ok) return result;
     const event = result.event;
     this.ctx.storage.transactionSync(() => {
@@ -484,7 +491,7 @@ export class Hub extends DurableObject<Env> {
     switch (actor.role) {
       case 'public': return JSON.stringify({ type: 'snapshot', view: publicView(e, d) });
       case 'companion': return JSON.stringify({ type: 'view', view: companionView(e, d) });
-      case 'referee': return JSON.stringify({ type: 'view', view: refereeView(e, d, actor.station ?? 0) });
+      case 'referee': return JSON.stringify({ type: 'view', view: refereeView(e, d, actor) });
       default: return JSON.stringify({ type: 'view', view: controlView(e, d, this.controlExtras()) });
     }
   }
@@ -545,12 +552,12 @@ export class Hub extends DurableObject<Env> {
     }
     this.send('control', JSON.stringify({ type: 'view', view: controlView(e, d, this.controlExtras()) }));
     this.send('companion', JSON.stringify({ type: 'view', view: companionView(e, d) }));
-    const stations = new Set<number>();
+    // Each referee gets their own view: their tables this round depend on the device, not only its station.
     for (const ws of this.ctx.getWebSockets()) {
       const { actor } = ws.deserializeAttachment() as Attachment;
-      if (actor.role === 'referee' && actor.station !== undefined) stations.add(actor.station);
+      if (actor.role !== 'referee') continue;
+      try { ws.send(JSON.stringify({ type: 'view', view: refereeView(e, d, actor) })); } catch { /* socket already closing */ }
     }
-    for (const s of stations) this.send(`referee:${s}`, JSON.stringify({ type: 'view', view: refereeView(e, d, s) }));
 
     if (needsSnapshot(cmd, before ?? e)) {
       this.lastPublicSent = Date.now();

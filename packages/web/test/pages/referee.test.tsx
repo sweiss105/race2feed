@@ -326,7 +326,7 @@ describe('referee page', () => {
 
   it('says so when no teams are at its tables', async () => {
     const e = start(openNext(lockedFour()));
-    render(<RefereePage view={{ ...refViewOf(e), station: { number: 3, tables: [5, 6], ready: false, excluded: true, readyTables: [] }, teams: [] }} status="open"
+    render(<RefereePage view={{ ...refViewOf(e), station: { number: 3, tables: [5, 6], ready: false, excluded: true, readyTables: [], assigned: true, moved: false }, teams: [] }} status="open"
       clock={{ synced: () => true, serverNow: () => NOW }} queue={new TapQueue(new MemoryStorage())} send={async () => ({ ok: true })} newId={() => 'x'} />);
     expect(await screen.findByText(/No teams at your tables/)).toBeTruthy();
   });

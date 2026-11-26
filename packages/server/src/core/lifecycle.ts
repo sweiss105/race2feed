@@ -3,7 +3,7 @@ import { done, fail, perStation, readyTablesOf, type CommandResult, type Ctx, ty
 import { buildProgress, derive, teamsInRound } from './results';
 import { checkCorrection } from './corrections';
 import { saveLineup } from './lineups';
-import { assignRound, rotationOn } from './rotation';
+import { assignmentOf, assignRound, rotationOn, tablesFor } from './rotation';
 
 /** Referee penalties still waiting for race control, in rounds raced so far. */
 export function pendingPenalties(e: LiveEvent) {
@@ -52,17 +52,48 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
     }
     case 'stationReady': {
       if (e.round.phase !== 'open') return fail('round_not_open', 'There is no round waiting to start.');
-      const s = ctx.actor.station;
+      // The referee's tables this round: the saved assignment's, or the home station's with rotation off.
+      const s = assignmentOf(e, e.round.current, ctx.actor.deviceId)?.station ?? ctx.actor.station;
       const station = s === undefined ? undefined : e.stations[s];
-      if (s === undefined || !station) return fail('not_your_station', 'This device is not paired to a station.');
+      const mine = tablesFor(e, ctx.actor, e.round.current);
+      if (s === undefined || !station || !mine.length) return fail('not_your_station', 'This device has no tables this round.');
       const occupied = occupiedTables(e, s);
       const already = readyTablesOf(station, tablesOfStation(s, e.setup.tableCount, perStation(e)));
       if (cmd.table === undefined) {
-        // An older tablet page: one Ready for the whole station.
-        return ok({ ...e, stations: { ...e.stations, [s]: { ...station, ready: true, readyTables: [...new Set([...already, ...occupied])].sort((a, b) => a - b) } } });
+        // An older tablet page: one Ready for all of the referee's tables. Ready once every occupied table is
+        // (in a split final the other referee readies the other table).
+        const readyTables = [...new Set([...already, ...occupied.filter((t) => mine.includes(t))])].sort((a, b) => a - b);
+        return ok({ ...e, stations: { ...e.stations, [s]: { ...station, ready: occupied.every((t) => readyTables.includes(t)), readyTables } } });
       }
-      if (!occupied.includes(cmd.table)) return fail('not_your_table', 'That table is not yours this round.');
+      if (!occupied.includes(cmd.table) || !mine.includes(cmd.table)) return fail('not_your_table', 'That table is not yours this round.');
       return ok({ ...e, stations: { ...e.stations, [s]: { ...withReadyTables(occupied, [...already, cmd.table]), excluded: station.excluded } } });
+    }
+    case 'swapReferees': {
+      if (e.round.phase !== 'open') return fail('round_not_open', 'Referees can be swapped only before the start.');
+      const round = e.round.current;
+      const saved = e.assignments?.[round];
+      if (!saved) return fail('rotation_off', 'Referees are not rotating in this round.');
+      if (typeof cmd.a !== 'string' || typeof cmd.b !== 'string' || cmd.a === cmd.b) return fail('invalid', 'Choose two different referees.');
+      const paired = (id: string) => ctx.roster?.find((r) => r.deviceId === id);
+      const a = paired(cmd.a);
+      const b = paired(cmd.b);
+      if (!a || !b) return fail('not_found', 'That referee is not paired to this event.');
+      const placeOfA = saved.find((x) => x.deviceId === a.deviceId);
+      const placeOfB = saved.find((x) => x.deviceId === b.deviceId);
+      if (!placeOfA && !placeOfB) return fail('not_assigned', 'Neither referee has tables this round.');
+      // Each place (station and tables) goes to the other referee; a referee without one leaves the other without.
+      const assignments = saved.flatMap((x) =>
+        x === placeOfA ? [{ ...x, deviceId: b.deviceId, name: b.name }]
+          : x === placeOfB ? [{ ...x, deviceId: a.deviceId, name: a.name }] : [x]);
+      // A Ready at those tables was given by the referee who has now left them.
+      const stations = { ...e.stations };
+      for (const place of [placeOfA, placeOfB]) {
+        const st = place && stations[place.station];
+        if (!place || !st) continue;
+        const kept = readyTablesOf(st, tablesOfStation(place.station, e.setup.tableCount, perStation(e))).filter((t) => !place.tables.includes(t));
+        stations[place.station] = { ...withReadyTables(occupiedTables(e, place.station), kept), excluded: st.excluded };
+      }
+      return ok({ ...e, stations, assignments: { ...e.assignments, [round]: assignments } });
     }
     case 'overrideStation': {
       const station = e.stations[cmd.station];

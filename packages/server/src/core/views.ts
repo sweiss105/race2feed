@@ -3,6 +3,7 @@ import { perStation, readyTablesOf, type LiveEvent, type ProjectorScreen } from 
 import { buildProgress, teamsInRound } from './results';
 import { reasonsOf, reviewOf } from './reasons';
 import { pendingPenalties } from './lifecycle';
+import { assignmentOf, tablesFor } from './rotation';
 
 interface PenaltyInfo { notes: string[]; pending: boolean; dq: string | null }
 
@@ -142,14 +143,28 @@ function outstanding(e: LiveEvent, d: DerivedEvent) {
   return teamsInRound(d, e.round.current).filter((t) => !results[t.teamId]);
 }
 
-export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
-  const tables = tablesOfStation(station, e.setup.tableCount, perStation(e));
-  const results = buildProgress(e).results[e.round.current] ?? {};
+/**
+ * What one referee sees. `who`: the tablet's home station and device. Its tables this round are the saved
+ * assignment's (rotation.ts), or the home station's when the round has none saved.
+ * station.number: the station of those tables (0 without any). station.assigned: false only when the round has
+ * saved assignments and this device is in none. station.moved: assigned tables that differ from the ones this
+ * device had the round before (its home station's when it had none).
+ */
+export function refereeView(e: LiveEvent, d: DerivedEvent, who: { station?: number; deviceId?: string }) {
+  const current = e.round.current;
+  const saved = e.assignments?.[current];
+  const mine = assignmentOf(e, current, who.deviceId);
+  const station = saved ? mine?.station ?? 0 : who.station ?? 0;
+  const tables = tablesFor(e, who, current);
+  const home = who.station === undefined ? [] : tablesOfStation(who.station, e.setup.tableCount, perStation(e));
+  const before = assignmentOf(e, current - 1, who.deviceId)?.tables ?? home;
+  const moved = Boolean(mine) && (before.length !== tables.length || tables.some((t) => !before.includes(t)));
+  const results = buildProgress(e).results[current] ?? {};
   const name = new Map(e.setup.teams.map((t) => [t.id, t.name]));
   const pens = penaltyIndex(e);
-  const readyHere = stationReadyTables(e, station);
-  const teams = teamsInRound(d, e.round.current)
-    .filter((t) => stationOfTable(t.table, perStation(e)) === station)
+  const readyHere = stationReadyTables(e, station).filter((t) => tables.includes(t));
+  const teams = teamsInRound(d, current)
+    .filter((t) => tables.includes(t.table))
     .sort((a, b) => a.table - b.table)
     .map(({ teamId, table }) => ({
       teamId,
@@ -174,7 +189,7 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
     round: roundState(e),
     settings: { ...e.settings },
     reasons: reasonsOf(e),
-    station: { number: station, tables, ready: s.ready, excluded: s.excluded, readyTables: readyHere },
+    station: { number: station, tables, ready: s.ready, excluded: s.excluded, readyTables: readyHere, assigned: !saved || Boolean(mine), moved },
     teams,
   };
 }

@@ -13,7 +13,7 @@ export function assignmentOf(e: LiveEvent, round: number, deviceId: string | und
  * Tables an actor judges in a round: the saved assignment's tables when the round has saved assignments
  * ([] if the device has none); otherwise the tables of the station the device was paired to.
  */
-export function tablesFor(e: LiveEvent, actor: Actor, round: number): number[] {
+export function tablesFor(e: LiveEvent, actor: Pick<Actor, 'station' | 'deviceId'>, round: number): number[] {
   if (e.assignments?.[round]) return assignmentOf(e, round, actor.deviceId)?.tables ?? [];
   return actor.station === undefined ? [] : tablesOfStation(actor.station, e.setup.tableCount, perStation(e));
 }

@@ -115,6 +115,8 @@ export type LifecycleCommand =
   /** table: one of the referee's tables; without it (older tablet pages) every occupied table of the station. */
   | { type: 'stationReady'; table?: number }
   | { type: 'overrideStation'; station: number; state: 'ready' | 'notReady' | 'excluded' }
+  /** a, b: referee device ids. Exchanges their tables in the open round; one of them may have none. See rotation.ts. */
+  | { type: 'swapReferees'; a: string; b: string }
   | { type: 'startRace' }
   | { type: 'finishRace' }
   | { type: 'decideTie'; raceId: string; order: string[]; confirmUnlock?: boolean }

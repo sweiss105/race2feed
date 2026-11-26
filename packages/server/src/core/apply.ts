@@ -6,10 +6,10 @@ import { withAutoFinish } from './autofinish';
 
 const SETUP = ['importTeams', 'addTeam', 'renameTeam', 'removeTeam', 'setTableCount', 'setTablesPerReferee', 'suggestSetup', 'setGroups',
   'setBrackets', 'setGrandChampionship', 'lockSetup', 'unlockSetup', 'setSettings', 'setBagTotal', 'setPenaltyReasons'] as const;
-const LIFECYCLE = ['openNextRound', 'stationReady', 'overrideStation', 'startRace', 'finishRace', 'decideTie', 'pinProjector', 'showChampion', 'hideChampion'] as const;
+const LIFECYCLE = ['openNextRound', 'stationReady', 'overrideStation', 'swapReferees', 'startRace', 'finishRace', 'decideTie', 'pinProjector', 'showChampion', 'hideChampion'] as const;
 const TAPS = ['tapFinish', 'tapPenalty', 'undoTap', 'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled', 'notePenalty', 'decidePenalty'] as const;
 
-const CONTROL = ['openNextRound', 'overrideStation', 'startRace', 'finishRace', 'decideTie', 'pinProjector',
+const CONTROL = ['openNextRound', 'overrideStation', 'swapReferees', 'startRace', 'finishRace', 'decideTie', 'pinProjector',
   'setResult', 'addPenalty', 'removePenalty', 'setPenaltiesEnabled', 'decidePenalty', 'showChampion', 'hideChampion'];
 
 /** Roles allowed to send each command. The console role (admin) may send every console command, setup included. */

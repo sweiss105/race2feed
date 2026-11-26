@@ -34,7 +34,7 @@ describe('tables per referee', () => {
     expect(Object.keys(e.stations).length).toBe(4);
     for (const s of Object.keys(e.stations)) e = ok(handleLifecycle(e, { type: 'overrideStation', station: Number(s), state: 'ready' }, ctx(admin)));
     e = ok(handleLifecycle(e, { type: 'startRace' }, ctx(admin, 1_000_000)));
-    const view = refereeView(e, derive(e), 3);
+    const view = refereeView(e, derive(e), { station: 3 });
     expect(view.station.tables).toEqual([3]);
     expect(view.teams.map((t) => t.table)).toEqual([3]);
     const onTable = (table: number) => view.teams.find((t) => t.table === table)?.teamId

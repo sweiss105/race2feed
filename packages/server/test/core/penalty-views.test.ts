@@ -42,7 +42,7 @@ describe('penalties in views', () => {
 
   it('referees get the reason list and each tap\'s review', () => {
     const { e } = reviewed();
-    const v = refereeView(e, derive(e), 1);
+    const v = refereeView(e, derive(e), { station: 1 });
     expect(v.reasons.map((r) => r.id)).toEqual(['sealed', 'count', 'early', 'unsafe']);
     expect(v.teams[0]!.taps[0]).toMatchObject({ source: 'referee', review: { status: 'pending', refereeReasonId: 'early', refereeNote: 'jumped' } });
   });

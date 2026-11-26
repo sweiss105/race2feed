@@ -147,7 +147,7 @@ describe('table readiness in the public races', () => {
     const e = ok(handleLifecycle(open(lockedFour()), { type: 'stationReady', table: 2 }, ctx(referee(1))));
     expect(readyOf(publicRoundUpdate(e, derive(e)).races)).toEqual({ 1: false, 2: true, 3: false, 4: false });
     expect(readyOf(publicView(e, derive(e)).rounds[0]!.races)).toEqual({ 1: false, 2: true, 3: false, 4: false });
-    const ref = refereeView(e, derive(e), 1);
+    const ref = refereeView(e, derive(e), { station: 1 });
     expect(ref.station).toMatchObject({ ready: false, readyTables: [2] });
     expect(ref.teams.map((t) => [t.table, t.ready])).toEqual([[1, false], [2, true]]);
     expect(controlView(e, derive(e), { devices: [], audit: [] }).stations[1]).toEqual({ ready: false, excluded: false, readyTables: [2] });
@@ -157,7 +157,7 @@ describe('table readiness in the public races', () => {
     const opened = open(lockedFour());
     const e = { ...opened, stations: { 1: { ready: true, excluded: false }, 2: { ready: false, excluded: false } } };
     expect(readyOf(publicView(e, derive(e)).rounds[0]!.races)).toEqual({ 1: true, 2: true, 3: false, 4: false });
-    expect(refereeView(e, derive(e), 1).station.readyTables).toEqual([1, 2]);
+    expect(refereeView(e, derive(e), { station: 1 }).station.readyTables).toEqual([1, 2]);
     const all = { ...opened, stations: { 1: { ready: true, excluded: false }, 2: { ready: true, excluded: false } } };
     expect(Object.values(readyOf(publicView(all, derive(all)).rounds[0]!.races)).every(Boolean)).toBe(true);
   });
@@ -171,11 +171,11 @@ describe('table readiness in the public races', () => {
 describe('refereeView', () => {
   it('lists only the teams at the station', () => {
     const e = open(lockedFour());
-    const v = refereeView(e, derive(e), 1);
-    expect(v.station).toEqual({ number: 1, tables: [1, 2], ready: false, excluded: false, readyTables: [] });
+    const v = refereeView(e, derive(e), { station: 1 });
+    expect(v.station).toEqual({ number: 1, tables: [1, 2], ready: false, excluded: false, readyTables: [], assigned: true, moved: false });
     expect(v.teams.map((t) => [t.name, t.table])).toEqual([['T1', 1], ['T2', 2]]);
     const tapped = { ...e, taps: [{ id: 's1', clientTapId: 'c1', kind: 'penalty' as const, round: 1, teamId: teamId(e, 'T1'), amountMs: 5000, source: 'referee' as const, deviceId: 'd', createdAt: 1, removedAt: null }] };
-    expect(refereeView(tapped, derive(tapped), 1).teams[0]!.taps[0]).toMatchObject({ id: 's1', clientTapId: 'c1' });
+    expect(refereeView(tapped, derive(tapped), { station: 1 }).teams[0]!.taps[0]).toMatchObject({ id: 's1', clientTapId: 'c1' });
   });
 });
 

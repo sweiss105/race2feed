@@ -49,7 +49,7 @@ It covers the whole day: setup, seeding rounds, brackets, the Grand Championship
 | `/` | Participants: team search, next table, schedule, brackets, results | Public | None (read-only) |
 | `/projector` | Full-screen projector that follows the round state | Public | None (read-only) |
 | `/ref` | Referee tablet: Ready, finish taps, penalties, undo | Referees | Device cookie from a pairing QR code (`/ref?code=…`) |
-| `/control` | Race control console (all sections) | Race control | Cloudflare Access: emailed one-time code |
+| `/control` | Race control console, PRC (Packing Race Coordinator; all sections) | Race control | Cloudflare Access: emailed one-time code |
 | `/emergency` | The same console, for when Access or email is down (not linked anywhere) | Race control | The `EMERGENCY_PASSWORD` secret |
 
 Bitfocus Companion has no page. It sends commands with an API key (see [Companion API](#companion-api)).
@@ -127,7 +127,7 @@ npm workspaces (`packages/*`), TypeScript throughout.
 |---|---|
 | `packages/engine` | **Pure race rules, no I/O.** Time parsing and formatting, stations, race ranking and ties, seeding rank, bracket plans and formats, seeding groups, round schedule, table layout, and `deriveEvent`. |
 | `packages/server` | **Cloudflare Worker + the `Hub` Durable Object.** `src/worker.ts` (routes), `src/hub.ts` (storage, auth, sockets, broadcasts), `src/core/` (pure command handlers and views), `src/auth/` (Cloudflare Access token check, console sign-in, token hashing, rate limiting). Config is in `wrangler.jsonc`. |
-| `packages/web` | **Vite multi-page Preact app.** Entry points are `index.html` (participants), `projector/`, `ref/`, `control/`, `emergency/` and `404.html`. Pages are in `src/pages/`, and the console sections are in `src/pages/control/sections/`. Shared code is in `src/lib/` (live connection, clock sync, tap queue, selectors) and `src/ui/`. Builds to `packages/web/dist`. |
+| `packages/web` | **Vite multi-page Preact app.** Entry points are `index.html` (participants), `projector/`, `ref/`, `control/`, `emergency/` and `404.html`. Pages are in `src/pages/`, and the console sections are in `src/pages/control/sections/`. Shared code is in `src/lib/` (live connection, clock sync, tap queue, selectors, the console's light/dark preference in `theme.ts`) and `src/ui/`. Builds to `packages/web/dist`. |
 | `e2e/` | **Playwright tests.** `event.spec.ts` runs a seeding round across every page. `screens.spec.ts` captures screens for visual review. `guide.spec.ts` (run only by `guide.config.ts`) takes the user guide's screenshots. |
 | `scripts/` | `build-guide.mjs` turns the user guide into the PDF. |
 | `docs/` | The design spec, the staff user guide (Markdown, its screenshots in `docs/guide/images/`, and the PDF), and implementation plans (`docs/superpowers/plans/`). |
@@ -217,7 +217,7 @@ After this deploy, reload every open console tab and referee tablet: pages loade
 
 Step-by-step setup for the token and the secrets is in [`packages/server/README.md`](packages/server/README.md), along with notes on the Workers plan and limits.
 
-**Backups:** the hub's SQLite storage has Cloudflare's point-in-time recovery. Admin can also export any event as CSV or JSON from the console's **Events** section.
+**Backups:** the hub's SQLite storage has Cloudflare's point-in-time recovery. Admin can also export any event as CSV or JSON from the **Events** panel on the console's **Settings** page.
 
 ## Documentation
 

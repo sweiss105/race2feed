@@ -2,10 +2,30 @@ import { expect, type Browser, type Page } from '@playwright/test';
 
 export const TEAMS = ['Alpha', 'Bravo', 'Charlie', 'Delta'];
 
-/** `wrangler dev` has no Cloudflare Access in front of it: DEV_CONSOLE_USER signs the console in. */
+/**
+ * `wrangler dev` has no Cloudflare Access in front of it: DEV_CONSOLE_USER signs the console in.
+ * Waits for the server's first view, so the Events panel on Settings has settled (folded away if an event is active).
+ */
 export async function signInAdmin(page: Page) {
+  const firstView = page.waitForEvent('websocket', (ws) => ws.url().endsWith('/api/control/ws'))
+    .then((ws) => ws.waitForEvent('framereceived', (f) => String(f.payload).includes('"type":"view"')));
   await page.goto('/control');
-  await expect(page.getByRole('link', { name: 'Race' })).toBeVisible();
+  await firstView;
+  await expect(page.getByRole('link', { name: 'Race Control', exact: true })).toBeVisible();
+}
+
+/** Opens Settings' Events panel if it is folded away (it is while an event is active). */
+export async function openEvents(page: Page) {
+  const panel = page.locator('details.events-panel');
+  await expect(panel).toBeVisible();
+  if (!(await panel.evaluate((d: HTMLDetailsElement) => d.open))) await panel.locator('summary').click();
+  await expect(page.getByLabel('Event name')).toBeVisible();
+}
+
+/** Waits until the console has `name` as its active event (which folds the Events panel away), then reopens the panel. */
+export async function waitForActive(page: Page, name: string) {
+  await expect(page.locator('details.events-panel > summary')).toContainText(`Active: ${name}`);
+  await openEvents(page);
 }
 
 /**
@@ -16,14 +36,21 @@ export async function signInAdmin(page: Page) {
 export async function setUpEvent(browser: Browser, name: string) {
   const admin = await (await browser.newContext({ reducedMotion: 'reduce' })).newPage();
   await signInAdmin(admin);
-  await admin.getByRole('link', { name: 'Events' }).click();
+  await admin.getByRole('link', { name: 'Settings', exact: true }).click();
+  await openEvents(admin);
   await admin.getByLabel('Event name').fill(name);
   await admin.getByLabel('Tables').fill('4');
   await admin.getByRole('button', { name: 'Create event' }).click();
+  // The list reloads after the server confirms, so it says whether the new event went active by itself.
+  const listed = admin.locator('details.events-panel tr', { hasText: name });
+  await expect(listed).toBeAttached();
+  if (!(await listed.textContent())!.includes('Active')) {
+    await openEvents(admin);
+    await listed.getByRole('button', { name: 'Make active' }).click();
+  }
+  await waitForActive(admin, name);
   const row = admin.getByRole('row', { name: new RegExp(name) });
   await expect(row).toBeVisible();
-  const activate = row.getByRole('button', { name: 'Make active' });
-  if (await activate.isVisible()) await activate.click();
   await expect(row.getByText('Active')).toBeVisible();
 
   await admin.getByRole('link', { name: 'Teams' }).click();
@@ -41,7 +68,7 @@ export async function setUpEvent(browser: Browser, name: string) {
 
 /** Pairs a fresh referee context to station 1 via the console's pairing code. */
 export async function pairReferee(browser: Browser, admin: Page, viewport?: { width: number; height: number }) {
-  await admin.getByRole('link', { name: 'Devices' }).click();
+  await admin.getByRole('link', { name: 'Referees', exact: true }).click();
   await admin.getByRole('button', { name: 'Pair tablet for Tables 1 & 2' }).click();
   const code = (await admin.locator('[data-qr]').getAttribute('data-qr'))!.split('code=')[1]!;
   const ref = await (await browser.newContext(viewport ? { viewport } : {})).newPage();

@@ -329,10 +329,11 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 | `/` | Participants |
 | `/projector` | Projector |
 | `/ref` | Referees (race control's pairing QR code opens `/ref?code=…`) |
-| `/control` | The race control console: one role, all seven sections (Race, Teams, Setup, Devices, Settings, Events, Log). Signed in through Cloudflare Access (§9) |
+| `/control` | The race control console, **PRC** (Packing Race Coordinator): one role, all six sections (Race Control, Teams, Setup, Referees, Settings, Log). Signed in through Cloudflare Access (§9) |
 | `/emergency` | The emergency sign-in: one password box, then the same console. Not linked from any page (§9) |
 
 - **Look:** clean Apple style with automatic light/dark mode and one accent colour, the spreadsheet's display red `#D71920`. The projector uses a dark theme, and the Gold/Silver/Bronze/Copper/Tin tier colours are kept.
+- **Names:** the app is **PRC**, short for **Packing Race Coordinator**. The console's sidebar brand reads `PRC` (with the full name as its tooltip) and the console tabs are titled `PRC · Race Control` and `PRC · Emergency sign-in`. Race to Feed is the event: the participant, projector, referee and not-found pages keep showing the event's name.
 - **Referee page:** adapts to phones (team buttons stacked) and tablets (side by side).
 - **Brackets on phones:** a card list per bracket, with a toggle to the classic bracket diagram.
 - **Finding the site:** a QR code on the projector's welcome and table screens.
@@ -341,7 +342,13 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 
 Race control and admin are one role. Everyone signed in to the console has every section and every command. The log names each console action by the signed-in email (or `emergency sign-in`); `admin` survives only as the role value in code.
 
-- Manage events, import and edit teams, set the venue table count.
+The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Setup**, **Referees** (hash `#devices`; the page is headed "Referees"), **Settings** and **Log**. There is no Events section: an old `#events` link opens Settings.
+
+**Settings** holds, top to bottom: the **Events** panel (create an event, the event list with Active/Ended, Make active, End event with its confirmation, and the CSV/JSON exports), then the active event's own settings, the penalty list, Companion keys, and **Appearance**. Settings works with no active event, so events can be created and activated there. The Events panel is a disclosure (`<details>`): its summary reads **Events**, with a secondary line **Active: {event name}** while an event is active. It is open when there is no active event and folded away when there is one; that default is decided when Settings mounts and again only when the console gains or loses its active event, so view updates never fold it under the user. Folded, nothing inside is reachable by keyboard or screen reader.
+
+**Appearance** is a per-browser preference for the console and the emergency console only: Automatic (follow the device), Light or Dark, as a three-way segmented control. It is kept in `localStorage` under `prc.theme` (`auto` | `light` | `dark`; missing or unreadable means `auto`) and applied before the first paint by setting `theme-light` / `theme-dark` on `<html>` (`auto` sets neither). It never reaches the server; phones, referee tablets and the projector are unaffected.
+
+- Manage events (Settings → Events), import and edit teams, set the venue table count.
 - Edit seeding groups and table assignments.
 - Set the referee undo window and the auto-finish delay.
 - Edit the bracket plan and set Grand Championship eligibility.
@@ -350,7 +357,7 @@ Race control and admin are one role. Everyone signed in to the console has every
 
 ### 7.2 Console: running the race
 - **Grid of every station:** each shows not ready / Ready / excluded, the teams with their times and status, and any overrides.
-- **Race page header:** round title, state, master clock, a status line (`role="status"`) and **one large action button** that always shows the next step. It is about three times a normal button (min-height 6rem, min-width 16rem, title-sized text). It **pulses** (a 2-second scale-and-glow loop, off under `prefers-reduced-motion: reduce`) only when pressing it will work and is the expected next step; it never pulses while the server would refuse. A refused command's message shows under the header until the round moves on (its number or phase changes); a refusal that arrives after that, such as a Finish now that lands just after auto-finish, is not shown. The first matching row wins:
+- **Race Control page header:** round title, state, master clock, a status line (`role="status"`) and **one large action button** that always shows the next step. It is about three times a normal button (min-height 6rem, min-width 16rem, title-sized text). It **pulses** (a 2-second scale-and-glow loop, off under `prefers-reduced-motion: reduce`) only when pressing it will work and is the expected next step; it never pulses while the server would refuse. A refused command's message shows under the header until the round moves on (its number or phase changes); a refusal that arrives after that, such as a Finish now that lands just after auto-finish, is not shown. The first matching row wins:
 
   | Condition | Button | Enabled | Pulses | Status line |
   |---|---|---|---|---|
@@ -379,7 +386,7 @@ Race control and admin are one role. Everyone signed in to the console has every
 
 ### 7.3 Referee (paired tablet, QR)
 - **Pairing asks for a name.** Opening a station's QR link shows one field, **Your name**, and a **Start** button; submitting pairs the tablet. The name is trimmed and must be 1–40 characters. It is checked before the code is used, so a missing name never spends the code.
-- The name labels the device in race control's Devices list ("{name} — {station tables}") and the log's actor ("{name} (station {n})"). Devices paired before names existed keep "referee station {n}".
+- The name labels the device in race control's Referees list ("{name} — {station tables}") and the log's actor ("{name} (station {n})"). Devices paired before names existed keep "referee station {n}".
 - Shows the station's table numbers and the current round's teams.
 - **Ready** button. Once pressed it stays locked; only race control can clear it.
 - While running, one large button per team. A tap shows that team's time and an **Undo** countdown.

@@ -29,7 +29,7 @@ test('screens for visual review', async ({ browser }) => {
   await expect(projector.getByRole('heading', { name: 'Race to Feed 2026' })).toBeVisible();
   await shot(projector, 'projector-welcome');
 
-  await admin.getByRole('link', { name: 'Race' }).click();
+  await admin.getByRole('link', { name: 'Race Control', exact: true }).click();
   await expect(admin.locator('.race-status')).toHaveText('Ready to open round 1');
   await shot(admin, 'console-race-not-started');
   // The same header mid-pulse (the console context otherwise asks for reduced motion; see setUpEvent).
@@ -52,7 +52,7 @@ test('screens for visual review', async ({ browser }) => {
 
   await admin.getByRole('link', { name: 'Settings' }).click();
   await admin.getByRole('switch', { name: 'Time penalties' }).check();
-  await admin.getByRole('link', { name: 'Race' }).click();
+  await admin.getByRole('link', { name: 'Race Control', exact: true }).click();
   await ref.getByRole('button', { name: 'Ready' }).click();
   await readyAndStart(admin);
   await expect(ref.getByRole('button', { name: /^Alpha/ })).toBeEnabled();
@@ -75,7 +75,7 @@ test('screens for visual review', async ({ browser }) => {
   await shot(ref2, 'referee-running-tablet');
   void tablet;
 
-  await admin.getByRole('link', { name: 'Race' }).click();
+  await admin.getByRole('link', { name: 'Race Control', exact: true }).click();
   await timeEveryone(admin, { Bravo: '3:05.10', Charlie: '3:10.00', Delta: '3:20.50' });
   await expect(admin.locator('.race-status')).toHaveText(/^All teams in — finishing in \d+ s$/);
   await shot(admin, 'console-race-all-in');
@@ -104,7 +104,7 @@ test('screens for visual review', async ({ browser }) => {
 
   await admin.getByRole('link', { name: 'Setup' }).click();
   await shot(admin, 'console-setup');
-  await admin.getByRole('link', { name: 'Devices' }).click();
+  await admin.getByRole('link', { name: 'Referees', exact: true }).click();
   await shot(admin, 'console-devices');
   await admin.getByRole('link', { name: 'Settings' }).click();
   await shot(admin, 'console-settings');

@@ -4,6 +4,8 @@ import { Button } from '../../../ui/Button';
 import { CONTROL_API, getJson, type ApiBase } from '../../../lib/api';
 import { useRunner } from '../runner';
 import { Switch } from '../../../ui/Switch';
+import { getTheme, setTheme, type Theme } from '../../../lib/theme';
+import { Events } from './Events';
 
 interface ApiKey { id: string; label: string; created_at: number; revoked_at: number | null }
 
@@ -11,10 +13,31 @@ export function Settings({ view, api = CONTROL_API }: { view: ControlView | null
   return (
     <>
       <h2 class="title-1">Settings</h2>
+      <Events view={view} api={api} />
       {view && <EventSettings view={view} />}
       {view && <PenaltyList key={view.event.id} view={view} />}
       <CompanionKeys api={api} />
+      <Appearance />
     </>
+  );
+}
+
+const THEMES: [Theme, string][] = [['auto', 'Automatic'], ['light', 'Light'], ['dark', 'Dark']];
+
+/** Light or dark console for this browser only; stored locally, never sent to the server. */
+function Appearance() {
+  const [theme, choose] = useState<Theme>(() => getTheme());
+  return (
+    <section class="panel card stack" aria-labelledby="appearance">
+      <h3 id="appearance" class="headline">Appearance</h3>
+      <div class="segmented" role="radiogroup" aria-label="Appearance" style={{ margin: 0, maxWidth: '30rem' }}>
+        {THEMES.map(([t, label]) => (
+          <button key={t} type="button" role="radio" aria-checked={theme === t ? 'true' : 'false'} aria-selected={theme === t ? 'true' : 'false'}
+            onClick={() => { setTheme(t); choose(t); }}>{label}</button>
+        ))}
+      </div>
+      <p class="footnote secondary" style={{ margin: 0 }}>Only changes this browser. Phones, referee tablets and the projector are not affected.</p>
+    </section>
   );
 }
 

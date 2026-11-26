@@ -10,17 +10,19 @@ import { Teams } from './sections/Teams';
 import { Setup } from './sections/Setup';
 import { Devices } from './sections/Devices';
 import { Settings } from './sections/Settings';
-import { Events } from './sections/Events';
 import { Log } from './sections/Log';
 
-export type Section = 'race' | 'teams' | 'setup' | 'devices' | 'settings' | 'events' | 'log';
+export type Section = 'race' | 'teams' | 'setup' | 'devices' | 'settings' | 'log';
 
 const LABELS: Record<Section, string> = {
-  race: 'Race', teams: 'Teams', setup: 'Setup', devices: 'Devices', settings: 'Settings', events: 'Events', log: 'Log',
+  race: 'Race Control', teams: 'Teams', setup: 'Setup', devices: 'Referees', settings: 'Settings', log: 'Log',
 };
 
+/** Old links to sections that moved: Events now lives on Settings. */
+const MOVED: Record<string, Section> = { events: 'settings' };
+
 export function sectionsFor(_role: Me['role']): Section[] {
-  return ['race', 'teams', 'setup', 'devices', 'settings', 'events', 'log'];
+  return ['race', 'teams', 'setup', 'devices', 'settings', 'log'];
 }
 
 export interface ConsoleProps {
@@ -39,7 +41,8 @@ export interface ConsoleProps {
 export function ConsolePage(props: ConsoleProps) {
   const sections = sectionsFor(props.me.role);
   const fromHash = () => {
-    const h = (typeof location !== 'undefined' ? location.hash.slice(1) : '') as Section;
+    const raw = typeof location !== 'undefined' ? location.hash.slice(1) : '';
+    const h = (MOVED[raw] ?? raw) as Section;
     return sections.includes(h) ? h : 'race';
   };
   const [section, setSection] = useState<Section>(fromHash);
@@ -53,7 +56,7 @@ export function ConsolePage(props: ConsoleProps) {
     <RunnerProvider send={props.send}>
       <div class="console">
         <nav class="sidebar" aria-label="Sections">
-          <div class="brand"><div class="headline">Race to Feed</div><StatusDot status={props.status} /></div>
+          <div class="brand"><div class="headline" title="Packing Race Coordinator">PRC</div><StatusDot status={props.status} /></div>
           {sections.map((s) => (
             <a key={s} href={`#${s}`} aria-current={s === section ? 'page' : undefined} onClick={() => setSection(s)}>{LABELS[s]}</a>
           ))}
@@ -64,8 +67,8 @@ export function ConsolePage(props: ConsoleProps) {
         </nav>
         <main class="content">
           <div class="page">
-            {!props.view && section !== 'events' && section !== 'settings'
-              ? <p class="secondary callout">No event is active. Create or activate one under Events.</p>
+            {!props.view && section !== 'settings'
+              ? <p class="secondary callout">No event is active. Create or activate one under Settings.</p>
               : <SectionView section={section} {...props} />}
           </div>
         </main>
@@ -81,7 +84,6 @@ function SectionView({ section, ...p }: ConsoleProps & { section: Section }) {
     case 'setup': return <Setup view={p.view!} />;
     case 'devices': return <Devices view={p.view!} />;
     case 'settings': return <Settings view={p.view} api={p.api ?? CONTROL_API} />;
-    case 'events': return <Events view={p.view} api={p.api ?? CONTROL_API} />;
     case 'log': return <Log view={p.view!} />;
   }
 }

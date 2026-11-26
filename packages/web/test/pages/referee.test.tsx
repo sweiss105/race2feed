@@ -41,6 +41,7 @@ describe('referee page', () => {
     const e = start(openNext(lockedFour()));
     setup(e);
     expect((await screen.findAllByRole('button', { name: /^T[12]/ })).length).toBe(2);
+    expect(screen.getByLabelText('Race clock')).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Penalty for/ })).toBeNull();
     cleanup();
     setup({ ...e, settings: { ...e.settings, penaltiesEnabled: true } });

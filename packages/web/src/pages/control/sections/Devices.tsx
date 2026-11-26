@@ -22,7 +22,7 @@ export function Devices({ view }: { view: ControlView }) {
   };
   return (
     <>
-      <h2 class="title-1">Devices</h2>
+      <h2 class="title-1">Referees</h2>
       <p class="secondary callout">Open a station's QR code, then scan it with that referee's phone or tablet. Codes work once and expire after 10 minutes.</p>
       {pairing && <PairingCard pairing={pairing} onClose={() => setPairing(null)} />}
       <section class="panel">

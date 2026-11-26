@@ -16,7 +16,7 @@ test('a seeding round across every page', async ({ browser }) => {
   await expect(projector.getByRole('heading', { name: 'E2E Race' })).toBeVisible();
 
   // Open round 1: referee readies station 1, race control readies station 2, then starts.
-  await admin.getByRole('link', { name: 'Race' }).click();
+  await admin.getByRole('link', { name: 'Race Control', exact: true }).click();
   await admin.getByRole('button', { name: 'Open round 1' }).click();
   await expect(projector.getByRole('heading', { name: 'Round 1' })).toBeVisible();
   await expect(phone.getByTestId('next-table')).toHaveText('1');

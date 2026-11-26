@@ -3,10 +3,12 @@ import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-li
 import { ConsolePage } from '../../src/pages/control/ConsolePage';
 import { RunnerProvider } from '../../src/pages/control/runner';
 import { Settings } from '../../src/pages/control/sections/Settings';
-import { Events } from '../../src/pages/control/sections/Events';
 import { ctlViewOf, lockedFour, runRound, seedTimes, teamId } from '../support/state';
 import type { LiveEvent } from '../../../server/src/core/model';
 import type { Ack } from '../../src/lib/types';
+
+/** The Events panel on Settings is folded away while an event is active. */
+const openEvents = () => fireEvent.click(document.querySelector('details.events-panel > summary')!);
 
 const me = (role: 'admin') => ({ role, label: 'race control' });
 const console_ = (e: LiveEvent, send: (cmd: any) => Promise<Ack>, role: 'admin' = 'admin') =>
@@ -161,7 +163,8 @@ describe('admin: penalty list and ending the event', () => {
   it('ends the active event after confirming, warning about unraced rounds', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([{ id: 'ev1', name: 'Test', date: '2026-11-24', active: true, ended: false }]), { status: 200 })));
     const send = vi.fn(async () => ({ ok: true }));
-    withRunner(<Events view={ctlViewOf(runRound(lockedFour(), seedTimes))} />, send);
+    withRunner(<Settings view={ctlViewOf(runRound(lockedFour(), seedTimes))} />, send);
+    openEvents();
     fireEvent.click(await screen.findByRole('button', { name: 'End event' }));
     const sheet = screen.getByRole('dialog', { name: /End Test\?/ });
     expect(within(sheet).getByText(/3 rounds not raced yet/)).toBeTruthy();
@@ -171,7 +174,8 @@ describe('admin: penalty list and ending the event', () => {
 
   it('warns about penalties still waiting for a decision', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([{ id: 'ev1', name: 'Test', date: '2026-11-24', active: true, ended: false }]), { status: 200 })));
-    withRunner(<Events view={ctlViewOf(withPending())} />, async () => ({ ok: true }));
+    withRunner(<Settings view={ctlViewOf(withPending())} />, async () => ({ ok: true }));
+    openEvents();
     fireEvent.click(await screen.findByRole('button', { name: 'End event' }));
     expect(within(screen.getByRole('dialog', { name: /End Test\?/ })).getByText(/1 penalty is still waiting for a decision/)).toBeTruthy();
   });
@@ -179,7 +183,7 @@ describe('admin: penalty list and ending the event', () => {
   it('marks ended events and asks before reopening one', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify([{ id: 'ev1', name: 'Test', date: '2026-11-24', active: false, ended: true }]), { status: 200 })));
     const send = vi.fn(async () => ({ ok: true }));
-    withRunner(<Events view={null} />, send);
+    withRunner(<Settings view={null} />, send);
     expect(await screen.findByText('Ended')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Make active' }));
     const sheet = screen.getByRole('dialog', { name: /Reopen Test\?/ });

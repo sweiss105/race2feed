@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, cleanup, waitFor } from '@testing-library/preact';
+import { render, screen, fireEvent, cleanup, waitFor, within } from '@testing-library/preact';
 import { RunnerProvider } from '../../src/pages/control/runner';
 import { Teams } from '../../src/pages/control/sections/Teams';
 import { Setup } from '../../src/pages/control/sections/Setup';
 import { Devices } from '../../src/pages/control/sections/Devices';
 import { Settings } from '../../src/pages/control/sections/Settings';
-import { Events } from '../../src/pages/control/sections/Events';
+import { ConsolePage } from '../../src/pages/control/ConsolePage';
 import { App, EmergencyApp } from '../../src/pages/control/App';
 import { FakeWebSocket } from '../lib/fakes';
 import { ctlViewOf, lockedFour } from '../support/state';
@@ -122,6 +122,85 @@ describe('admin sections', () => {
     resolve({ ok: true });
   });
 
+  it('has the Events panel first on Settings, with the create form and the event list, even with no active event', async () => {
+    vi.stubGlobal('fetch', vi.fn(async (url: string) => new Response(url.endsWith('/events')
+      ? JSON.stringify([{ id: 'ev1', name: 'Gala', date: '2026-12-01', active: true, ended: false }]) : '[]', { status: 200 })));
+    const send = vi.fn(async () => ({ ok: true }));
+    const { container } = withRunner(<Settings view={null} />, send);
+    expect((container.querySelector('details.events-panel') as HTMLDetailsElement).open).toBe(true);
+    expect(container.querySelector('details.events-panel summary')!.textContent).toBe('Events');
+    const headings = [...container.querySelectorAll('h2, h3')].map((h) => h.textContent);
+    expect(headings.slice(0, 2)).toEqual(['Settings', 'Events']);
+    expect(await screen.findByText('Gala')).toBeTruthy();
+    expect(screen.getByText('Active')).toBeTruthy();
+    fireEvent.input(screen.getByLabelText('Event name'), { target: { value: 'Next year' } });
+    fireEvent.input(screen.getByLabelText('Date'), { target: { value: '2027-11-13' } });
+    fireEvent.input(screen.getByLabelText('Tables'), { target: { value: '8' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create event' }));
+    await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'createEvent', name: 'Next year', date: '2027-11-13', tableCount: 8 }));
+  });
+
+  it('folds the Events panel away while an event is active, and opens it on a click', () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
+    withRunner(<Settings view={ctlViewOf(lockedFour())} />, vi.fn(async () => ({ ok: true })));
+    const panel = document.querySelector('details.events-panel') as HTMLDetailsElement;
+    const summary = panel.querySelector('summary')!;
+    expect(summary.textContent).toBe(`EventsActive: ${ctlViewOf(lockedFour()).event.name}`);
+    expect(panel.open).toBe(false);
+    expect(panel.contains(screen.getByLabelText('Event name'))).toBe(true);
+    fireEvent.click(summary);
+    expect(panel.open).toBe(true);
+    fireEvent.click(summary);
+    expect(panel.open).toBe(false);
+  });
+
+  it('keeps the Events panel as the user left it across view updates, and resets it when the active event comes or goes', () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
+    const send = vi.fn(async () => ({ ok: true }));
+    const { rerender } = withRunner(<Settings view={ctlViewOf(lockedFour())} />, send);
+    const panel = () => document.querySelector('details.events-panel') as HTMLDetailsElement;
+    fireEvent.click(panel().querySelector('summary')!);
+    expect(panel().open).toBe(true);
+    rerender(<RunnerProvider send={send}><Settings view={ctlViewOf(lockedFour())} /></RunnerProvider>);
+    expect(panel().open).toBe(true);
+    rerender(<RunnerProvider send={send}><Settings view={null} /></RunnerProvider>);
+    expect(panel().open).toBe(true);
+    fireEvent.click(panel().querySelector('summary')!);
+    expect(panel().open).toBe(false);
+    rerender(<RunnerProvider send={send}><Settings view={ctlViewOf(lockedFour())} /></RunnerProvider>);
+    expect(panel().open).toBe(false);
+    rerender(<RunnerProvider send={send}><Settings view={null} /></RunnerProvider>);
+    expect(panel().open).toBe(true);
+    rerender(<RunnerProvider send={send}><Settings view={ctlViewOf(lockedFour())} /></RunnerProvider>);
+    expect(panel().open).toBe(false);
+  });
+
+  it('places the Events panel above the event\'s own settings', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
+    const { container } = withRunner(<Settings view={ctlViewOf(lockedFour())} />, vi.fn(async () => ({ ok: true })));
+    const headings = [...container.querySelectorAll('h2, h3')].map((h) => h.textContent);
+    expect(headings[1]).toBe('Events');
+    expect(headings.at(-1)).toBe('Appearance');
+  });
+
+  it('has a three-way Appearance switch at the bottom that applies and remembers Dark', () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 })));
+    localStorage.removeItem('prc.theme');
+    document.documentElement.classList.remove('theme-dark', 'theme-light');
+    withRunner(<Settings view={ctlViewOf(lockedFour())} />, vi.fn(async () => ({ ok: true })));
+    const group = screen.getByRole('radiogroup', { name: 'Appearance' });
+    expect(within(group).getAllByRole('radio').map((r) => r.textContent)).toEqual(['Automatic', 'Light', 'Dark']);
+    expect(within(group).getByRole('radio', { name: 'Automatic' }).getAttribute('aria-checked')).toBe('true');
+    fireEvent.click(within(group).getByRole('radio', { name: 'Dark' }));
+    expect(document.documentElement.classList.contains('theme-dark')).toBe(true);
+    expect(localStorage.getItem('prc.theme')).toBe('dark');
+    expect(within(group).getByRole('radio', { name: 'Dark' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByText('Only changes this browser. Phones, referee tablets and the projector are not affected.')).toBeTruthy();
+    fireEvent.click(within(group).getByRole('radio', { name: 'Automatic' }));
+    expect(document.documentElement.classList.contains('theme-dark')).toBe(false);
+    localStorage.removeItem('prc.theme');
+  });
+
   it('chooses how many tables each referee covers until setup is locked', async () => {
     const send = vi.fn(async () => ({ ok: true }));
     withRunner(<Setup view={ctlViewOf(blank(4))} />, send);
@@ -178,17 +257,51 @@ describe('console sign-in', () => {
 
   it('fetches lists and exports from the console API it is given', async () => {
     const fetchFn = stubServer(() => jsonResponse([{ id: 'e1', name: 'Gala', date: '2026-12-01', active: true }]));
-    withRunner(<Events view={null} />, vi.fn(async () => ({ ok: true })));
+    withRunner(<Settings view={null} />, vi.fn(async () => ({ ok: true })));
     expect((await screen.findByRole('link', { name: 'CSV' })).getAttribute('href')).toBe('/api/control/export?event=e1&format=csv');
     expect(screen.getByRole('link', { name: 'JSON' }).getAttribute('href')).toBe('/api/control/export?event=e1&format=json');
     expect(fetchFn).toHaveBeenCalledWith('/api/control/events');
     cleanup();
-    withRunner(<Events view={null} api="/api/emergency" />, vi.fn(async () => ({ ok: true })));
+    withRunner(<Settings view={null} api="/api/emergency" />, vi.fn(async () => ({ ok: true })));
     expect((await screen.findByRole('link', { name: 'CSV' })).getAttribute('href')).toBe('/api/emergency/export?event=e1&format=csv');
     expect(fetchFn).toHaveBeenCalledWith('/api/emergency/events');
-    cleanup();
-    withRunner(<Settings view={null} api="/api/emergency" />, vi.fn(async () => ({ ok: true })));
     await waitFor(() => expect(fetchFn).toHaveBeenCalledWith('/api/emergency/apikeys'));
+  });
+});
+
+describe('console shell', () => {
+  beforeEach(() => { cleanup(); vi.stubGlobal('fetch', vi.fn(async () => new Response('[]', { status: 200 }))); });
+  afterEach(() => { vi.unstubAllGlobals(); location.hash = ''; });
+  const open = () => render(<ConsolePage me={{ role: 'admin', label: 'a' }} view={ctlViewOf(lockedFour())} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+
+  it('is called PRC, short for Packing Race Coordinator', () => {
+    open();
+    const brand = document.querySelector('.sidebar .brand .headline')!;
+    expect(brand.textContent).toBe('PRC');
+    expect(brand.getAttribute('title')).toBe('Packing Race Coordinator');
+  });
+
+  it('lists six sections, with Events folded into Settings', () => {
+    open();
+    const nav = screen.getByRole('navigation', { name: 'Sections' });
+    const links = within(nav).getAllByRole('link').map((a) => a.textContent).filter((t) => t !== 'Sign out');
+    expect(links).toEqual(['Race Control', 'Teams', 'Setup', 'Referees', 'Settings', 'Log']);
+    expect(within(nav).queryByRole('link', { name: 'Events' })).toBeNull();
+  });
+
+  it('opens Settings for an old #events link', () => {
+    location.hash = '#events';
+    open();
+    expect(screen.getByRole('heading', { name: 'Settings', level: 2 })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Events' })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Settings' }).getAttribute('aria-current')).toBe('page');
+  });
+
+  it('heads the Referees page "Referees"', () => {
+    location.hash = '#devices';
+    open();
+    expect(screen.getByRole('heading', { name: 'Referees', level: 2 })).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Referees' }).getAttribute('aria-current')).toBe('page');
   });
 });
 

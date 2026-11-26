@@ -9,7 +9,7 @@
 import { test, expect, type Browser, type Locator, type Page } from '@playwright/test';
 import { mkdirSync, rmSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { readyAndStart, signInAdmin, timeEveryone } from './helpers';
+import { openEvents, readyAndStart, signInAdmin, timeEveryone, waitForActive } from './helpers';
 
 const OUT = fileURLToPath(new URL('../docs/guide/images/', import.meta.url));
 const SITE = 'http://r2f.weiss-audio.com';
@@ -113,16 +113,19 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   const admin = await context(browser, CONSOLE, 'reduce');
   await signInAdmin(admin);
 
-  // ── Events: last year's event (ended), then this year's ───────────────────
-  await admin.getByRole('link', { name: 'Events' }).click();
+  // ── Settings → Events: last year's event (ended), then this year's ────────
+  await admin.getByRole('link', { name: 'Settings', exact: true }).click();
+  // With no active event the Events panel is open; it folds away whenever an event becomes active.
   const create = async (name: string, date: string, tables: string) => {
+    await openEvents(admin);
     await admin.getByLabel('Event name').fill(name);
     await admin.getByLabel('Date').fill(date);
     await admin.getByLabel('Tables').fill(tables);
     await admin.getByRole('button', { name: 'Create event' }).click();
-    await expect(admin.getByRole('row', { name: new RegExp(name) })).toBeVisible();
+    await expect(admin.locator('details.events-panel tr', { hasText: name })).toBeAttached();
   };
   await create('Race to Feed 2025', '2025-11-15', '20');
+  await waitForActive(admin, 'Race to Feed 2025');
   const lastYear = admin.getByRole('row', { name: /Race to Feed 2025/ });
   await expect(lastYear.getByText('Active')).toBeVisible();
   await lastYear.getByRole('button', { name: 'End event' }).click();
@@ -133,12 +136,16 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   const event = admin.getByRole('row', { name: /Race to Feed 2026/ });
   // An ended event is still on display, so the new one waits for Make active.
   await event.getByRole('button', { name: 'Make active' }).click();
+  await waitForActive(admin, 'Race to Feed 2026');
   await expect(event.getByText('Active')).toBeVisible();
   await admin.getByLabel('Event name').fill('Race to Feed 2027');
   await admin.getByLabel('Date').fill('2027-11-13');
   await admin.getByLabel('Tables').fill('26');
-  await region(admin, [admin.getByRole('heading', { name: 'Events' }), admin.locator('table.table')], 'console-events.jpg');
+  await region(admin, admin.locator('details.events-panel'), 'console-events.jpg');
   await admin.getByLabel('Event name').fill('');
+  // Folded away again, as it is whenever an event is active.
+  await admin.locator('details.events-panel > summary').click();
+  await region(admin, admin.locator('details.events-panel'), 'console-events-folded.jpg');
 
   // ── Teams: CSV import ─────────────────────────────────────────────────────
   await admin.getByRole('link', { name: 'Teams' }).click();
@@ -173,6 +180,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await keys.getByLabel('Key name').blur();
   await region(admin, keys, 'console-companion-keys.jpg');
   await keys.getByLabel('Key name').fill('');
+  await region(admin, admin.getByRole('region', { name: 'Appearance' }), 'console-appearance.jpg');
 
   // ── Referee: an unpaired tablet ───────────────────────────────────────────
   const unpaired = await context(browser, TABLET);
@@ -181,8 +189,8 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await region(unpaired, [unpaired.getByRole('heading', { name: 'Scan the station QR code' }), unpaired.getByText(/Race control shows a QR code/)], 'referee-scan.jpg', 48);
   await unpaired.context().close();
 
-  // ── Devices: pair the tablet for tables 1 & 2 ─────────────────────────────
-  await admin.getByRole('link', { name: 'Devices' }).click();
+  // ── Referees: pair the tablet for tables 1 & 2 ────────────────────────────
+  await admin.getByRole('link', { name: 'Referees', exact: true }).click();
   await admin.getByRole('button', { name: 'Pair tablet for Tables 1 & 2' }).click();
   const qr = admin.locator('[data-qr]');
   await expect(qr).toBeVisible();
@@ -211,7 +219,7 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await shot(projector, 'projector-welcome.jpg');
 
   // ── Round 1: the big button, then open ────────────────────────────────────
-  await admin.getByRole('link', { name: 'Race' }).click();
+  await admin.getByRole('link', { name: 'Race Control', exact: true }).click();
   const status = admin.locator('.race-status');
   await expect(status).toHaveText('Ready to open round 1');
   // The button mid-pulse: 1 s into its 2 s loop is the largest glow (region() waits 600 ms more).
@@ -350,7 +358,8 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await shot(projector, 'projector-champion.jpg');
 
   // ── End the event ─────────────────────────────────────────────────────────
-  await admin.getByRole('link', { name: 'Events' }).click();
+  await admin.getByRole('link', { name: 'Settings', exact: true }).click();
+  await openEvents(admin);
   await event.getByRole('button', { name: 'End event' }).click();
   await expect(admin.getByRole('dialog', { name: /End Race to Feed 2026\?/ })).toBeVisible();
   await shot(admin, 'console-end-event.jpg');

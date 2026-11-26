@@ -76,10 +76,12 @@
   --tertiary-label: #7C7C82;
   --separator: rgba(84, 84, 88, 0.6);
   --material: rgba(28, 28, 30, 0.72);
+  --scrim: rgba(0, 0, 0, 0.55);
   --success: #30D158;
   --warning: #FFB340;
   --danger: #FF6961;
   --accent: #FF3B41;
+  --accent-pressed: #E0262C;
   --accent-fill: #E0262C;
   --accent-fill-pressed: #C8161C;
   --highlight: rgba(255, 59, 65, 0.22);
@@ -87,6 +89,8 @@
   --shadow-m: 0 8px 24px rgba(0, 0, 0, 0.5);
   color-scheme: dark;
 }
+
+:root.theme-light { color-scheme: light; }
 
 @media (prefers-reduced-transparency: reduce) {
   :root { --material: var(--surface); --blur: none; }

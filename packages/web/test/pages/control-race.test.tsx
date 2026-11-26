@@ -32,12 +32,13 @@ describe('console sign-in', () => {
 
 describe('console sections', () => {
   beforeEach(() => cleanup());
-  it('sectionsFor gives every signed-in user all seven sections', () => {
-    expect(sectionsFor('admin')).toEqual(['race', 'teams', 'setup', 'devices', 'settings', 'events', 'log']);
+  it('sectionsFor gives every signed-in user all six sections', () => {
+    expect(sectionsFor('admin')).toEqual(['race', 'teams', 'setup', 'devices', 'settings', 'log']);
   });
   it('a signed-in user sees every section', () => {
     render(<ConsolePage me={me('admin')} view={ctlViewOf(lockedFour())} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
-    for (const s of ['Race', 'Teams', 'Setup', 'Devices', 'Settings', 'Events', 'Log']) expect(screen.getByRole('link', { name: s })).toBeTruthy();
+    for (const s of ['Race Control', 'Teams', 'Setup', 'Referees', 'Settings', 'Log']) expect(screen.getByRole('link', { name: s })).toBeTruthy();
+    expect(screen.queryByRole('link', { name: 'Events' })).toBeNull();
   });
 });
 

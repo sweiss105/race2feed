@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { pairReferee, readyAndStart, setUpEvent, timeEveryone } from './helpers';
+import { openEvents, pairReferee, readyAndStart, setUpEvent, timeEveryone } from './helpers';
 
 const OUT = 'test-results/screens';
 const shot = async (page: Page, name: string) => {
@@ -23,7 +23,7 @@ test('penalty review, champion and the end of the event', async ({ browser }) =>
   await admin.getByRole('link', { name: 'Settings' }).click();
   await admin.getByRole('switch', { name: 'Time penalties' }).click();
   await expect(admin.getByRole('switch', { name: 'Time penalties' })).toBeChecked();
-  await admin.getByRole('link', { name: 'Race' }).click();
+  await admin.getByRole('link', { name: 'Race Control', exact: true }).click();
   await admin.getByRole('button', { name: 'Open round 1' }).click();
   await readyAndStart(admin);
   await ref.getByRole('button', { name: 'Penalty for Alpha' }).click();
@@ -85,7 +85,8 @@ test('penalty review, champion and the end of the event', async ({ browser }) =>
   await shot(projector, 'projector-champion-finale');
 
   // End the event: tablets are signed out; phones keep the champion.
-  await admin.getByRole('link', { name: 'Events' }).click();
+  await admin.getByRole('link', { name: 'Settings', exact: true }).click();
+  await openEvents(admin);
   const row = admin.getByRole('row', { name: /E2E Finale/ });
   await row.getByRole('button', { name: 'End event' }).click();
   await shot(admin, 'console-end-event');

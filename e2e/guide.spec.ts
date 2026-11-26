@@ -163,6 +163,11 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await shot(admin, 'console-setup.jpg');
   await region(admin, admin.getByRole('region', { name: 'Referees' }), 'console-tables-per-referee.jpg');
   await region(admin, admin.getByRole('region', { name: 'Seeding groups' }), 'console-setup-groups.jpg');
+  // The guide server runs on a local address; show the real site's addresses in the picture.
+  await admin.getByRole('region', { name: 'Screen links' }).locator('input').evaluateAll((inputs) => {
+    for (const i of inputs as HTMLInputElement[]) i.value = i.value.replace(location.origin, 'https://r2f.weiss-audio.com');
+  });
+  await region(admin, admin.getByRole('region', { name: 'Screen links' }), 'console-screen-links.jpg');
   await admin.getByRole('button', { name: 'Lock setup' }).click();
   await expect(admin.getByText('Locked')).toBeVisible();
 

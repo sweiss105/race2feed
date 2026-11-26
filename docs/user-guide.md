@@ -138,6 +138,12 @@ When teams, groups and brackets look right, press **Lock setup** in **Setup**.
 - **Unlock setup** is available only before the first round is opened.
 - **Some changes still work while locked:** renaming teams, settings, the penalty list and the bag total.
 
+### Screen links
+
+At the bottom of **Setup**, the **Screen links** panel lists the address of every screen: participants, projector, the transparent projector for OBS, referee and race control. Press **Copy** next to one and paste it wherever it's needed (a browser, OBS, a message to a referee). Nobody has to remember or retype an address.
+
+![Setup: the Screen links panel with a Copy button for each screen's address](guide/images/console-screen-links.jpg)
+
 ### 5. Who can sign in
 
 The console has no password. The list of email addresses allowed to sign in is kept in Cloudflare, not in the console: whoever manages the Cloudflare account adds or removes addresses in Cloudflare's Zero Trust dashboard, on the policy of the Access application **Race to Feed console**. Ask them to add every member of race control well before the day, and have each person sign in once to check.
@@ -549,6 +555,10 @@ With fewer teams in a round, the team list on the **Tables** and **Clock** scree
 The times are preliminary until race control finishes the round. The list stays up for the rest of the race, even if a finish is undone.
 
 Race control can pin any screen, including **standings**, from the console (see [Projector control](#projector-control)). If the projector seems stuck on one screen, check whether it's been pinned.
+
+### Using the projector in OBS
+
+To put your own image or moving background behind the projector, add a **Browser** source in OBS with the address **r2f.weiss-audio.com/projector/?bg=transparent** (copy it from **Setup → Screen links**), sized 1920 × 1080, and place it above your background in the source list. The page then has no background of its own, and the text gets a soft dark shadow so it stays readable. Dark or calm backgrounds work best: the text is white, so a bright or busy background makes names hard to read.
 
 ---
 

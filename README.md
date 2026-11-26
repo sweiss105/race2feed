@@ -47,7 +47,7 @@ It covers the whole day: setup, seeding rounds, brackets, the Grand Championship
 | Address | Page | Who | How they sign in |
 |---|---|---|---|
 | `/` | Participants: team search, next table, schedule, brackets, results | Public | None (read-only) |
-| `/projector` | Full-screen projector that follows the round state | Public | None (read-only) |
+| `/projector` | Full-screen projector that follows the round state (`?bg=transparent` removes the background, for OBS) | Public | None (read-only) |
 | `/ref` | Referee tablet: Ready, finish taps, penalties, undo | Referees | Device cookie from a pairing QR code (`/ref?code=…`) |
 | `/control` | Race control console, PRC (Packing Race Coordinator; all sections) | Race control | Cloudflare Access: emailed one-time code |
 | `/emergency` | The same console, for when Access or email is down (not linked anywhere) | Race control | The `EMERGENCY_PASSWORD` secret |

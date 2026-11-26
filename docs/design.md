@@ -338,7 +338,7 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 | Address | Page |
 |---|---|
 | `/` | Participants |
-| `/projector` | Projector |
+| `/projector` | Projector. `/projector/?bg=transparent` is the same screen with no page background and a text shadow, for a video mixer (an OBS browser source) to composite over its own background |
 | `/ref` | Referees (race control's pairing QR code opens `/ref?code=…`) |
 | `/control` | The race control console, **PRC** (Packing Race Coordinator): one role, all six sections (Race Control, Teams, Setup, Referees, Settings, Log). Signed in through Cloudflare Access (§9) |
 | `/emergency` | The emergency sign-in: one password box, then the same console. Not linked from any page (§9) |
@@ -353,7 +353,7 @@ All page and UX design follows the `anthropic-skills:apple-design` skill (the us
 
 Race control and admin are one role. Everyone signed in to the console has every section and every command. The log names each console action by the signed-in email (or `emergency sign-in`); `admin` survives only as the role value in code.
 
-The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Setup**, **Referees** (hash `#devices`; the page is headed "Referees"), **Settings** and **Log**. There is no Events section: an old `#events` link opens Settings.
+The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Setup**, **Referees** (hash `#devices`; the page is headed "Referees"), **Settings** and **Log**. There is no Events section: an old `#events` link opens Settings. The bottom of **Setup** has a **Screen links** panel: the full address of each screen (participants, projector, transparent projector, referee, race control) in a read-only box with a Copy button.
 
 **Settings** holds, top to bottom: the **Events** panel (create an event, the event list with Active/Ended, Make active, End event with its confirmation, the CSV/JSON exports, and Delete on every event but the active one, behind a type-the-name confirmation (§4.1)), then the active event's own settings, the penalty list, Companion keys, and **Appearance**. Settings works with no active event, so events can be created and activated there. The Events panel is a disclosure (`<details>`): its summary reads **Events**, with a secondary line **Active: {event name}** while an event is active. It is open when there is no active event and folded away when there is one; that default is decided when Settings mounts and again only when the console gains or loses its active event, so view updates never fold it under the user. Folded, nothing inside is reachable by keyboard or screen reader.
 

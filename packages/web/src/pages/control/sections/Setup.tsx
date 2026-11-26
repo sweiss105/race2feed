@@ -36,7 +36,45 @@ export function Setup({ view }: { view: ControlView }) {
       <div class="panel"><Problems items={problems} /></div>
       <Brackets view={view} />
       <Groups view={view} />
+      <ScreenLinks />
     </>
+  );
+}
+
+const SCREENS: { name: string; path: string; note: string }[] = [
+  { name: 'Participants', path: '/', note: 'The page teams open on their phones.' },
+  { name: 'Projector', path: '/projector/', note: 'The big screen in the room.' },
+  { name: 'Projector, transparent', path: '/projector/?bg=transparent', note: 'No background, for an OBS browser source over your own image or video.' },
+  { name: 'Referee', path: '/ref/', note: 'Referees normally get here by scanning their station code on the Referees tab.' },
+  { name: 'Race control', path: '/control/', note: 'This console. Needs the emailed sign-in code.' },
+];
+
+/** Every screen's address, so nobody has to remember or retype one. */
+export function ScreenLinks({ origin = location.origin }: { origin?: string }) {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = async (url: string) => {
+    try { await navigator.clipboard.writeText(url); setCopied(url); setTimeout(() => setCopied((c) => (c === url ? null : c)), 2000); }
+    catch { setCopied(null); }
+  };
+  return (
+    <section class="panel card stack" aria-labelledby="screen-links">
+      <h3 class="title-3" id="screen-links">Screen links</h3>
+      <ul class="stack" style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+        {SCREENS.map((s) => {
+          const url = `${origin}${s.path}`;
+          return (
+            <li key={s.path}>
+              <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center', flexWrap: 'wrap' }}>
+                <strong style={{ flex: '0 0 12rem' }}>{s.name}</strong>
+                <input class="input" style={{ flex: '1 1 18rem' }} readOnly aria-label={`${s.name} link`} value={url} onFocus={(e) => (e.target as HTMLInputElement).select()} />
+                <Button kind="secondary" aria-label={`Copy ${s.name} link`} onClick={() => void copy(url)}>{copied === url ? 'Copied' : 'Copy'}</Button>
+              </div>
+              <p class="footnote secondary" style={{ margin: 'var(--space-1) 0 0' }}>{s.note}</p>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

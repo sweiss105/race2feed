@@ -1,4 +1,6 @@
 .proj { min-height: 100dvh; padding: 4vh 4vw; display: flex; flex-direction: column; gap: 3vh; background: radial-gradient(120% 80% at 50% 0%, #1b0a0b 0%, #000 60%); color: var(--label); }
+html.proj-clear, html.proj-clear body, html.proj-clear .proj { background: transparent; }
+html.proj-clear .proj { text-shadow: 0 0.06em 0.3em rgba(0, 0, 0, 0.85); }
 .proj.hide-cursor { cursor: none; }
 .proj h1, .proj h2 { margin: 0; letter-spacing: -0.03em; line-height: 1.05; }
 .proj-kicker { font-size: clamp(1rem, 2.4vh, 1.75rem); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); }

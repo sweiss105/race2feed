@@ -31,6 +31,13 @@ export function App() {
     clock.setInterval(live ? 5000 : 30_000);
   }, [state?.round.phase, clock]);
 
+  // ?bg=transparent drops the page background so a video mixer (OBS) can put its own behind the text.
+  useEffect(() => {
+    const clear = new URLSearchParams(location.search).get('bg') === 'transparent';
+    document.documentElement.classList.toggle('proj-clear', clear);
+    return () => document.documentElement.classList.remove('proj-clear');
+  }, []);
+
   // Hide the cursor after 3 s without movement.
   const [idle, setIdle] = useState(false);
   useEffect(() => {

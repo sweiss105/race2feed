@@ -11,6 +11,12 @@ import { stationLabel } from '../../lib/selectors';
 
 type Team = RefereeView['teams'][number];
 
+/** Where the last "I'm there" press is kept, so a reload does not ask again. */
+const THERE_KEY = 'r2f.there';
+function storedThere(): string | null {
+  try { return window.sessionStorage.getItem(THERE_KEY); } catch { return null; }
+}
+
 export interface RefereeProps {
   view: RefereeView | null;
   status: LiveStatus;
@@ -35,6 +41,8 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   if (!mine.current) mine.current = new Set(queue.all().map((q) => q.clientTapId));
   // Tap ids whose undo is waiting for an answer; a second press for the same tap is ignored.
   const undoing = useRef(new Set<string>());
+  // The round and place the referee last confirmed with "I'm there" (see `place` below).
+  const [there, setThere] = useState(storedThere);
   const teamsRef = useRef<Team[]>([]);
   teamsRef.current = view?.teams ?? [];
 
@@ -70,6 +78,13 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   if (!view) return <div class="ref-center"><p class="secondary">Connecting…</p></div>;
   const { round, station, settings } = view;
   const canTap = clock.synced() && flushed;
+  // Round, station and tables: a swap by race control gives a new place, so the notice shows again.
+  const place = `${round.current}:${station.number}:${station.tables.join(',')}`;
+  const mustGo = station.moved && round.phase === 'open' && there !== place;
+  const arrived = () => {
+    setThere(place);
+    try { window.sessionStorage.setItem(THERE_KEY, place); } catch { /* remembered for this page load only */ }
+  };
 
   const tap = async (team: Team, kind: 'finish' | 'penalty') => {
     if (!clock.synced()) return;
@@ -121,7 +136,7 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   const meta = (
     <div class="ref-meta">
       <div>
-        <div class="headline">{stationLabel(station.tables)}</div>
+        <div class="headline">{station.assigned ? stationLabel(station.tables) : 'No tables this round'}</div>
         <div class="footnote secondary">{round.current ? `Round ${round.current}` : 'Waiting for the first round'}</div>
       </div>
       {running && <div class="ref-clock" aria-label="Race clock">{formatMs(Math.max(0, now - round.startedAt!), 'seconds')}</div>}
@@ -129,7 +144,18 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   );
 
   let body;
-  if (station.excluded && round.phase !== 'idle') {
+  if (!station.assigned) {
+    body = <div class="ref-center"><p class="title-2 ref-wide">You have no tables this round. Stay nearby: race control may still need you.</p></div>;
+  } else if (mustGo) {
+    // A referee sent to another station confirms they are there before Ready. Only while the round is open:
+    // once the race runs the tap buttons show whatever was pressed.
+    body = (
+      <div class="ref-center ref-go">
+        <h1 class="ref-go-title"><span>Round {round.current}:</span>{' '}<span>go to {stationLabel(station.tables)}</span></h1>
+        <Button class="ref-ready" onClick={arrived}>I'm there</Button>
+      </div>
+    );
+  } else if (station.excluded && round.phase !== 'idle') {
     body = <div class="ref-center"><p class="title-2">No teams at your tables this round</p><p class="secondary">Stand by for the next round.</p></div>;
   } else if (round.phase === 'idle') {
     body = <div class="ref-center"><p class="title-2">Waiting for race control</p></div>;

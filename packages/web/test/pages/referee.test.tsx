@@ -6,6 +6,7 @@ import { TapQueue } from '../../src/lib/queue';
 import { MemoryStorage } from '../lib/fakes';
 import { lockedFour, openNext, refViewOf, start, teamId } from '../support/state';
 import type { LiveEvent, PenaltyReview } from '../../../server/src/core/model';
+import type { RefereeView } from '../../src/lib/types';
 import { handleLifecycle } from '../../../server/src/core/lifecycle';
 import { admin, ctx, ok, referee } from '../../../server/test/core/helpers';
 
@@ -515,5 +516,93 @@ describe('pairing', () => {
     render(<RefereePage view={refViewOf(e, 3)} status="open" clock={{ synced: () => true, serverNow: () => NOW }} queue={new TapQueue(new MemoryStorage())} send={async () => ({ ok: true })} newId={() => 'x'} />);
     expect(screen.getByText('Table 3', { selector: '.ref-meta .headline' })).toBeTruthy();
     expect((await screen.findAllByRole('button', { name: /^T\d/ })).length).toBe(1);
+  });
+});
+
+describe('referee rotation: where to go', () => {
+  beforeEach(() => { cleanup(); window.sessionStorage.clear(); });
+
+  const props = () => ({
+    status: 'open' as const, clock: { synced: () => true, serverNow: () => NOW }, queue: new TapQueue(new MemoryStorage()),
+    send: async () => ({ ok: true }), newId: () => 'x',
+  });
+  /** The view of the referee at station 1, told they were moved there (or anything else in `station`). */
+  const movedView = (e: LiveEvent, station: Partial<RefereeView['station']> = {}): RefereeView => {
+    const v = refViewOf(e);
+    return { ...v, station: { ...v.station, moved: true, ...station } };
+  };
+
+  it('a referee with no tables this round is told so and has no buttons', async () => {
+    for (const e of [openNext(lockedFour()), start(openNext(lockedFour()))]) {
+      cleanup();
+      const v = refViewOf(e);
+      render(<RefereePage {...props()} view={{ ...v, teams: [],
+        station: { number: 0, tables: [], ready: false, excluded: true, readyTables: [], assigned: false, moved: false } }} />);
+      expect(await screen.findByText('No tables this round')).toBeTruthy();
+      expect(screen.getByText('You have no tables this round. Stay nearby: race control may still need you.')).toBeTruthy();
+      expect(screen.queryAllByRole('button')).toEqual([]);
+      expect(screen.queryByText(/No teams at your tables/)).toBeNull();
+    }
+  });
+
+  it('a moved referee is told where to go, and Ready appears only after "I\'m there"', async () => {
+    render(<RefereePage {...props()} view={movedView(openNext(lockedFour()))} />);
+    expect((await screen.findByRole('heading', { name: 'Round 1: go to Tables 1 & 2' }))).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Ready/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: "I'm there" }));
+    expect(await screen.findByRole('button', { name: 'Ready: Table 1, T1' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ready: Table 2, T2' })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: /go to/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: "I'm there" })).toBeNull();
+  });
+
+  it('names a single table in the notice', async () => {
+    const v = movedView(openNext(lockedFour()), { tables: [2] });
+    render(<RefereePage {...props()} view={{ ...v, teams: [v.teams[1]!] }} />);
+    expect(await screen.findByRole('heading', { name: 'Round 1: go to Table 2' })).toBeTruthy();
+  });
+
+  it('never blocks taps: a running race shows the tap buttons without pressing "I\'m there"', async () => {
+    render(<RefereePage {...props()} view={movedView(start(openNext(lockedFour())))} />);
+    expect((await screen.findAllByRole('button', { name: /^T[12]/ })).length).toBe(2);
+    expect(screen.queryByRole('button', { name: "I'm there" })).toBeNull();
+    expect(screen.queryByRole('heading', { name: /go to/ })).toBeNull();
+  });
+
+  it('shows the notice again when race control sends the referee elsewhere in the same round', async () => {
+    const e = openNext(lockedFour());
+    const { rerender } = render(<RefereePage {...props()} view={movedView(e)} />);
+    fireEvent.click(await screen.findByRole('button', { name: "I'm there" }));
+    await screen.findByRole('button', { name: 'Ready: Table 1, T1' });
+    const other = refViewOf(e, 2);
+    rerender(<RefereePage {...props()} view={{ ...other, station: { ...other.station, moved: true } }} />);
+    expect(await screen.findByRole('heading', { name: 'Round 1: go to Tables 3 & 4' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Ready/ })).toBeNull();
+  });
+
+  it('does not ask again after a reload', async () => {
+    const view = movedView(openNext(lockedFour()));
+    render(<RefereePage {...props()} view={view} />);
+    fireEvent.click(await screen.findByRole('button', { name: "I'm there" }));
+    cleanup();
+    render(<RefereePage {...props()} view={view} />);
+    expect(await screen.findByRole('button', { name: 'Ready: Table 1, T1' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: "I'm there" })).toBeNull();
+  });
+
+  it('works when the browser blocks session storage', async () => {
+    const get = vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => { throw new Error('blocked'); });
+    const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+    try {
+      render(<RefereePage {...props()} view={movedView(openNext(lockedFour()))} />);
+      fireEvent.click(await screen.findByRole('button', { name: "I'm there" }));
+      expect(await screen.findByRole('button', { name: 'Ready: Table 1, T1' })).toBeTruthy();
+    } finally { get.mockRestore(); set.mockRestore(); }
+  });
+
+  it('shows no notice to a referee who stays where they were', async () => {
+    render(<RefereePage {...props()} view={refViewOf(openNext(lockedFour()))} />);
+    expect(await screen.findByRole('button', { name: 'Ready: Table 1, T1' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: "I'm there" })).toBeNull();
   });
 });

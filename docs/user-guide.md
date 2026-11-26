@@ -387,7 +387,7 @@ While the champion is showing, the big button reads **Hide champion**. Pressing 
 
 ## Referees
 
-You'll use a tablet or phone paired to your station. The top of the screen shows your **table numbers**, the **round**, and a dot showing your connection.
+You'll use a tablet or phone paired to your station. The top of the screen shows your **table numbers**, the **round**, and a dot showing your connection. If referees rotate at your event, the table numbers can change from round to round (see [Moving between rounds](#moving-between-rounds)).
 
 ### Pairing
 
@@ -408,6 +408,21 @@ You'll use a tablet or phone paired to your station. The top of the screen shows
 If you see **"Scan the station QR code"**, your device isn't paired (or was disconnected). Ask race control for a new code.
 
 ![An unpaired referee device asks you to scan the station QR code](guide/images/referee-scan.jpg)
+
+### Moving between rounds
+
+When race control has switched on **Rotate referees**, you may be sent to different tables each round, so that nobody judges the same team again and again. The app works out where everyone goes; you don't choose.
+
+- **If you need to move**, the screen shows a large notice when the round opens, for example **"Round 5: go to Tables 7 & 8"**. Go to those tables, then press **I'm there**. Your teams and the Ready buttons appear after that.
+- **If you stay where you are**, there's no notice. Carry on with Ready as usual.
+- **The top of the screen always shows the tables you have this round.** Only those teams are on your screen, and only you can tap for them.
+- **If race control swaps you with another referee** before the start, the notice comes back with your new tables. Move, then press **I'm there** again.
+- **"No tables this round"** means there are more referees than tables in use this round, so you have a round off. Stay nearby: race control may still need you. Your tables for the next round appear when it opens.
+- **In a final** you may be given just one of the two tables at a station, with another referee on the other one. Each of you sees and taps only your own team.
+
+If the race starts before you pressed **I'm there**, the finish buttons appear anyway, so you can't miss a tap.
+
+<!-- screenshot: a referee phone with the round open, showing the large notice "Round 2: go to Tables 3 & 4" and the I'm there button -->
 
 ### Before the race: Ready
 

@@ -13,6 +13,12 @@
 .ref-ready-table { min-height: 9rem; min-width: min(20rem, 80vw); display: grid; place-content: center; gap: var(--space-2); border: 2px solid var(--success); border-radius: var(--radius-l); }
 .ref-ready-table p { margin: 0; }
 .ref-notice { text-align: center; }
+/* Rotation: "Round 5: go to Tables 7 & 8", across the whole screen until the referee says they are there. */
+.ref-go { place-content: center stretch; justify-items: center; gap: var(--space-5); }
+.ref-go-title { margin: 0; font-size: clamp(2rem, 7vw, 3.5rem); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; text-wrap: balance; }
+/* Two parts, so a phone breaks after "Round 5:" and keeps "go to Tables 7 & 8" together when it fits. */
+.ref-go-title span { display: inline-block; }
+.ref-wide { max-width: 28rem; margin: 0; text-wrap: balance; }
 
 /* Phones: teams stacked. Tablets: side by side, in table order. */
 .ref-teams { flex: 1; display: grid; gap: var(--space-4); grid-auto-rows: minmax(0, 1fr); }

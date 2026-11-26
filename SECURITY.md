@@ -16,7 +16,6 @@ Please report security problems privately, not in a public issue.
 
 What to expect:
 
-- An acknowledgement within 7 days.
 - An update when the report has been confirmed or declined, with the reason.
 - A fix on `main` as soon as practical for confirmed problems. Reports are credited in the changelog unless you ask not to be named.
 

@@ -25,6 +25,10 @@ function records(text: string): { line: number; fields: string[] }[] {
   return out.filter((r) => r.fields.some((f) => f.trim() !== ''));
 }
 
+/** Longest team name accepted: what fits on one projector line in two columns at 26 tables. */
+export const TEAM_NAME_MAX = 35;
+export const teamNameTooLong = (name: string) => [...name].length > TEAM_NAME_MAX;
+
 export function parseTeamsCsv(text: string): { rows: { team: string; category: string }[]; errors: string[] } {
   const all = records(text);
   const errors: string[] = [];
@@ -39,6 +43,10 @@ export function parseTeamsCsv(text: string): { rows: { team: string; category: s
     const category = (fields[1] ?? '').trim();
     if (!team || !category) {
       errors.push(`line ${line}: team and category are both required`);
+      continue;
+    }
+    if (teamNameTooLong(team)) {
+      errors.push(`line ${line}: "${team}" is ${[...team].length} characters; team names can be at most ${TEAM_NAME_MAX}`);
       continue;
     }
     const key = team.toLowerCase();

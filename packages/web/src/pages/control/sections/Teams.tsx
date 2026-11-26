@@ -89,7 +89,7 @@ function AddTeam({ categories }: { categories: string[] }) {
       const ack = await runner.run({ type: 'addTeam', name, category: cat }, 'addTeam');
       if (ack?.ok) { setName(''); }
     }}>
-      <input class="input" style={{ flex: 2 }} aria-label="New team name" placeholder="Team name" value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+      <input class="input" style={{ flex: 2 }} aria-label="New team name" placeholder="Team name" maxLength={35} value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
       <input class="input" style={{ flex: 1 }} aria-label="Category" placeholder="Category" list="categories" value={cat} onInput={(e) => setCat((e.target as HTMLInputElement).value)} />
       <datalist id="categories">{categories.map((c) => <option key={c} value={c} />)}</datalist>
       <Button type="submit" kind="secondary" busy={runner.busy('addTeam')} disabled={!name.trim() || !cat.trim()}>Add team</Button>
@@ -112,7 +112,7 @@ function TeamRow({ id, name, category, canRemove, busy }: { id: string; name: st
             const ack = await runner.run({ type: 'renameTeam', teamId: id, name: value }, key);
             if (ack?.ok) setEditing(false);
           }}>
-            <input class="input" aria-label={`New name for ${name}`} value={value} onInput={(e) => setValue((e.target as HTMLInputElement).value)} />
+            <input class="input" aria-label={`New name for ${name}`} maxLength={35} value={value} onInput={(e) => setValue((e.target as HTMLInputElement).value)} />
             <Button type="submit" kind="primary" busy={busy}>Save</Button>
             <Button kind="plain" onClick={() => { setEditing(false); setValue(name); }}>Cancel</Button>
           </form>

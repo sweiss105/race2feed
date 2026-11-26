@@ -2,10 +2,11 @@ import {
   suggestBracketPlan, suggestSeedingGroups, validateBracketPlan, validateSeedingGroups,
   type Category, type EventInput, type Team,
 } from '@race2feed/engine';
-import { parseTeamsCsv } from './csv';
+import { parseTeamsCsv, TEAM_NAME_MAX, teamNameTooLong } from './csv';
 import { validateReasons } from './reasons';
 import { done, fail, type CommandResult, type Ctx, type LiveEvent, type SetupCommand } from './model';
 
+const TOO_LONG = `Team names can be at most ${TEAM_NAME_MAX} characters.`;
 const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
 /** Allowed even when setup is locked: none of these change who races where. */
@@ -62,6 +63,7 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
     case 'addTeam': {
       const name = cmd.name.trim();
       if (!name || !cmd.category.trim()) return fail('invalid', 'Team name and category are required.');
+      if (teamNameTooLong(name)) return fail('invalid', TOO_LONG);
       if (e.setup.teams.some((t) => t.name.toLowerCase() === name.toLowerCase())) {
         return fail('duplicate_team', `A team named "${name}" already exists.`);
       }
@@ -75,6 +77,7 @@ export function handleSetup(e: LiveEvent, cmd: SetupCommand, ctx: Ctx): CommandR
     case 'renameTeam': {
       const name = cmd.name.trim();
       if (!name) return fail('invalid', 'Team name is required.');
+      if (teamNameTooLong(name)) return fail('invalid', TOO_LONG);
       if (!e.setup.teams.some((t) => t.id === cmd.teamId)) return fail('not_found', 'No such team.');
       return ok(withSetup(e, { teams: e.setup.teams.map((t) => (t.id === cmd.teamId ? { ...t, name } : t)) }));
     }

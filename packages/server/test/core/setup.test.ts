@@ -30,6 +30,21 @@ describe('setup commands', () => {
     expect(r.ok).toBe(false);
   });
 
+  it('importTeams lists names over 35 characters by line and imports nothing', () => {
+    const long = 'L'.repeat(36);
+    const r = handleSetup(blank(), { type: 'importTeams', csv: `team,category\n${'A'.repeat(35)},HS\n${long},HS\n` }, ctx(admin));
+    expect(r).toMatchObject({ ok: false, code: 'csv_invalid', detail: [`line 3: "${long}" is 36 characters; team names can be at most 35`] });
+  });
+
+  it('addTeam and renameTeam refuse a name over 35 characters and accept exactly 35', () => {
+    let e = importTeams('team,category\nA,HS\n');
+    const long = 'L'.repeat(36);
+    expect(handleSetup(e, { type: 'addTeam', name: long, category: 'HS' }, ctx(admin))).toMatchObject({ ok: false, code: 'invalid' });
+    expect(handleSetup(e, { type: 'renameTeam', teamId: e.setup.teams[0]!.id, name: long }, ctx(admin))).toMatchObject({ ok: false, code: 'invalid' });
+    e = ok(handleSetup(e, { type: 'renameTeam', teamId: e.setup.teams[0]!.id, name: 'B'.repeat(35) }, ctx(admin)));
+    expect(e.setup.teams[0]!.name).toHaveLength(35);
+  });
+
   it('suggestSetup fills groups and brackets', () => {
     let e = importTeams(csvFor({ 'High School': 14, Community: 16, Corporate: 20 }));
     e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));

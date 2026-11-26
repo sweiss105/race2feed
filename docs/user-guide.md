@@ -98,9 +98,10 @@ Things to know about importing:
 - Categories appear in the order they first show up in the file.
 - The order of teams in the file matters: it's the last tie-breaker in seeding.
 - Category names are matched ignoring capital letters and spaces at the ends, so "High School" and "high school" are one category, while "A" and "A+" stay separate. Names in any script work.
-- If something's wrong (a missing name, a duplicate team, a wrong header), the app lists each problem with its line number and imports nothing.
+- **Team names can be at most 35 characters**, so every name fits on one line on the projector. Shorten longer ones before importing, for example "High School" to "HS".
+- If something's wrong (a missing name, a duplicate team, a name over 35 characters, a wrong header), the app lists each problem with its line number and imports nothing.
 
-**Add, rename or remove a team:** use **Add team** (name and category) at the top, or **Rename** and **Remove** on a team's row. Adding and removing are possible only until setup is locked. Renaming works at any time.
+**Add, rename or remove a team:** use **Add team** (name and category) at the top, or **Rename** and **Remove** on a team's row. Adding and removing are possible only until setup is locked. Renaming works at any time. The 35-character limit applies here too. Teams already in an event with a longer name keep it until you rename them.
 
 ### 3. Seeding groups, tables and brackets
 

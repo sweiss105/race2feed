@@ -38,8 +38,10 @@ describe('projectorScreen', () => {
   });
   it('shows the champion after the grand round', () => {
     const e = { ...lockedFour(), round: { current: 1, phase: 'finished' as const, startedAt: 1, finishedAt: 2 } };
-    const d = { rounds: [{ spec: { round: 1, kind: 'grand' }, status: 'locked', races: [] }] } as unknown as DerivedEvent;
+    const d = { rounds: [{ spec: { round: 1, kind: 'grand' }, status: 'locked', races: [] }], grandChampion: 'x', missing: [], blockers: [] } as unknown as DerivedEvent;
     expect(projectorScreen(e, d)).toBe('champion');
+    // Not while the champion is undecided (a tie or a missing result in the grand race).
+    expect(projectorScreen(e, { ...d, grandChampion: null })).toBe('brackets');
   });
   it('a pin overrides the automatic screen', () => {
     const e = { ...lockedFour(), projectorPin: 'standings' as const };

@@ -1,4 +1,4 @@
-import { rankRace, stationCount, stationOfTable, tablesOfStation } from '@race2feed/engine';
+import { rankRace, stationCount, stationOfTable, tablesOfStation, type DerivedEvent } from '@race2feed/engine';
 import { done, fail, perStation, readyTablesOf, type CommandResult, type Ctx, type LifecycleCommand, type LiveEvent, type Station } from './model';
 import { buildProgress, derive, teamsInRound } from './results';
 import { checkCorrection } from './corrections';
@@ -15,6 +15,19 @@ export function pendingPenalties(e: LiveEvent) {
 
 const pendingFail = (pending: ReturnType<typeof pendingPenalties>) =>
   fail('penalties_pending', `${pending.length} penalt${pending.length === 1 ? 'y needs' : 'ies need'} a decision first.`, pending);
+
+/**
+ * Why the champion cannot be announced yet, or null. The champion screen names the champion and every final
+ * place, so a pending penalty, an undecided tie in any race or a finished round missing a result holds it back.
+ */
+export function championBlock(e: LiveEvent, d: DerivedEvent): CommandResult | null {
+  const pending = pendingPenalties(e);
+  if (pending.length) return pendingFail(pending);
+  const ties = d.rounds.flatMap((r) => r.races.filter((x) => x.ranking.ties.length).map((x) => x.id));
+  if (ties.length) return fail('tie_undecided', 'Decide the tie before showing the champion.', ties);
+  if (d.missing.length) return fail('blocked', 'A finished round is missing a result.', d.blockers);
+  return null;
+}
 
 /** The station's tables that have a team in the current round. */
 function occupiedTables(e: LiveEvent, station: number): number[] {
@@ -149,9 +162,8 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       if (e.round.phase !== 'finished' || e.round.current !== rounds || rounds === 0) {
         return fail('not_finished', 'Show the champion once the last round is finished.');
       }
-      const pending = pendingPenalties(e);
-      if (pending.length) return pendingFail(pending);
-      if (d.missing.length) return fail('blocked', 'A finished round is missing a result.', d.blockers);
+      const blocked = championBlock(e, d);
+      if (blocked) return blocked;
       const bags = typeof cmd.bagTotal === 'string' ? cmd.bagTotal.trim().slice(0, 40) : '';
       return ok({ ...e, championShown: true, bagTotal: bags || e.bagTotal });
     }

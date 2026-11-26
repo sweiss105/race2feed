@@ -2,7 +2,7 @@ import { officialMs, stationOfTable, tablesOfStation, type DerivedEvent, type En
 import { perStation, readyTablesOf, type LiveEvent, type ProjectorScreen, type RosterEntry } from './model';
 import { buildProgress, seedTotals, teamsInRound } from './results';
 import { reasonsOf, reviewOf } from './reasons';
-import { pendingPenalties } from './lifecycle';
+import { championBlock } from './lifecycle';
 import { assignmentOf, tablesFor } from './rotation';
 import { fairnessOf } from './fairness';
 
@@ -36,8 +36,8 @@ export function projectorScreen(e: LiveEvent, d: DerivedEvent): ProjectorScreen 
     case 'finished': {
       const kind = d.rounds[e.round.current - 1]?.spec.kind;
       if (kind === 'seeding') return 'seeding-results';
-      // The champion is announced only once no penalty can still change the result.
-      if (kind === 'grand') return pendingPenalties(e).length === 0 ? 'champion' : 'brackets';
+      // The champion is announced only once it is decided: no penalty, tie or missing result can still change it.
+      if (kind === 'grand') return d.grandChampion !== null && championBlock(e, d) === null ? 'champion' : 'brackets';
       return 'brackets';
     }
   }

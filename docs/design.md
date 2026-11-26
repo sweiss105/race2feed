@@ -307,6 +307,7 @@ All times in this section are **official times**: the raw time plus any penaltie
 *Added after the first live test, at the user's request.*
 
 **Show champion** (race control, once the last round is finished and no penalty is still pending review, so the announced champion is final):
+- It is refused (`tie_undecided`, "Decide the tie before showing the champion.") while a tie in any race is undecided, with or without a Grand Championship: the screen names the champion and every final place. The console's button is greyed out in the same state.
 - It is refused (`blocked`) while any finished round is missing a result (§3.5).
 - Race control enters or confirms the bags-packed number. Leaving it blank keeps the previously saved number.
 - The projector and **every participant phone** switch to a champion screen showing the Grand Champion, the bag total and the final standings by category.
@@ -545,7 +546,7 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
   | Open | Table assignments for the round, with a ready dot per team |
   | Running | Large master clock alone until the first team has a result; then a smaller clock at the top and the team list under it, headed "Preliminary times" |
   | Finished | Updated seeding results, brackets or standings |
-  | Grand Championship finished | The champion, once no penalty is pending review (§4.1); brackets until then |
+  | Grand Championship finished | The champion, once it is decided: no penalty pending review, no undecided tie and no missing result (§4.1); brackets until then |
   | Event complete | Final standings, then the champion |
 
 - **Team rows and status dots.** The tables screen and the running screen share one row: table number, a status marker in a fixed 1em slot just left of the team name (so names line up; plain dots are about 0.6em, centred on the name), and the race label or result at the right. The dot is one component taking a status, each with `role="img"` and a label:

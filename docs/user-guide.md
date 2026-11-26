@@ -438,7 +438,7 @@ The projector changes screens by itself. To show a particular screen, use the **
 
 ### Show the champion
 
-When the last round is finished and every penalty has been decided (until then the button is greyed out and the status line says what it's waiting for):
+When the last round is finished, every penalty has been decided and every tie has been decided (until then the button is greyed out and the status line says what it's waiting for; if it is pressed anyway, for example from another console tab, the message is "Decide the tie before showing the champion."):
 
 1. Press **Show champion** (the big button on the Race Control page).
 2. Enter or confirm the number of bags packed, then press **Show**.
@@ -619,7 +619,7 @@ The projector follows the event by itself:
 | A race is running | **Clock**: a big master clock. As soon as the first team is in, the clock shrinks to the top and the list of teams appears under **Preliminary times** (see below) |
 | After a seeding round | **Seeding results** by category, coloured by bracket tier |
 | After a bracket round | **Brackets**, cycling through the categories |
-| After the Grand Championship, or when race control shows the champion | **Champion**: the Grand Champion and the bags packed. While a penalty is still pending review it stays on **Brackets**, and switches to the champion once every penalty is decided |
+| After the Grand Championship, or when race control shows the champion | **Champion**: the Grand Champion and the bags packed. While a penalty is still pending review, a tie is still undecided or a team has no result, it stays on **Brackets**, and switches to the champion once those are settled |
 
 ![Projector: Welcome, with the QR code to the participant site](guide/images/projector-welcome.jpg)
 ![Projector: Tables, while a round is open. Table 1 is ready, so Alpha has a green dot; every other team still has a red dot](guide/images/projector-tables.jpg)

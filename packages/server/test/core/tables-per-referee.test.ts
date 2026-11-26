@@ -3,7 +3,7 @@ import { handleSetup } from '../../src/core/setup';
 import { handleLifecycle } from '../../src/core/lifecycle';
 import { handleTaps } from '../../src/core/taps';
 import { applyCommand } from '../../src/core/apply';
-import { refereeView } from '../../src/core/views';
+import { publicRoundUpdate, publicView, refereeView } from '../../src/core/views';
 import { derive } from '../../src/core/results';
 import { admin, blank, csvFor, ctx, ok, referee } from './helpers';
 import type { LiveEvent } from '../../src/core/model';
@@ -43,5 +43,14 @@ describe('tables per referee', () => {
     expect(tap(onTable(3)).ok).toBe(true);
     const other = tap(onTable(4));
     expect(other.ok ? 'ok' : other.code).toBe('not_your_team');
+  });
+
+  it('shows only the ready table as ready on the projector', () => {
+    let e = ok(handleLifecycle(lockedFourSingles(), { type: 'openNextRound' }, ctx(admin)));
+    e = ok(handleLifecycle(e, { type: 'stationReady' }, ctx(referee(3))));
+    const readyTables = (races: { entrants: { table: number; ready: boolean }[] }[]) =>
+      races.flatMap((r) => r.entrants).filter((x) => x.ready).map((x) => x.table);
+    expect(readyTables(publicView(e, derive(e)).rounds[0]!.races)).toEqual([3]);
+    expect(readyTables(publicRoundUpdate(e, derive(e)).races)).toEqual([3]);
   });
 });

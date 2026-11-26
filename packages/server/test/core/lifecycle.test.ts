@@ -16,7 +16,7 @@ describe('round lifecycle', () => {
   it('opening round 1 resets stations', () => {
     const e = ok(handleLifecycle(lockedFour(), { type: 'openNextRound' }, ctx(admin)));
     expect(e.round).toEqual({ current: 1, phase: 'open', startedAt: null, finishedAt: null });
-    expect(e.stations).toEqual({ 1: { ready: false, excluded: false }, 2: { ready: false, excluded: false } });
+    expect(e.stations).toEqual({ 1: { ready: false, excluded: false, readyTables: [] }, 2: { ready: false, excluded: false, readyTables: [] } });
   });
 
   it('a station with no teams this round is excluded', () => {
@@ -24,7 +24,7 @@ describe('round lifecycle', () => {
     e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
     e = ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
     e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin)));
-    expect(e.stations[3]).toEqual({ ready: false, excluded: true });
+    expect(e.stations[3]).toEqual({ ready: false, excluded: true, readyTables: [] });
   });
 
   it('start is gated on every active station being ready', () => {
@@ -105,5 +105,60 @@ describe('round lifecycle', () => {
   it('pins and unpins the projector', () => {
     const e = ok(handleLifecycle(lockedFour(), { type: 'pinProjector', screen: 'champion' }, ctx(admin)));
     expect(e.projectorPin).toBe('champion');
+  });
+});
+
+describe('per-table Ready', () => {
+  const opened = () => ok(handleLifecycle(lockedFour(), { type: 'openNextRound' }, ctx(admin)));
+  const ready = (e: ReturnType<typeof opened>, station: number, table?: number) =>
+    handleLifecycle(e, { type: 'stationReady', ...(table === undefined ? {} : { table }) }, ctx(referee(station)));
+
+  it('one table ready leaves the station not ready and the start refused', () => {
+    const e = ok(ready(opened(), 1, 1));
+    expect(e.stations[1]).toEqual({ ready: false, excluded: false, readyTables: [1] });
+    e.stations[2] = { ready: true, excluded: false, readyTables: [3, 4] };
+    const r = handleLifecycle(e, { type: 'startRace' }, ctx(admin));
+    expect(code(r)).toBe('stations_not_ready');
+    if (!r.ok) expect(r.detail).toEqual([1]);
+  });
+
+  it('both tables ready makes the station ready and allows the start', () => {
+    let e = ok(ready(ok(ready(opened(), 1, 2)), 1, 1));
+    expect(e.stations[1]).toEqual({ ready: true, excluded: false, readyTables: [1, 2] });
+    e = ok(handleLifecycle(e, { type: 'overrideStation', station: 2, state: 'ready' }, ctx(admin)));
+    expect(ok(handleLifecycle(e, { type: 'startRace' }, ctx(admin))).round.phase).toBe('running');
+  });
+
+  it('refuses a table that is not the referee’s this round', () => {
+    expect(code(ready(opened(), 1, 3))).toBe('not_your_table');
+    expect(code(ready(opened(), 1, 99))).toBe('not_your_table');
+  });
+
+  it('a table without a team is not needed, and cannot be readied', () => {
+    let e = ok(handleSetup(blank(4), { type: 'importTeams', csv: csvFor({ T: 3 }) }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'setGrandChampionship', enabled: false }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'suggestSetup' }, ctx(admin)));
+    e = ok(handleSetup(e, { type: 'lockSetup' }, ctx(admin)));
+    e = ok(handleLifecycle(e, { type: 'openNextRound' }, ctx(admin)));
+    const used = new Set(derive(e).rounds[0]!.races.flatMap((r) => r.entrants.map((x) => x.table)));
+    const empty = [1, 2, 3, 4].find((t) => !used.has(t))!;
+    const station = Math.ceil(empty / 2);
+    const other = station * 2 - (empty % 2 === 0 ? 1 : 0);
+    expect(code(ready(e, station, empty))).toBe('not_your_table');
+    expect(ok(ready(e, station, other)).stations[station]).toMatchObject({ ready: true, readyTables: [other] });
+  });
+
+  it('without a table (an older tablet page) readies every occupied table', () => {
+    expect(ok(ready(opened(), 1)).stations[1]).toEqual({ ready: true, excluded: false, readyTables: [1, 2] });
+  });
+
+  it('race control readies and clears every table of a station', () => {
+    let e = ok(ready(opened(), 1, 1));
+    e = ok(handleLifecycle(e, { type: 'overrideStation', station: 1, state: 'ready' }, ctx(admin)));
+    expect(e.stations[1]).toEqual({ ready: true, excluded: false, readyTables: [1, 2] });
+    e = ok(handleLifecycle(e, { type: 'overrideStation', station: 1, state: 'notReady' }, ctx(admin)));
+    expect(e.stations[1]).toEqual({ ready: false, excluded: false, readyTables: [] });
+    e = ok(handleLifecycle(e, { type: 'overrideStation', station: 1, state: 'excluded' }, ctx(admin)));
+    expect(e.stations[1]).toEqual({ ready: false, excluded: true, readyTables: [] });
   });
 });

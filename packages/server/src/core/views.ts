@@ -1,5 +1,5 @@
 import { officialMs, stationOfTable, tablesOfStation, type DerivedEvent, type EntryResult } from '@race2feed/engine';
-import { perStation, type LiveEvent, type ProjectorScreen } from './model';
+import { perStation, readyTablesOf, type LiveEvent, type ProjectorScreen } from './model';
 import { buildProgress, teamsInRound } from './results';
 import { reasonsOf, reviewOf } from './reasons';
 import { pendingPenalties } from './lifecycle';
@@ -43,7 +43,23 @@ export function projectorScreen(e: LiveEvent, d: DerivedEvent): ProjectorScreen 
 
 const roundState = (e: LiveEvent) => ({ ...e.round, autoFinishAt: e.round.autoFinishAt ?? null });
 
-function racesOf(d: DerivedEvent, round: number, results: Record<string, EntryResult>, pens: Map<string, PenaltyInfo>) {
+/**
+ * Whether a table is ready: only in the current round while it is open, and never
+ * at an excluded station. The one source for the projector's ready dots in every public payload.
+ */
+function tableReady(e: LiveEvent, round: number, table: number): boolean {
+  if (round !== e.round.current || e.round.phase !== 'open') return false;
+  const station = stationOfTable(table, perStation(e));
+  const s = e.stations[station];
+  return Boolean(s && !s.excluded && stationReadyTables(e, station).includes(table));
+}
+
+/** A station's ready tables, filling in events stored before per-table Ready. */
+function stationReadyTables(e: LiveEvent, station: number): number[] {
+  return readyTablesOf(e.stations[station], tablesOfStation(station, e.setup.tableCount, perStation(e)));
+}
+
+function racesOf(e: LiveEvent, d: DerivedEvent, round: number, results: Record<string, EntryResult>, pens: Map<string, PenaltyInfo>) {
   return (d.rounds[round - 1]?.races ?? []).map((race) => ({
     id: race.id,
     label: race.label,
@@ -61,6 +77,7 @@ function racesOf(d: DerivedEvent, round: number, results: Record<string, EntryRe
         penaltyNotes: pens.get(`${round}:${teamId}`)?.notes ?? [],
         penaltyPending: pens.get(`${round}:${teamId}`)?.pending ?? false,
         dq: pens.get(`${round}:${teamId}`)?.dq ?? null,
+        ready: tableReady(e, round, table),
       };
     }),
   }));
@@ -94,7 +111,7 @@ export function publicView(e: LiveEvent, d: DerivedEvent, opts: { includeUnopene
       kind: r.spec.kind,
       status: r.status,
       races: opts.includeUnopened || r.spec.round <= e.round.current
-        ? racesOf(d, r.spec.round, progress.results[r.spec.round] ?? {}, pens)
+        ? racesOf(e, d, r.spec.round, progress.results[r.spec.round] ?? {}, pens)
         : [],
     })),
     seedRank: d.seedRank,
@@ -114,7 +131,7 @@ export function publicRoundUpdate(e: LiveEvent, d: DerivedEvent) {
   return {
     round: roundState(e),
     projector: projectorScreen(e, d),
-    races: racesOf(d, e.round.current, all[e.round.current] ?? {}, penaltyIndex(e)),
+    races: racesOf(e, d, e.round.current, all[e.round.current] ?? {}, penaltyIndex(e)),
     seedTotalsMs: seedTotals(d, all),
   };
 }
@@ -130,6 +147,7 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
   const results = buildProgress(e).results[e.round.current] ?? {};
   const name = new Map(e.setup.teams.map((t) => [t.id, t.name]));
   const pens = penaltyIndex(e);
+  const readyHere = stationReadyTables(e, station);
   const teams = teamsInRound(d, e.round.current)
     .filter((t) => stationOfTable(t.table, perStation(e)) === station)
     .sort((a, b) => a.table - b.table)
@@ -139,6 +157,7 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
       table,
       result: results[teamId] ?? null,
       dq: pens.get(`${e.round.current}:${teamId}`)?.dq ?? null,
+      ready: readyHere.includes(table),
       penaltyPending: pens.get(`${e.round.current}:${teamId}`)?.pending ?? false,
       taps: e.taps
         .filter((t) => t.round === e.round.current && t.teamId === teamId)
@@ -155,7 +174,7 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
     round: roundState(e),
     settings: { ...e.settings },
     reasons: reasonsOf(e),
-    station: { number: station, tables, ready: s.ready, excluded: s.excluded },
+    station: { number: station, tables, ready: s.ready, excluded: s.excluded, readyTables: readyHere },
     teams,
   };
 }
@@ -163,7 +182,8 @@ export function refereeView(e: LiveEvent, d: DerivedEvent, station: number) {
 export function controlView(e: LiveEvent, d: DerivedEvent, extras: { devices: unknown[]; audit: unknown[] }) {
   return {
     ...publicView(e, d, { includeUnopened: true }),
-    stations: e.stations,
+    stations: Object.fromEntries(Object.entries(e.stations).map(([n, s]) =>
+      [n, { ready: s.ready, excluded: s.excluded, readyTables: stationReadyTables(e, Number(n)) }])) as Record<number, { ready: boolean; excluded: boolean; readyTables: number[] }>,
     settings: e.settings,
     setupLocked: e.setupLocked,
     projectorPin: e.projectorPin,

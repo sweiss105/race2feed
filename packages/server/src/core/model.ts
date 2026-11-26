@@ -58,7 +58,12 @@ export interface LiveEvent {
   /** autoFinishAt: when the running round finishes by itself (every team has a result); see autofinish.ts. */
   round: { current: number; phase: Phase; startedAt: number | null; finishedAt: number | null; autoFinishAt?: number | null };
   finishedRounds: number;
-  stations: Record<number, { ready: boolean; excluded: boolean }>;
+  /**
+   * Referee stations of the open round. readyTables: the tables marked ready (missing on events stored before
+   * per-table Ready; then `ready: true` means every table is ready). `ready` is kept true exactly when every
+   * table of the station that has a team this round is in readyTables.
+   */
+  stations: Record<number, Station>;
   taps: Tap[];
   overrides: Override[];
   tieDecisions: Record<string, string[]>;
@@ -92,9 +97,12 @@ export type SetupCommand =
   | { type: 'setBagTotal'; text: string }
   | { type: 'setPenaltyReasons'; reasons: PenaltyReason[] };
 
+export interface Station { ready: boolean; excluded: boolean; readyTables?: number[] }
+
 export type LifecycleCommand =
   | { type: 'openNextRound' }
-  | { type: 'stationReady' }
+  /** table: one of the referee's tables; without it (older tablet pages) every occupied table of the station. */
+  | { type: 'stationReady'; table?: number }
   | { type: 'overrideStation'; station: number; state: 'ready' | 'notReady' | 'excluded' }
   | { type: 'startRace' }
   | { type: 'finishRace' }
@@ -155,3 +163,7 @@ export function fail(code: string, message: string, detail?: unknown): CommandRe
 
 /** Tables each referee covers in this event. */
 export const perStation = (e: LiveEvent): 1 | 2 => e.setup.tablesPerStation ?? 2;
+
+/** The station's ready tables, out of `tables` (its tables). A stored station without readyTables follows `ready`. */
+export const readyTablesOf = (s: Station | undefined, tables: number[]): number[] =>
+  !s ? [] : s.readyTables ? tables.filter((t) => s.readyTables!.includes(t)) : s.ready ? tables : [];

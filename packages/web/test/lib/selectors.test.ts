@@ -40,6 +40,11 @@ describe('schedule and seeding', () => {
     const e = heatsOpen();
     expect(scheduleRows(viewOf(e)).map((r) => [r.table, r.name])).toEqual([[1, 'T1'], [2, 'T4'], [3, 'T2'], [4, 'T3']]);
   });
+  it('says which tables are ready', () => {
+    const e = heatsOpen();
+    const ready = { ...e, stations: { ...e.stations, 2: { ready: true, excluded: false } } };
+    expect(scheduleRows(viewOf(ready)).map((r) => [r.table, r.ready])).toEqual([[1, false], [2, false], [3, true], [4, true]]);
+  });
   it('gives seeding rank, total and both runs', () => {
     const e = heatsOpen();
     expect(seedingRow(viewOf(e), teamId(e, 'T2'))).toEqual({ rank: 2, totalMs: 220_000, runs: [110_000, 110_000] });

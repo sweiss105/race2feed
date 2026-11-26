@@ -25,7 +25,7 @@ const tied = (v: ControlView): ControlView => ({ ...v, ties: [{ raceId: 'r1-a', 
 const openWith = (ready: boolean[], tablesPerStation?: 1 | 2): ControlView => {
   const v = ctlViewOf(openNext(lockedFour()));
   const setup = tablesPerStation === undefined ? v.setup : { ...v.setup, tablesPerStation };
-  return { ...v, setup, stations: Object.fromEntries(ready.map((r, i) => [i + 1, { ready: r, excluded: false }])) };
+  return { ...v, setup, stations: Object.fromEntries(ready.map((r, i) => [i + 1, { ready: r, excluded: false, readyTables: [] as number[] }])) };
 };
 const withoutPerStation = (v: ControlView): ControlView => {
   const { tablesPerStation: _, ...setup } = v.setup;
@@ -96,7 +96,7 @@ describe('raceAction', () => {
 
   it('ignores excluded tables and decided penalties', () => {
     const v = openWith([true, true]);
-    expect(raceAction({ ...v, stations: { ...v.stations, 3: { ready: false, excluded: true } } }, NOW).enabled).toBe(true);
+    expect(raceAction({ ...v, stations: { ...v.stations, 3: { ready: false, excluded: true, readyTables: [] } } }, NOW).enabled).toBe(true);
     const e = pending(afterRound1(), 1);
     const decided = { ...e, taps: e.taps.map((t) => (t.id === 'pen-0' ? { ...t, review: { status: 'rejected' as const } } : t)) };
     expect(raceAction(ctlViewOf(decided), NOW).status).toBe('Ready to open round 2');

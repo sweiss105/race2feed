@@ -39,8 +39,8 @@ Everything happens at **https://r2f.weiss-audio.com**:
 **How a round flows:**
 
 1. Race control presses **Open round N** (the big button on the Race Control page). Everyone's phone, the projector and the referee tablets show who races at which table.
-2. Each referee checks their teams are in place and presses **Ready**.
-3. When every station is Ready, race control (or the Companion **Start** button) starts the race. The master clock runs.
+2. Each referee checks their teams are in place and presses **Ready** for each of their tables.
+3. When every table is Ready, race control (or the Companion **Start** button) starts the race. The master clock runs.
 4. Referees tap each team's button the moment the team finishes.
 5. When every team has a time (or is marked DNF or DNS), the race finishes by itself after the auto-finish delay (30 seconds by default). Race control can press **Finish now** sooner.
 6. Race control checks the results, settles any ties or penalties, and opens the next round.
@@ -249,14 +249,16 @@ When every round has been raced, the button reads **Show champion** and the stat
 
 ### Station readiness
 
-The **Stations** panel shows every station as **Ready**, **Not ready** or **No teams**. Referees press Ready on their tablets. You can override any station:
-- **Ready:** mark it ready for the referee (for example, their tablet is having trouble).
-- **Unready:** clear a Ready. A referee can't undo their own Ready, so this is the only way.
+The **Stations** panel shows every station as **Ready**, **Not ready** or **No teams**. Referees press Ready on their tablets, one Ready per table, so a referee with two tables can ready one while the other is still setting up. Until both are ready the station reads **1 of 2 tables ready**, and it still counts as not ready. You can override any station:
+- **Ready:** mark all its tables ready for the referee (for example, their tablet is having trouble).
+- **Unready:** clear the Ready of all its tables. A referee can't undo their own Ready, so this is the only way.
 - **Exclude:** leave the station out of the Ready check. **Include** puts it back.
 
 While the round is open, the status line tells you how many stations are not ready yet ("Waiting on N referees to be ready", or "N tables" with one referee per table).
 
-![Round 1 open: Tables 1 & 2 is Ready, three stations are not ready yet, so Start is greyed out and the status line reads "Waiting on 3 referees to be ready"](guide/images/console-race-open.jpg)
+The room can follow along on the projector: on the **Tables** screen each team has a red dot that turns green as soon as its table is ready (the referee pressed Ready for it, or you marked the station Ready), so everyone can see which tables the start is waiting on. An excluded station's teams keep a red dot.
+
+![Round 1 open: the referee for Tables 1 & 2 has readied one of the two tables, so that station reads "1 of 2 tables ready"; with the other three not ready either, Start is greyed out and the status line reads "Waiting on 4 referees to be ready"](guide/images/console-race-open.jpg)
 
 ### Start and finish
 
@@ -396,11 +398,13 @@ If you see **"Scan the station QR code"**, your device isn't paired (or was disc
 
 1. When race control opens a round, your teams and their tables appear.
 2. Check each team is at the right table and set up.
-3. Press **Ready**. You'll see **Ready ✓** and "Waiting for the start".
+3. Press **Ready** for each table once its team is ready. With two teams you get two Ready buttons, each showing its table and team ("Table 1 · Alpha"); with one team, one big Ready button. A pressed table shows **Ready ✓** while the other button stays there for you to press. When all your tables are ready you'll see **Ready ✓** and "Waiting for the start".
+
+The projector shows a green dot next to each team whose table you've readied, so the room can see who the start is waiting on.
 
 Once pressed, Ready stays on. If you pressed it by mistake, ask race control to clear it.
 
-![Before the race: your teams and their tables, and the big Ready button](guide/images/referee-ready.jpg)
+![Before the race: Table 1 (Alpha) is ready, and the Ready button for Table 2 (Bravo) is still to press](guide/images/referee-ready.jpg)
 
 If none of your tables has a team this round, you'll see "No teams at your tables this round". Stand by for the next one.
 
@@ -510,20 +514,28 @@ The projector follows the event by itself:
 | When | It shows |
 |---|---|
 | Before the first round | **Welcome**: the event name and a QR code to the participant site |
-| A round is open | **Tables**: "Go to your table", every team's table number, and the QR code |
-| A race is running | **Clock**: a big master clock, with finishing teams appearing below as they finish (approved penalties shown as `+5s`, `under review` while one is pending, or `DQ`) |
+| A round is open | **Tables**: "Go to your table", every team's table number, and the QR code. A green dot next to a team's name means its table is ready (the referee pressed **Ready**); a red dot means the start is still waiting on that table |
+| A race is running | **Clock**: a big master clock. As soon as the first team is in, the clock shrinks to the top and the list of teams appears under **Preliminary times** (see below) |
 | After a seeding round | **Seeding results** by category, coloured by bracket tier |
 | After a bracket round | **Brackets**, cycling through the categories |
 | After the Grand Championship, or when race control shows the champion | **Champion**: the Grand Champion and the bags packed. While a penalty is still pending review it stays on **Brackets**, and switches to the champion once every penalty is decided |
 
 ![Projector: Welcome, with the QR code to the participant site](guide/images/projector-welcome.jpg)
-![Projector: Tables, while a round is open](guide/images/projector-tables.jpg)
+![Projector: Tables, while a round is open. Table 1 is ready, so Alpha has a green dot; every other team still has a red dot](guide/images/projector-tables.jpg)
 
-![Projector: the master clock, with finished teams along the bottom](guide/images/projector-clock.jpg)
+![Projector: the race has started and no team is in yet, so the big master clock fills the screen](guide/images/projector-clock-start.jpg)
+![Projector: part-way through the race. The clock has moved up; under Preliminary times the finished teams come first, fastest first, with a checkered-flag dot and their time, and the teams still racing follow with a green dot](guide/images/projector-clock.jpg)
+
 ![Projector: seeding results by category, coloured by bracket tier](guide/images/projector-seeding-results.jpg)
-
 ![Projector: a category's brackets](guide/images/projector-brackets.jpg)
+
 ![Projector: the Grand Champion and the bags packed](guide/images/projector-champion.jpg)
+
+**During the race**, once the first team is in, every team of the round is listed under the clock in two columns (down the first column, then the second):
+- Finished teams first, in the order they finished (fastest time first), each with a checkered-flag dot and its time: `3:41.20`, `3:46.20 (+5s)` with an approved penalty, `under review` while a penalty is pending. Then teams marked **DNF** (or **DQ**), then **DNS**.
+- Then the teams still racing, by table number, with a green dot and their race label.
+
+The times are preliminary until race control finishes the round. The list stays up for the rest of the race, even if a finish is undone.
 
 Race control can pin any screen, including **standings**, from the console (see [Projector control](#projector-control)). If the projector seems stuck on one screen, check whether it's been pinned.
 

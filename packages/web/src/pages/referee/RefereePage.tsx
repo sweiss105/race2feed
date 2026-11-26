@@ -134,14 +134,26 @@ export function RefereePage({ view, status, clock, queue, send, newId, vibrate, 
   } else if (round.phase === 'idle') {
     body = <div class="ref-center"><p class="title-2">Waiting for race control</p></div>;
   } else if (round.phase === 'open') {
-    body = station.ready
+    body = station.ready || (view.teams.length > 0 && view.teams.every((t) => t.ready))
       ? <div class="ref-center"><p class="ref-ready-done">Ready ✓</p><p class="secondary">Waiting for the start</p></div>
-      : (
-        <div class="ref-center">
-          <TeamsPreview teams={view.teams} />
-          <ReadyButton send={send} />
-        </div>
-      );
+      : view.teams.length === 2
+        ? (
+          // Two tables: one Ready each, so the referee can ready one table while the other is still setting up.
+          <div class="ref-center">
+            <div class="ref-ready-pair">
+              {view.teams.map((t) => (t.ready
+                ? <div class="ref-ready-table" key={t.teamId}><p class="ref-ready-done">Ready ✓</p><p class="footnote secondary">Table {t.table} · {t.name}</p></div>
+                : <ReadyButton key={t.teamId} send={send} table={t.table} label={`Ready: Table ${t.table}, ${t.name}`}
+                  sub={`Table ${t.table} · ${t.name}`} />))}
+            </div>
+          </div>
+        )
+        : (
+          <div class="ref-center">
+            <TeamsPreview teams={view.teams} />
+            <ReadyButton send={send} table={view.teams[0]?.table} />
+          </div>
+        );
   } else if (round.phase === 'running') {
     body = (
       <>
@@ -227,13 +239,14 @@ function TeamsPreview({ teams }: { teams: Team[] }) {
   );
 }
 
-function ReadyButton({ send }: { send(cmd: object): Promise<Ack> }) {
+/** Readies one table (or, with no table, the whole station). `sub` names the table when there are two buttons. */
+function ReadyButton({ send, table, label, sub }: { send(cmd: object): Promise<Ack>; table?: number; label?: string; sub?: string }) {
   const [busy, setBusy] = useState(false);
   return (
-    <Button class="ref-ready" busy={busy} onClick={async () => {
+    <Button class="ref-ready" busy={busy} aria-label={label} onClick={async () => {
       setBusy(true);
-      try { await send({ type: 'stationReady' }); } catch { /* the view will show it is still not ready */ } finally { setBusy(false); }
-    }}>Ready</Button>
+      try { await send({ type: 'stationReady', ...(table === undefined ? {} : { table }) }); } catch { /* the view will show it is still not ready */ } finally { setBusy(false); }
+    }}>Ready{sub && <span class="ref-ready-sub">{sub}</span>}</Button>
   );
 }
 

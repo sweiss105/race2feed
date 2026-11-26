@@ -230,20 +230,30 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await admin.getByRole('button', { name: 'Open round 1' }).click();
   await expect(admin.locator('.pill')).toHaveText('open');
 
-  await expect(ref.getByRole('button', { name: 'Ready' })).toBeVisible();
-  await shot(ref, 'referee-ready.jpg');
   await expect(phone.getByTestId('next-table')).toBeVisible();
   await shot(phone, 'phone-next-race.png');
   await expect(projector.getByRole('heading', { name: 'Round 1' })).toBeVisible();
-  await shot(projector, 'projector-tables.jpg');
 
-  await ref.getByRole('button', { name: 'Ready' }).click();
+  // The referee readies table 1; table 2's Ready is still to press.
+  await ref.getByRole('button', { name: /^Ready: Table 1,/ }).click();
   await expect(ref.getByText('Ready ✓')).toBeVisible();
-  await expect(status).toHaveText('Waiting on 3 referees to be ready');
+  await expect(ref.getByRole('button', { name: /^Ready: Table 2,/ })).toBeVisible();
+  await shot(ref, 'referee-ready.jpg');
+  await expect(admin.locator('.station', { hasText: 'Tables 1 & 2' })).toContainText('1 of 2 tables ready');
+  await expect(status).toHaveText('Waiting on 4 referees to be ready');
   await shot(admin, 'console-race-open.jpg');
+  // Table 1 ready, the rest not: the projector shows both kinds of dot (the round update is paced, so wait for it).
+  await expect(projector.getByRole('img', { name: 'Ready', exact: true })).toHaveCount(1);
+  await shot(projector, 'projector-tables.jpg');
+  await ref.getByRole('button', { name: /^Ready: Table 2,/ }).click();
+  await expect(ref.getByText('Waiting for the start')).toBeVisible();
 
   // ── Round 1: running ──────────────────────────────────────────────────────
   await readyAndStart(admin);
+  // No team is in yet: the projector shows the big clock alone.
+  await expect(projector.getByTestId('master-clock')).toBeVisible();
+  await projector.waitForTimeout(2000);
+  await shot(projector, 'projector-clock-start.jpg');
   const alpha = ref.getByRole('button', { name: /^Alpha/ });
   await expect(alpha).toBeEnabled();
   await ref.waitForTimeout(4000);
@@ -263,7 +273,10 @@ test('screenshots for the user guide', async ({ browser, baseURL }) => {
   await bravo.click();
   await expect(bravo).toContainText(/\d:\d\d\.\d\d/);
   await expect(projector.getByTestId('master-clock')).toBeVisible();
-  await expect(projector.getByLabel('Finished')).toContainText('Bravo');
+  // Alpha and Bravo are in: the clock has moved up and the list shows them first, the rest still racing.
+  const teams = projector.getByLabel('Teams');
+  await expect(teams.locator('.row', { hasText: 'Bravo' })).toContainText(/\d:\d\d\.\d\d/);
+  await expect(teams.getByRole('img', { name: 'Finished' })).toHaveCount(2);
   await shot(projector, 'projector-clock.jpg');
 
   // ── Round 1: the referee explains the penalty while the race is still running ──

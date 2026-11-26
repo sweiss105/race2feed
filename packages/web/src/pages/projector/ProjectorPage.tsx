@@ -57,15 +57,28 @@ function Tables({ state, siteUrl }: { state: PublicView; siteUrl: string }) {
         <div class="proj-qr"><span class="url">{host(siteUrl)}</span><QR value={siteUrl} size="13vh" /></div>
       </header>
       <div class="proj-body proj-tables">
-        {rows.map((r) => (
-          <div class="row" key={r.teamId}>
-            <span class="t">{r.table}</span>
-            <span>{r.name}</span>
-            <span class="lbl">{r.label}</span>
-          </div>
-        ))}
+        {rows.map((r) => <TeamRow key={r.teamId} table={r.table} name={r.name} dot={r.ready ? 'ready' : 'not-ready'} right={r.label} />)}
       </div>
     </>
+  );
+}
+
+/** The dot beside a team name: waiting on the table (red), table ready (green), racing (green), finished (checkered flag). */
+export type DotStatus = 'not-ready' | 'ready' | 'racing' | 'finished';
+const DOT_LABEL: Record<DotStatus, string> = { 'not-ready': 'Not ready', ready: 'Ready', racing: 'Racing', finished: 'Finished' };
+
+export function StatusDot({ status }: { status: DotStatus }) {
+  return <span class={`dot ${status}`} role="img" aria-label={DOT_LABEL[status]} />;
+}
+
+/** One row of the team list on the tables and clock screens: table, dot and name, and the race label or result. */
+function TeamRow({ table, name, dot, right }: { table: number; name: string; dot: DotStatus; right: string }) {
+  return (
+    <div class="row">
+      <span class="t">{table}</span>
+      <span class="name"><StatusDot status={dot} />{name}</span>
+      <span class="lbl">{right}</span>
+    </div>
   );
 }
 
@@ -73,19 +86,39 @@ function Clock({ state, serverNow }: { state: PublicView; serverNow: () => numbe
   const running = state.round.phase === 'running' && state.round.startedAt !== null;
   const now = useNow(serverNow, running);
   const elapsed = running ? Math.max(0, now - state.round.startedAt!) : 0;
-  const finished = (state.rounds[state.round.current - 1]?.races ?? [])
-    .flatMap((race) => race.entrants)
-    .filter((x) => x.status !== 'pending')
-    .sort((a, b) => (a.officialMs ?? Infinity) - (b.officialMs ?? Infinity));
+  const round = state.round.current;
+  const entrants = new Map((state.rounds[round - 1]?.races ?? []).flatMap((race) => race.entrants).map((x) => [x.teamId, x]));
+  const anyIn = [...entrants.values()].some((x) => x.status !== 'pending');
+  // Once a team is in, the list stays for the rest of the round, even if that result is undone.
+  const [listRound, setListRound] = useState<number | null>(null);
+  useEffect(() => { if (anyIn && listRound !== round) setListRound(round); }, [anyIn, round, listRound]);
+  const withList = anyIn || listRound === round;
+  // A finished team (DNF, DNS and DQ included) shows its result. Order: times fastest first, then DNF (and DQ), then DNS,
+  // then teams still racing; ties and each group by table. Keyed by team so rows move rather than being re-created.
+  const rows = withList ? scheduleRows(state).map((r) => {
+    const x = entrants.get(r.teamId);
+    const done = Boolean(x && (x.status !== 'pending' || x.dq));
+    const group = !x || !done ? 3 : x.dq || x.status === 'dnf' ? 1 : x.status === 'dns' ? 2 : 0;
+    return {
+      ...r, group, ms: group === 0 ? x!.officialMs ?? Infinity : 0,
+      dot: (done ? 'finished' : 'racing') as DotStatus, right: done ? timeText(x!, { short: true }) : r.label,
+    };
+  }).sort((a, b) => a.group - b.group || a.ms - b.ms || a.table - b.table) : [];
   return (
     <>
-      <header><div class="proj-kicker">Round {state.round.current}</div></header>
-      <div class="proj-clock">
+      <header><div class="proj-kicker">Round {round}</div></header>
+      {/* One element for both layouts: a class change animates the clock up and smaller without remounting it. */}
+      <div class={`proj-clock${withList ? ' with-list' : ''}`}>
         <div class="big" data-testid="master-clock">{formatMs(elapsed, 'seconds')}</div>
-        <div class="proj-ticker" aria-label="Finished">
-          {finished.map((x) => (
-            <span class="chip" key={x.teamId}>{teamName(state, x.teamId)} · <span class="tabular">{timeText(x, { short: true })}</span></span>
-          ))}
+        <div class="proj-race">
+          {withList && (
+            <>
+              <h3 class="proj-kicker">Preliminary times</h3>
+              <div class="proj-tables proj-race-list" aria-label="Teams">
+                {rows.map((r) => <TeamRow key={r.teamId} table={r.table} name={r.name} dot={r.dot} right={r.right} />)}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </>

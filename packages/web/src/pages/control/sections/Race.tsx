@@ -53,10 +53,15 @@ function Stations({ view }: { view: ControlView }) {
         {entries.map(([n, s]) => {
           const station = Number(n);
           const cls = s.excluded ? 'excluded' : s.ready ? 'ready' : 'notready';
+          const tables = tablesOfStation(station, view.setup.tableCount, view.setup.tablesPerStation ?? 2);
+          // A two-table station with one table readied by its referee: show the progress.
+          const partial = !s.excluded && !s.ready && s.readyTables.length > 0;
           return (
             <div class={`station ${cls}`} key={n}>
-              <div class="headline">{stationLabel(tablesOfStation(station, view.setup.tableCount, view.setup.tablesPerStation ?? 2))}</div>
-              <div class="footnote secondary">{s.excluded ? 'No teams' : s.ready ? 'Ready' : 'Not ready'}</div>
+              <div class="headline">{stationLabel(tables)}</div>
+              <div class="footnote secondary">
+                {s.excluded ? 'No teams' : s.ready ? 'Ready' : partial ? `${s.readyTables.length} of ${tables.length} tables ready` : 'Not ready'}
+              </div>
               <div class="mini">
                 {!s.ready && !s.excluded && <Button kind="secondary" busy={runner.busy(`station-${station}`)} onClick={set(station, 'ready')}>Ready</Button>}
                 {s.ready && <Button kind="secondary" busy={runner.busy(`station-${station}`)} onClick={set(station, 'notReady')}>Unready</Button>}

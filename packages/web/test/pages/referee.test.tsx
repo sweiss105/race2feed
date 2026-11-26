@@ -6,6 +6,8 @@ import { TapQueue } from '../../src/lib/queue';
 import { MemoryStorage } from '../lib/fakes';
 import { lockedFour, openNext, refViewOf, start, teamId } from '../support/state';
 import type { LiveEvent, PenaltyReview } from '../../../server/src/core/model';
+import { handleLifecycle } from '../../../server/src/core/lifecycle';
+import { admin, ctx, ok, referee } from '../../../server/test/core/helpers';
 
 const NOW = 1_000_000 + 200_000;
 
@@ -31,10 +33,45 @@ function setup(e: LiveEvent, opts: { synced?: boolean; queue?: TapQueue } = {}) 
 describe('referee page', () => {
   beforeEach(() => cleanup());
 
-  it('shows Ready while the round is open and sends stationReady', async () => {
+  it('shows a Ready per table for two teams, each sending its table', async () => {
     const { sent } = setup(openNext(lockedFour()));
-    fireEvent.click(await screen.findByRole('button', { name: 'Ready' }));
-    await waitFor(() => expect(sent).toContainEqual({ type: 'stationReady' }));
+    expect(screen.queryByRole('button', { name: 'Ready' })).toBeNull();
+    const second = await screen.findByRole('button', { name: 'Ready: Table 2, T2' });
+    expect(second.textContent).toBe('ReadyTable 2 · T2');
+    fireEvent.click(second);
+    await waitFor(() => expect(sent).toContainEqual({ type: 'stationReady', table: 2 }));
+    fireEvent.click(screen.getByRole('button', { name: 'Ready: Table 1, T1' }));
+    await waitFor(() => expect(sent).toContainEqual({ type: 'stationReady', table: 1 }));
+  });
+
+  it('a readied table shows Ready ✓ while the other stays pressable', async () => {
+    const e = ok(handleLifecycle(openNext(lockedFour()), { type: 'stationReady', table: 1 }, ctx(referee(1))));
+    setup(e);
+    expect(await screen.findByText('Ready ✓')).toBeTruthy();
+    expect(screen.getByText('Table 1 · T1')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Table 1/ })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Ready: Table 2, T2' })).toBeTruthy();
+    expect(screen.queryByText('Waiting for the start')).toBeNull();
+  });
+
+  it('both tables ready: Ready ✓ and waiting for the start', async () => {
+    let e = ok(handleLifecycle(openNext(lockedFour()), { type: 'stationReady', table: 1 }, ctx(referee(1))));
+    e = ok(handleLifecycle(e, { type: 'stationReady', table: 2 }, ctx(referee(1))));
+    setup(e);
+    expect(await screen.findByText('Waiting for the start')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Ready/ })).toBeNull();
+  });
+
+  it('one team at the station: one plain Ready that sends its table', async () => {
+    const e = openNext(lockedFour());
+    const v = refViewOf(e);
+    const sent: any[] = [];
+    render(<RefereePage view={{ ...v, teams: [v.teams[1]!] }} status="open" clock={{ synced: () => true, serverNow: () => NOW }}
+      queue={new TapQueue(new MemoryStorage())} send={async (cmd: any) => { sent.push(cmd); return { ok: true }; }} newId={() => 'x'} />);
+    const b = await screen.findByRole('button', { name: 'Ready' });
+    expect(b.textContent).toBe('Ready');
+    fireEvent.click(b);
+    await waitFor(() => expect(sent).toContainEqual({ type: 'stationReady', table: 2 }));
   });
 
   it('shows one big button per team, and Penalty only when penalties are on', async () => {
@@ -289,7 +326,7 @@ describe('referee page', () => {
 
   it('says so when no teams are at its tables', async () => {
     const e = start(openNext(lockedFour()));
-    render(<RefereePage view={{ ...refViewOf(e), station: { number: 3, tables: [5, 6], ready: false, excluded: true }, teams: [] }} status="open"
+    render(<RefereePage view={{ ...refViewOf(e), station: { number: 3, tables: [5, 6], ready: false, excluded: true, readyTables: [] }, teams: [] }} status="open"
       clock={{ synced: () => true, serverNow: () => NOW }} queue={new TapQueue(new MemoryStorage())} send={async () => ({ ok: true })} newId={() => 'x'} />);
     expect(await screen.findByText(/No teams at your tables/)).toBeTruthy();
   });

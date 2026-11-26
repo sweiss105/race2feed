@@ -40,10 +40,10 @@ export function nextRaceFor(state: PublicView, teamId: string): NextRace {
   return current < state.rounds.length ? { waitingFor: current + 1 } : null;
 }
 
-export function scheduleRows(state: PublicView): { table: number; teamId: string; name: string; label: string }[] {
+export function scheduleRows(state: PublicView): { table: number; teamId: string; name: string; label: string; ready: boolean }[] {
   const races = state.rounds[state.round.current - 1]?.races ?? [];
   return races
-    .flatMap((race) => race.entrants.map((x) => ({ table: x.table, teamId: x.teamId, name: teamName(state, x.teamId), label: race.label })))
+    .flatMap((race) => race.entrants.map((x) => ({ table: x.table, teamId: x.teamId, name: teamName(state, x.teamId), label: race.label, ready: x.ready })))
     .sort((a, b) => a.table - b.table);
 }
 

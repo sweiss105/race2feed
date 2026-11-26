@@ -73,6 +73,17 @@ describe('race section', () => {
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'startRace' }));
   });
 
+  it('shows a station with one of its two tables ready as partial progress, still not ready', () => {
+    const e = openNext(lockedFour());
+    const half = { ...e, stations: { 1: { ready: false, excluded: false, readyTables: [2] }, 2: { ready: true, excluded: false, readyTables: [3, 4] } } };
+    render(<ConsolePage me={me('admin')} view={ctlViewOf(half)} send={async () => ({ ok: true })} serverNow={() => 0} status="open" />);
+    const card = screen.getByText('Tables 1 & 2').closest('.station') as HTMLElement;
+    expect(within(card).getByText('1 of 2 tables ready')).toBeTruthy();
+    expect(within(card).getByRole('button', { name: 'Ready' })).toBeTruthy();
+    expect(within(screen.getByText('Tables 3 & 4').closest('.station') as HTMLElement).getByText('Ready')).toBeTruthy();
+    expect(within(header()).getByRole('status').textContent).toBe('Waiting on 1 referee to be ready');
+  });
+
   it('disables Start and says what it waits for while a referee is not ready', () => {
     const e = openNext(lockedFour());
     const oneLeft = { ...e, stations: { 1: { ready: true, excluded: false }, 2: { ready: false, excluded: false } } };

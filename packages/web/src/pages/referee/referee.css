@@ -5,6 +5,13 @@
 .ref-center { flex: 1; display: grid; place-content: center; text-align: center; gap: var(--space-3); }
 .ref-ready { min-height: 9rem; min-width: min(20rem, 80vw); font-size: 2rem; border-radius: var(--radius-l); }
 .ref-ready-done { font-size: 1.5rem; font-weight: 700; color: var(--success); }
+/* Two tables: a Ready per table, stacked on phones and side by side on tablets (like the team buttons). */
+.ref-ready-pair { display: grid; gap: var(--space-4); }
+@media (min-width: 700px) { .ref-ready-pair { grid-auto-flow: column; grid-auto-columns: 1fr; } }
+.ref-ready-pair .ref-ready { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2); }
+.ref-ready-sub { font-size: 1rem; font-weight: 500; opacity: 0.85; }
+.ref-ready-table { min-height: 9rem; min-width: min(20rem, 80vw); display: grid; place-content: center; gap: var(--space-2); border: 2px solid var(--success); border-radius: var(--radius-l); }
+.ref-ready-table p { margin: 0; }
 .ref-notice { text-align: center; }
 
 /* Phones: teams stacked. Tablets: side by side, in table order. */

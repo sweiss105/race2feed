@@ -1,5 +1,5 @@
-import { stationCount, stationOfTable } from '@race2feed/engine';
-import { done, fail, perStation, type CommandResult, type Ctx, type LifecycleCommand, type LiveEvent } from './model';
+import { stationCount, stationOfTable, tablesOfStation } from '@race2feed/engine';
+import { done, fail, perStation, readyTablesOf, type CommandResult, type Ctx, type LifecycleCommand, type LiveEvent, type Station } from './model';
 import { buildProgress, derive, teamsInRound } from './results';
 import { checkCorrection } from './corrections';
 import { saveLineup } from './lineups';
@@ -13,6 +13,18 @@ export function pendingPenalties(e: LiveEvent) {
 
 const pendingFail = (pending: ReturnType<typeof pendingPenalties>) =>
   fail('penalties_pending', `${pending.length} penalt${pending.length === 1 ? 'y needs' : 'ies need'} a decision first.`, pending);
+
+/** The station's tables that have a team in the current round. */
+function occupiedTables(e: LiveEvent, station: number): number[] {
+  const tables = new Set(teamsInRound(derive(e), e.round.current).map((t) => t.table));
+  return tablesOfStation(station, e.setup.tableCount, perStation(e)).filter((t) => tables.has(t));
+}
+
+/** A not-excluded station with these ready tables; ready once every occupied table is (`empty` when it has none). */
+function withReadyTables(occupied: number[], readyTables: number[], empty = false): Station {
+  const sorted = [...new Set(readyTables)].sort((a, b) => a - b);
+  return { ready: occupied.length ? occupied.every((t) => sorted.includes(t)) : empty, excluded: false, readyTables: sorted };
+}
 
 export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): CommandResult {
   const ok = (event: LiveEvent) => done(event, cmd, ctx);
@@ -31,7 +43,7 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       if (next.status !== 'ready') return fail('blocked', 'The next round is waiting on a decision.', d.blockers);
       const busy = new Set(next.races.flatMap((r) => r.entrants.map((x) => stationOfTable(x.table, perStation(e)))));
       const stations: LiveEvent['stations'] = {};
-      for (let s = 1; s <= stationCount(e.setup.tableCount, perStation(e)); s++) stations[s] = { ready: false, excluded: !busy.has(s) };
+      for (let s = 1; s <= stationCount(e.setup.tableCount, perStation(e)); s++) stations[s] = { ready: false, excluded: !busy.has(s), readyTables: [] };
       const round = e.round.current + 1;
       return ok(saveLineup({ ...e, round: { current: round, phase: 'open', startedAt: null, finishedAt: null }, stations }, round));
     }
@@ -40,14 +52,21 @@ export function handleLifecycle(e: LiveEvent, cmd: LifecycleCommand, ctx: Ctx): 
       const s = ctx.actor.station;
       const station = s === undefined ? undefined : e.stations[s];
       if (s === undefined || !station) return fail('not_your_station', 'This device is not paired to a station.');
-      return ok({ ...e, stations: { ...e.stations, [s]: { ...station, ready: true } } });
+      const occupied = occupiedTables(e, s);
+      const already = readyTablesOf(station, tablesOfStation(s, e.setup.tableCount, perStation(e)));
+      if (cmd.table === undefined) {
+        // An older tablet page: one Ready for the whole station.
+        return ok({ ...e, stations: { ...e.stations, [s]: { ...station, ready: true, readyTables: [...new Set([...already, ...occupied])].sort((a, b) => a - b) } } });
+      }
+      if (!occupied.includes(cmd.table)) return fail('not_your_table', 'That table is not yours this round.');
+      return ok({ ...e, stations: { ...e.stations, [s]: { ...withReadyTables(occupied, [...already, cmd.table]), excluded: station.excluded } } });
     }
     case 'overrideStation': {
       const station = e.stations[cmd.station];
       if (!station) return fail('not_found', `There is no station ${cmd.station} in this round.`);
-      const next = cmd.state === 'excluded'
-        ? { ready: false, excluded: true }
-        : { ready: cmd.state === 'ready', excluded: false };
+      const next: Station = cmd.state === 'excluded'
+        ? { ready: false, excluded: true, readyTables: [] }
+        : withReadyTables(occupiedTables(e, cmd.station), cmd.state === 'ready' ? occupiedTables(e, cmd.station) : [], cmd.state === 'ready');
       return ok({ ...e, stations: { ...e.stations, [cmd.station]: next } });
     }
     case 'startRace': {

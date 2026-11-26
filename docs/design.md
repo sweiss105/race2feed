@@ -179,10 +179,12 @@ All times in this section are **official times**: the raw time plus any penaltie
 - **Open:**
   - Assignments for the round go out to referees, participants and the projector.
   - Stations with no teams this round are excluded automatically.
-  - Each referee presses **Ready**, which locks in.
+  - Every station starts with no table ready.
+  - **Ready is per table.** The referee presses **Ready** for each of their tables that has a team this round (`stationReady` with `table`); each locks in. A station is Ready once every one of its tables that has a team is ready. `stationReady` without a table (an older tablet page) readies all of the station's occupied tables at once. A table that is not the referee's, or has no team this round, is refused (`not_your_table`).
+  - The station record keeps `readyTables` and the `ready` flag together. A station stored before per-table Ready, with `ready: true` and no `readyTables`, counts every one of its tables as ready.
 - **Start gate:**
-  - Companion **START** is refused until every active station is Ready (or overridden).
-  - Race control can override any station: force it Ready, set it back to not ready, or exclude it.
+  - Companion **START** is refused until every active station is Ready (every occupied table ready) or overridden.
+  - Race control can override any station: force it Ready (all its tables), set it back to not ready (clears all its tables), or exclude it.
 - **Running:**
   - The server starts the master clock.
   - Referee tablets show one button per team at their tables.
@@ -216,6 +218,7 @@ All times in this section are **official times**: the raw time plus any penaltie
   - Head-to-heads are judged by two referees on the same master clock, so times still decide.
   - The layout rule about keeping head-to-heads on one station no longer applies.
 - **Everything follows the choice:** station counts, the Ready/Start check, pairing, the referee screen and the console's station labels.
+- **One per two tables:** the referee readies each of their two tables separately (§4); the station is Ready when both tables with a team are. With one table per referee a station has one table, so per-table and per-station Ready are the same.
 
 ### 4.1 Show champion and end the event
 
@@ -364,7 +367,7 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
 - Type the **bag total** shown on the champion screen.
 
 ### 7.2 Console: running the race
-- **Grid of every station:** each shows not ready / Ready / excluded, the teams with their times and status, and any overrides.
+- **Grid of every station:** each shows not ready / Ready / excluded, the teams with their times and status, and any overrides. A two-table station with one table ready reads "1 of 2 tables ready" (still not ready; the Start count counts stations not fully ready).
 - **Race Control page header:** round title, state, master clock, a status line (`role="status"`) and **one large action button** that always shows the next step. It is about three times a normal button (min-height 6rem, min-width 16rem, title-sized text). It **pulses** (a 2-second scale-and-glow loop, off under `prefers-reduced-motion: reduce`) only when pressing it will work and is the expected next step; it never pulses while the server would refuse. A refused command's message shows under the header until the round moves on (its number or phase changes); a refusal that arrives after that, such as a Finish now that lands just after auto-finish, is not shown. The first matching row wins:
 
   | Condition | Button | Enabled | Pulses | Status line |
@@ -396,7 +399,7 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
 - **Pairing asks for a name.** Opening a station's QR link shows one field, **Your name**, and a **Start** button; submitting pairs the tablet. The name is trimmed and must be 1–40 characters. It is checked before the code is used, so a missing name never spends the code.
 - The name labels the device in race control's Referees list ("{name} — {station tables}") and the log's actor ("{name} (station {n})"). Devices paired before names existed keep "referee station {n}".
 - Shows the station's table numbers and the current round's teams.
-- **Ready** button. Once pressed it stays locked; only race control can clear it.
+- **Ready, per table.** With one team at the station (one table per referee, or only one of two tables in use) there is one big **Ready** button that readies that table. With two teams there are two Ready buttons, side by side on a tablet and stacked on a phone (the same breakpoint as the team buttons), each reading "Ready" with "Table {n} · {team}" under it (accessible name "Ready: Table {n}, {team}"). A pressed one becomes "Ready ✓" for its table while the other stays pressable; when every table is ready the page shows "Ready ✓ / Waiting for the start". Once pressed a table stays ready; only race control can clear it.
 - While running, one large button per team. A tap shows that team's time and an **Undo** countdown.
 - **Below the team buttons** is one area holding the **Undo** rows (newest first) and then the **Penalty notes** cards; nothing floats over the page. On a tablet the area has a fixed height and scrolls; on a phone the buttons keep their own height and the page scrolls. Either way the finish buttons never move or change size when an Undo row or a card appears or goes.
 - **Penalty button** (only while penalties are switched on): a separate, smaller **Penalty** button under each team.
@@ -421,12 +424,24 @@ The sidebar lists six sections: **Race Control** (hash `#race`), **Teams**, **Se
 
   | State | Screen |
   |---|---|
-  | Open | Table assignments for the round |
-  | Running | Large master clock and a finish ticker (approved penalties shown as `+5s`, and `under review` while one is pending) |
+  | Open | Table assignments for the round, with a ready dot per team |
+  | Running | Large master clock alone until the first team has a result; then a smaller clock at the top and the team list under it, headed "Preliminary times" |
   | Finished | Updated seeding results, brackets or standings |
   | Grand Championship finished | The champion, once no penalty is pending review (§4.1); brackets until then |
   | Event complete | Final standings, then the champion |
 
+- **Team rows and status dots.** The tables screen and the running screen share one row: table number, a round dot (about 0.6em, centred on the name) just left of the team name, and the race label or result at the right. The dot is one component taking a status, each with `role="img"` and a label:
+
+  | Status | Look | Label | When |
+  |---|---|---|---|
+  | not ready | solid red (danger) | Not ready | round open, the team's table not ready yet |
+  | ready | solid green (success) | Ready | round open, the referee pressed Ready for that table (or race control readied the station) |
+  | racing | solid green | Racing | race running, the team has no result yet |
+  | finished | a small black-and-white checkerboard (checkered flag) in a circle with a thin light border | Finished | race running, the team has a time, DNF, DNS or DQ |
+
+- **Tables screen (open):** rows in table order. Each table's dot follows its own table, so the room can see which tables the start is waiting on. An excluded station's teams show not ready. Readiness travels in the small current-round update public screens get (at most one a second), so a dot turns green within about a second of the Ready.
+- **Running screen:** while no team has a result, the big master clock alone, as large as before. When the first team has a result (time, DNF, DNS or DQ), the clock shrinks and moves to the top (a 600 ms transition on a class change, so it keeps ticking; none under reduced motion) and the list fades in below it under a small "Preliminary times" heading (`aria-label="Teams"` on the list). The list then stays for the rest of the round, even if every result is undone; a projector that loads mid-race with results in starts in this layout. Every team of the round is listed, two columns filling down the first column first: teams with a time, fastest first (official time, ties by table), then DNF (DQ counts as DNF), then DNS, each by table, then teams still racing by table. A finished team shows its short result at the right (`3:41.20`, `3:46.20 (+5s)`, `3:41.20 · under review`, `DNF`, `DNS`, `DQ`); a team still racing shows its race label. Rows are keyed by team, so they move rather than being re-created. Two columns of 13 rows (26 tables) fit at 1920×1080.
+- The participant phone page shows no dots.
 - Race control can **pin** any screen, which overrides automatic mode.
 - Screens match the sheet's displays: per-round table lists, seeding results by category, bracket diagrams, final standings and the champion with the bag total. The colours of the Gold, Silver, Bronze, Copper and Tin tiers are kept.
 
@@ -472,7 +487,7 @@ The server is reachable from the internet, so:
 - **No passwords in the app's screens.** Console passwords stored by older versions are deleted when the hub starts and never checked. A session cookie no longer signs anyone in on `/api/command` or `/api/ws`, which serve referee tablets (device cookie), Companion (API key) and public screens only.
 - **Local development and tests.** `wrangler dev` has no Access in front of it. The Worker variable `DEV_CONSOLE_USER`, set only in `.dev.vars` and the test configuration, signs console requests in as that name. It is refused on the production hostname.
 - Every write endpoint requires an authenticated role, and session and device cookies are `HttpOnly`, `Secure` and `SameSite=Strict`.
-- Public endpoints expose only what the participant and projector pages show. They expose no device, audit or credential data.
+- Public endpoints expose only what the participant and projector pages show, including whether a team's table is ready, while a round is open (each entrant's `ready` flag, per table; false in every other round and phase, and at an excluded station). They expose no station list, ready-table list, device, audit or credential data.
 
 ---
 

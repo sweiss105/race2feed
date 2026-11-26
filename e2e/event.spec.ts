@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { pairReferee, setUpEvent } from './helpers';
+import { pairReferee, pressReady, setUpEvent } from './helpers';
 
 test('a seeding round across every page', async ({ browser }) => {
   const admin = await setUpEvent(browser, 'E2E Race');
@@ -20,7 +20,7 @@ test('a seeding round across every page', async ({ browser }) => {
   await admin.getByRole('button', { name: 'Open round 1' }).click();
   await expect(projector.getByRole('heading', { name: 'Round 1' })).toBeVisible();
   await expect(phone.getByTestId('next-table')).toHaveText('1');
-  await ref.getByRole('button', { name: 'Ready' }).click();
+  await pressReady(ref);
   await expect(ref.getByText('Ready ✓')).toBeVisible();
   await admin.locator('.station', { hasText: 'Tables 3' }).getByRole('button', { name: 'Ready' }).click();
   await admin.getByRole('button', { name: 'Start' }).click();

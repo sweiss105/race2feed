@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { pairReferee, readyAndStart, setUpEvent, timeEveryone, TEAMS } from './helpers';
+import { pairReferee, pressReady, readyAndStart, setUpEvent, timeEveryone, TEAMS } from './helpers';
 
 const OUT = 'test-results/screens';
 /** Waits for entrance animations (projector fades, undo bar) to settle before capturing. */
@@ -40,7 +40,7 @@ test('screens for visual review', async ({ browser }) => {
   await admin.getByRole('button', { name: 'Open round 1' }).click();
   await expect(admin.locator('.race-status')).toHaveText('Waiting on 2 referees to be ready');
   await shot(admin, 'console-race-open');
-  await expect(ref.getByRole('button', { name: 'Ready' })).toBeVisible();
+  await expect(ref.getByRole('button', { name: /^Ready/ }).first()).toBeVisible();
   await shot(ref, 'referee-ready-phone');
   await expect(projector.getByRole('heading', { name: 'Round 1' })).toBeVisible();
   await shot(projector, 'projector-tables');
@@ -53,7 +53,7 @@ test('screens for visual review', async ({ browser }) => {
   await admin.getByRole('link', { name: 'Settings' }).click();
   await admin.getByRole('switch', { name: 'Time penalties' }).check();
   await admin.getByRole('link', { name: 'Race Control', exact: true }).click();
-  await ref.getByRole('button', { name: 'Ready' }).click();
+  await pressReady(ref);
   await readyAndStart(admin);
   await expect(ref.getByRole('button', { name: /^Alpha/ })).toBeEnabled();
   await shot(ref, 'referee-running-phone');

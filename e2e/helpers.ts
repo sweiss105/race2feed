@@ -79,6 +79,17 @@ export async function pairReferee(browser: Browser, admin: Page, viewport?: { wi
   return ref;
 }
 
+/** Presses every Ready button on a referee page (one per table with a team), until it waits for the start. */
+export async function pressReady(ref: Page) {
+  const buttons = ref.getByRole('button', { name: /^Ready/ });
+  await expect(buttons.first()).toBeVisible();
+  while (await buttons.count()) {
+    await buttons.first().click();
+    await ref.waitForTimeout(150);
+  }
+  await expect(ref.getByText('Waiting for the start')).toBeVisible();
+}
+
 /** Readies every station from the console, then starts the race. */
 export async function readyAndStart(admin: Page) {
   await expect(admin.locator('.pill')).toHaveText('open');

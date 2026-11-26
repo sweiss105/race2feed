@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { buildRoundPlan } from '@race2feed/engine';
 import { handleSetup } from '../../../server/src/core/setup';
 import { derive } from '../../../server/src/core/results';
 import { admin, blank, csvFor, ctx, ok } from '../../../server/test/core/helpers';
@@ -95,8 +96,15 @@ describe('formatSummary', () => {
     expect(formatSummary({ ...suggested.setup, brackets: [], format: { brackets: 'none' } })).toBe('2 rounds, 8 races');
   });
 
-  it('never asks the engine for a knockout plan', () => {
-    expect(formatSummary({ ...lockedFour().setup, format: { brackets: 'knockout' } })).toBe('Knockout is coming soon.');
+  it('counts the rounds and races of a knockout plan', () => {
+    // Four teams, one bracket: 2 seeding rounds of 4, two semi-finals, the final and the third-place race.
+    expect(formatSummary({ ...lockedFour().setup, format: { brackets: 'knockout' } })).toBe('4 rounds, 12 races');
+    // The previous event's brackets as knockouts: eleven of 4 and one of 6 on 26 tables. One round of two
+    // quarter-finals (the bracket of 6), two rounds of semi-finals (24 races), two of finals and third-place
+    // races (24), after 4 seeding rounds (100 runs) and before the Grand Championship.
+    const setup = { ...previousEvent().setup, format: { brackets: 'knockout' as const } };
+    expect(buildRoundPlan(setup).flatMap((r) => (r.kind === 'knockout' ? [r.stage] : []))).toEqual([3, 2, 2, 1, 1]);
+    expect(formatSummary(setup)).toBe('10 rounds, 151 races');
   });
 });
 

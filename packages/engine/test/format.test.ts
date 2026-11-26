@@ -68,7 +68,7 @@ describe('buildRoundPlan with a format', () => {
     const finals = buildRoundPlan(withFormat(base, { brackets: 'finals' }));
     expect(finals.map((r) => r.kind)).toEqual(['seeding', 'seeding', 'seeding', 'seeding', 'finals', 'finals', 'grand']);
     const chunks = (plan: typeof standard, kind: string) =>
-      plan.flatMap((r) => (r.kind === kind && 'bracketIds' in r ? [[r.set, r.bracketIds]] : []));
+      plan.flatMap((r) => (r.kind === kind && 'set' in r ? [[r.set, r.bracketIds]] : []));
     expect(chunks(finals, 'finals')).toEqual(chunks(standard, 'heats'));
     // Fewer tables: the same chunking as the heats.
     const tight = { ...base, tableCount: 12 };
@@ -94,8 +94,8 @@ describe('buildRoundPlan with a format', () => {
     expect(buildRoundPlan(empty).map((r) => r.kind)).toEqual(['seeding', 'seeding']);
   });
 
-  it('knockout is not built yet', () => {
-    expect(() => buildRoundPlan(withFormat(base, { brackets: 'knockout' }))).toThrow('knockout is not built yet');
+  it('knockout: the plan is built (knockout.test.ts covers it)', () => {
+    expect(buildRoundPlan(withFormat(base, { brackets: 'knockout' })).some((r) => r.kind === 'knockout')).toBe(true);
   });
 });
 

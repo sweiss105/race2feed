@@ -4,6 +4,7 @@ export * from './stations';
 export * from './race';
 export * from './seeding';
 export * from './brackets';
+export * from './knockout';
 export * from './groups';
 export * from './schedule';
 export * from './layout';

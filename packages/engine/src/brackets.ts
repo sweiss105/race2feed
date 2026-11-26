@@ -4,7 +4,11 @@ export const DEFAULT_TIERS = ['Gold', 'Silver', 'Bronze', 'Copper', 'Tin'];
 
 const tierName = (i: number, names: string[]) => names[i] ?? `Tier ${i + 1}`;
 
-/** Brackets of 4 by seed; 1–3 leftover teams fold into the last bracket. Seeding only ('none') has no brackets. */
+/**
+ * Brackets of 4 by seed; 1–3 leftover teams fold into the last bracket. Seeding only ('none') has no brackets.
+ * Knockout: brackets of 8 by seed; 1–3 leftover teams fold into the last bracket, and a category of fewer than 8
+ * is one bracket.
+ */
 export function suggestBracketPlan(
   categories: Category[],
   teams: Team[],
@@ -16,8 +20,12 @@ export function suggestBracketPlan(
   for (const category of categories) {
     const n = teams.filter((t) => t.categoryId === category.id).length;
     if (n === 0) continue;
-    const sizes = n < 4 ? [n] : Array.from({ length: Math.floor(n / 4) }, () => 4);
-    sizes[sizes.length - 1]! += n < 4 ? 0 : n % 4;
+    const per = format === 'knockout' ? 8 : 4;
+    const sizes = n < per ? [n] : Array.from({ length: Math.floor(n / per) }, () => per);
+    if (n >= per) {
+      if (n % per < 4) sizes[sizes.length - 1]! += n % per;
+      else sizes.push(n % per);
+    }
     let firstSeed = 1;
     sizes.forEach((size, tierIndex) => {
       plan.push({
@@ -72,7 +80,10 @@ export function validateBracketPlan(input: EventInput): string[] {
       for (const b of brackets) {
         if (b.firstSeed !== expected) errors.push(`${category.name} ${b.tierName}: seeds must start at ${expected}`);
         expected = b.firstSeed + b.size;
-        if (n >= 4 && (b.size < 4 || b.size > 7)) errors.push(`${category.name} ${b.tierName}: size must be 4–7`);
+        if (formatOf(input).brackets === 'knockout') {
+          // Any size from 2 up to the tables (checked below); a category of one team is a bracket of one.
+          if (n >= 2 && b.size < 2) errors.push(`${category.name} ${b.tierName}: size must be 2 or more`);
+        } else if (n >= 4 && (b.size < 4 || b.size > 7)) errors.push(`${category.name} ${b.tierName}: size must be 4–7`);
         if (b.size > input.tableCount) errors.push(`${category.name} ${b.tierName}: larger than the ${input.tableCount} tables`);
       }
     }

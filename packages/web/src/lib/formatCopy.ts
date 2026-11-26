@@ -1,5 +1,5 @@
 import {
-  buildRoundPlan, formatOf, validateBracketPlan, validateFormat,
+  buildRoundPlan, formatOf, knockoutRaces, validateBracketPlan, validateFormat,
   type BracketFormat, type EventInput, type SeedingRankRule, type TournamentFormat,
 } from '@race2feed/engine';
 
@@ -103,13 +103,11 @@ const count = (n: number, one: string) => `${n} ${one}${n === 1 ? '' : 's'}`;
 
 /**
  * "9 rounds, 150 races" for the setup as it stands, or what is still needed before that can be said.
- * A race is one start on the clock: every seeding run of every team, every heat, placement race and final,
- * and the Grand Championship.
+ * A race is one start on the clock: every seeding run of every team, every heat, placement race, knockout race
+ * and final, and the Grand Championship.
  */
 export function formatSummary(setup: EventInput): string {
   const format = formatOf(setup);
-  // Knockout is not built yet: the engine's round plan refuses it.
-  if (format.brackets === 'knockout') return 'Knockout is coming soon.';
   if (!setup.teams.length) return 'Add teams to see how many rounds this makes.';
   if (!setup.groups.length || (format.brackets !== 'none' && !setup.brackets.length)) {
     return 'Press Suggest groups and brackets to see how many rounds this makes.';
@@ -124,6 +122,8 @@ export function formatSummary(setup: EventInput): string {
       // The winners race and the others race.
       case 'placement': return total + 2 * round.bracketIds.length;
       case 'finals': return total + round.bracketIds.length;
+      // Each bracket's races of the stage; the last stage has the final and the third-place race.
+      case 'knockout': return total + round.bracketIds.reduce((n, id) => n + knockoutRaces(size.get(id) ?? 0, round.stage), 0);
       case 'grand': return total + 1;
     }
   }, 0);
@@ -140,5 +140,6 @@ export function bracketsMismatch(setup: EventInput): boolean {
   // The Grand Championship's own problem (more winners than tables) is not about the brackets.
   const fits = (brackets: BracketFormat) => validateBracketPlan({ ...setup, grandChampionship: false, format: { ...format, brackets } }).length === 0;
   if (fits(format.brackets)) return false;
-  return (Object.keys(BRACKET_FORMAT) as BracketFormat[]).some((other) => other !== format.brackets && fits(other));
+  // Knockout cannot be chosen yet, so brackets that would only fit knockout were not "set up for a different format".
+  return (Object.keys(BRACKET_FORMAT) as BracketFormat[]).some((other) => other !== format.brackets && other !== 'knockout' && fits(other));
 }

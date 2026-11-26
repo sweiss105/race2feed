@@ -2,6 +2,7 @@ import { formatOf, type BracketSpec, type EventInput, type EventProgress, type R
 import { rankRace, type RaceRanking } from './race';
 import { rankSeeding } from './seeding';
 import { buildHeats, buildPlacement } from './brackets';
+import { hasThirdPlace, knockoutDraw, knockoutRaceName, type KnockoutMatch } from './knockout';
 import { buildRoundPlan, type RoundSpec } from './schedule';
 import { layoutTables } from './layout';
 
@@ -32,6 +33,9 @@ export interface DerivedEvent {
   /**
    * categoryId → teamId per place (index 0 = 1st); null = undecided.
    * Seeding only: the category's teams in seed order, all null until seedRank is known.
+   * Knockout: a bracket's places are all decided together, once its final, its third-place race and every
+   * earlier race are settled: the final's order, the third-place race's order, then the teams knocked out in
+   * each earlier stage (latest first) by their official time in that stage.
    */
   standings: Record<string, (string | null)[]>;
   /** categoryId → the category's winner (standings[categoryId][0]); null while undecided or without teams. */
@@ -67,8 +71,11 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
   const teamName = new Map(input.teams.map((t) => [t.id, t.name]));
   /** Final rankings of every race in a locked, tie-free round. */
   const settled = new Map<string, RaceRanking>();
-  /** bracketId → race ids that decide it (heats, final, winners/others). */
-  const raceIdsOf = new Map<string, { heats: string[]; final?: string; winners?: string; others?: string }>();
+  /** bracketId → race ids that decide it (heats, final, winners/others; knockout: third place, and ko[stage][index]). */
+  const raceIdsOf = new Map<string, {
+    heats: string[]; final?: string; winners?: string; others?: string; third?: string; ko?: Record<number, Record<number, string>>;
+  }>();
+  const raceById = new Map<string, RaceView>();
   let seedRank: Record<string, number> | null = null;
   let members: Map<string, string[]> | null = null; // bracketId → team ids in seed order
   let grandRaceId: string | null = null;
@@ -134,6 +141,12 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
   }
 
   if (seedingOnly) seedRank ??= settledSeedRank();
+  // Knockout with no round after seeding (no bracket has two teams, and no Grand Championship): the brackets are
+  // drawn once every seeding round is finished and settled, so a bracket of one team has its winner.
+  if (format.brackets === 'knockout' && members === null && open && seedingRounds.length > 0) {
+    seedRank = computeSeedRank();
+    members = progress.bracketMembers ? new Map(Object.entries(progress.bracketMembers)) : computeMembers(seedRank);
+  }
   const standings = computeStandings();
   return {
     rounds,
@@ -156,12 +169,60 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
 
   /** Notes which races decide each bracket, and the grand race, by role. */
   function recordRace(race: RaceView) {
+    raceById.set(race.id, race);
     if (race.role === 'grand') grandRaceId = race.id;
     if (!race.bracketId) return;
     const ids = raceIdsOf.get(race.bracketId) ?? { heats: [] };
     raceIdsOf.set(race.bracketId, ids);
     if (race.role === 'heat') ids.heats.push(race.id);
-    else if (race.role === 'final' || race.role === 'winners' || race.role === 'others') ids[race.role] = race.id;
+    else if (race.role === 'final' || race.role === 'winners' || race.role === 'others' || race.role === 'third') ids[race.role] = race.id;
+    else if (race.role === 'ko') {
+      // A knockout race is known by its stage and number, the end of its id: …:ko{stage}-{index}.
+      const m = /:ko(\d+)-(\d+)$/.exec(race.id);
+      if (m) ((ids.ko ??= {})[Number(m[1])] ??= {})[Number(m[2])] = race.id;
+    }
+  }
+
+  /**
+   * A knockout bracket's races in `stage`. Entrants come from the draw (knockoutDraw) of the bracket's teams in
+   * seed order: the first stage races the seeds drawn together; a later match races the teams that came out of
+   * its two feeding matches, each the winner of a settled race or the team that had a bye. The final stage is
+   * the final and, when both semi-finals were raced, the third-place race between their losers.
+   */
+  function knockoutDrafts(r: string, bracket: BracketSpec, seeded: string[], stage: number): Draft[] {
+    const draw = knockoutDraw(seeded.length);
+    const stages = draw.length;
+    const matches = (draw[stages - stage] ?? []).filter((m) => m.index !== null);
+    const ids = raceIdsOf.get(bracket.id);
+    const seedOf = new Map(seeded.map((id, i) => [id, i]));
+    const present = (list: (string | null | undefined)[]) => list.filter((id): id is string => typeof id === 'string');
+    /** The team that came out of a match in `place` (0 = it won and goes on, 1 = it lost); a bye has only a winner. */
+    const from = (m: KnockoutMatch, place: 0 | 1): string | null => {
+      if (m.index === null) {
+        const seed = m.seeds?.find((s) => s !== null);
+        return place === 0 && seed ? seeded[seed - 1] ?? null : null;
+      }
+      const raceId = ids?.ko?.[m.stage]?.[m.index];
+      return (raceId ? settled.get(raceId)?.order[place] : null) ?? null;
+    };
+    const feeders = (m: KnockoutMatch) => (draw[stages - m.stage - 1] ?? []).slice(2 * m.position - 2, 2 * m.position);
+    const entrants = (m: KnockoutMatch) =>
+      present(m.seeds ? m.seeds.map((s) => (s === null ? null : seeded[s - 1])) : feeders(m).map((f) => from(f, 0)));
+    const draft = (suffix: string, name: string, role: RaceRole, teams: string[]): Draft => ({
+      id: `${r}:${bracket.id}:${suffix}`,
+      label: `${bracketLabel(bracket)} · ${name}`,
+      bracketId: bracket.id,
+      role,
+      teams,
+      fallbackOrder: [...teams].sort((a, b) => seedOf.get(a)! - seedOf.get(b)!),
+    });
+    if (stage > 1) {
+      return matches.map((m) => draft(`ko${stage}-${m.index}`, knockoutRaceName(stage, stages - stage + 1, m.index!, matches.length), 'ko', entrants(m)));
+    }
+    return matches.flatMap((final) => [
+      draft('final', 'Final', 'final', entrants(final)),
+      ...(hasThirdPlace(seeded.length) ? [draft('third', 'Third place', 'third', present(feeders(final).map((f) => from(f, 1))))] : []),
+    ]);
   }
 
   function draftRaces(spec: RoundSpec): Draft[] {
@@ -189,6 +250,7 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
       const bracket = bracketById.get(bracketId)!;
       const seeded = members!.get(bracketId) ?? [];
       const base = { bracketId, fallbackOrder: seeded };
+      if (spec.kind === 'knockout') return knockoutDrafts(r, bracket, seeded, spec.stage);
       if (spec.kind === 'finals') {
         return [{ ...base, id: `${r}:${bracketId}:final`, label: `${bracketLabel(bracket)} · Final`, role: 'final', teams: seeded }];
       }
@@ -250,12 +312,41 @@ export function deriveEvent(input: EventInput, progress: EventProgress): Derived
 
   /** The bracket's final order, or null while undecided. */
   function bracketOrder(bracketId: string): string[] | null {
+    if (format.brackets === 'knockout') return knockoutOrder(bracketId);
     const ids = raceIdsOf.get(bracketId);
     if (!ids) return null;
     if (ids.final) return settled.get(ids.final)?.order ?? null;
     const winners = ids.winners ? settled.get(ids.winners) : undefined;
     const others = ids.others ? settled.get(ids.others) : undefined;
     return winners && others ? [...winners.order, ...others.order] : null;
+  }
+
+  /**
+   * A knockout bracket's final order, or null while any of its races is not settled: the final's order (1st,
+   * 2nd), the third-place race's order (3rd, 4th), then for each earlier stage, the latest first, the teams
+   * that raced in it and not in the stage after it, by their official time in that stage (finishers first,
+   * then DNF, then DNS; equal at the hundredth by seed). Who went on is read from the races as they were opened,
+   * so every team is placed exactly once even after a late correction. A bracket of one team is won by default.
+   */
+  function knockoutOrder(bracketId: string): string[] | null {
+    const seeded = members?.get(bracketId) ?? [];
+    if (seeded.length < 2) return seeded.length ? [...seeded] : null;
+    const ids = raceIdsOf.get(bracketId);
+    const race = (id: string | undefined) => (id && settled.has(id) ? raceById.get(id) : undefined);
+    const final = race(ids?.final);
+    const third = race(ids?.third);
+    if (!final || (hasThirdPlace(seeded.length) && !third)) return null;
+    const order = [...settled.get(final.id)!.order, ...(third ? settled.get(third.id)!.order : [])];
+    let wentOn = new Set(order);
+    const draw = knockoutDraw(seeded.length);
+    for (let stage = 2; stage <= draw.length; stage++) {
+      const races = draw[draw.length - stage]!.flatMap((m) => (m.index === null ? [] : [race(ids?.ko?.[stage]?.[m.index])]));
+      if (races.some((x) => !x)) return null;
+      const raced = (races as RaceView[]).flatMap((x) => x.entrants.map(({ teamId }) => ({ teamId, result: progress.results[x.round]?.[teamId] })));
+      order.push(...rankRace(raced.filter((x) => !wentOn.has(x.teamId)), { fallbackOrder: seeded }).order);
+      wentOn = new Set(raced.map((x) => x.teamId));
+    }
+    return order;
   }
 
   function bracketWinner(bracketId: string): string | null {

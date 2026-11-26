@@ -71,7 +71,8 @@ export function validateFormat(format: TournamentFormat | undefined): string[] {
   return errors;
 }
 
-export type RaceRole = 'seed' | 'heat' | 'final' | 'winners' | 'others' | 'grand';
+/** 'ko' is a knockout race before the final; 'third' the knockout third-place race. A knockout final is a 'final'. */
+export type RaceRole = 'seed' | 'heat' | 'final' | 'winners' | 'others' | 'grand' | 'ko' | 'third';
 /** One race as it was published when its round opened. */
 export interface SavedRace { id: string; label: string; bracketId?: string; role: RaceRole; teams: string[]; tables: number[]; fallbackOrder: string[] }
 

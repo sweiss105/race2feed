@@ -20,7 +20,9 @@ export function Events({ view, api = CONTROL_API }: { view: ControlView | null; 
   const [events, setEvents] = useState<EventRow[]>([]);
   const [name, setName] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
-  const [tables, setTables] = useState('26');
+  // Starts empty so an event is never created with a table count nobody chose.
+  const [tables, setTables] = useState('');
+  const tablesOk = Number.isInteger(Number(tables)) && Number(tables) >= 1 && Number(tables) <= 99;
   const [confirm, setConfirm] = useState<{ kind: 'end' | 'reopen' | 'delete'; event: EventRow } | null>(null);
   const load = () => void getJson<EventRow[]>(api, '/events').then((e) => setEvents(e ?? [])).catch(() => {});
   useEffect(load, []);
@@ -49,14 +51,24 @@ export function Events({ view, api = CONTROL_API }: { view: ControlView | null; 
           <form class="race-actions" onSubmit={async (e) => {
             e.preventDefault();
             const ack = await runner.run({ type: 'createEvent', name, date, tableCount: Number(tables) }, 'createEvent');
-            if (ack?.ok) { setName(''); load(); }
+            if (ack?.ok) { setName(''); setTables(''); load(); }
           }}>
-            <input class="input" style={{ flex: 2 }} aria-label="Event name" placeholder="Event name" value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
-            <input class="input" style={{ flex: 1 }} type="date" aria-label="Date" value={date} onInput={(e) => setDate((e.target as HTMLInputElement).value)} />
-            <input class="input" style={{ width: '6rem' }} type="number" min={1} aria-label="Tables" value={tables} onInput={(e) => setTables((e.target as HTMLInputElement).value)} />
-            <Button type="submit" busy={runner.busy('createEvent')} disabled={!name.trim()}>Create event</Button>
+            <label class="field" style={{ flex: 2 }}>
+              <span class="field-label">Event name</span>
+              <input class="input" placeholder="e.g. Race to Feed 2027" value={name} onInput={(e) => setName((e.target as HTMLInputElement).value)} />
+            </label>
+            <label class="field" style={{ flex: 1 }}>
+              <span class="field-label">Date</span>
+              <input class="input" type="date" value={date} onInput={(e) => setDate((e.target as HTMLInputElement).value)} />
+            </label>
+            <label class="field" style={{ width: '7rem' }}>
+              <span class="field-label">Tables</span>
+              <input class="input" type="number" min={1} max={99} value={tables} onInput={(e) => setTables((e.target as HTMLInputElement).value)} />
+            </label>
+            <Button type="submit" busy={runner.busy('createEvent')} disabled={!name.trim() || !tablesOk}>Create event</Button>
             {runner.error('createEvent') && <span class="err">{runner.error('createEvent')}</span>}
           </form>
+          <p class="footnote secondary" style={{ margin: 0 }}>Tables: how many packing tables the venue has, which is how many teams can race at once. You can change it later in Setup, until setup is locked.</p>
           <div>
             <table class="table">
               <thead><tr><th>Event</th><th>Date</th><th /></tr></thead>

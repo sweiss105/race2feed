@@ -199,9 +199,17 @@ describe('admin sections', () => {
     expect(headings.slice(0, 2)).toEqual(['Settings', 'Events']);
     expect(await screen.findByText('Gala')).toBeTruthy();
     expect(screen.getByText('Active')).toBeTruthy();
+    // Each box has a visible label, and Tables starts empty: no event without a chosen number of tables.
+    for (const label of ['Event name', 'Date', 'Tables']) expect(screen.getByText(label, { selector: '.field-label' })).toBeTruthy();
+    expect((screen.getByLabelText('Tables') as HTMLInputElement).value).toBe('');
     fireEvent.input(screen.getByLabelText('Event name'), { target: { value: 'Next year' } });
     fireEvent.input(screen.getByLabelText('Date'), { target: { value: '2027-11-13' } });
+    const create = screen.getByRole('button', { name: 'Create event' }) as HTMLButtonElement;
+    expect(create.disabled).toBe(true);
+    fireEvent.input(screen.getByLabelText('Tables'), { target: { value: '0' } });
+    expect(create.disabled).toBe(true);
     fireEvent.input(screen.getByLabelText('Tables'), { target: { value: '8' } });
+    expect(create.disabled).toBe(false);
     fireEvent.click(screen.getByRole('button', { name: 'Create event' }));
     await waitFor(() => expect(send).toHaveBeenCalledWith({ type: 'createEvent', name: 'Next year', date: '2027-11-13', tableCount: 8 }));
   });

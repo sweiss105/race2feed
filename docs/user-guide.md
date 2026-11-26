@@ -71,7 +71,7 @@ If the console says **"You are not signed in. Reload this page to sign in."**, p
 ### 1. Create the event
 
 1. Go to **Settings**. The **Events** panel is at the top of the page, open when no event is active. (Settings works even when no event is active yet.) While an event is active the panel is folded away to one line, **Events** with **Active:** and the event's name under it; click that line to open it, and click it again to fold it.
-2. Type the **Event name**, pick the **Date** and enter the number of **Tables** at the venue. (You can change the number of tables later in **Setup**, until setup is locked.)
+2. Fill in the three labelled boxes: **Event name**, **Date** and **Tables** (how many packing tables the venue has). The Tables box starts empty, and **Create event** stays greyed out until you've typed a name and a number of tables. (You can change the number of tables later in **Setup**, until setup is locked.)
 3. Press **Create event**.
 4. If no event is active and none has just ended, the new event becomes **Active** straight away. Otherwise, press **Make active** on its row when you're ready. (Creating next year's event right after ending this one doesn't take the champion off everyone's phones.)
 

@@ -2,6 +2,8 @@
 
 > **Note:** this guide is kept up to date as features change. If a button or screen looks different from what's described here, the app has probably moved ahead of the guide. Ask the person who looks after the app.
 
+**Prefer to watch first?** The [event planner explainer video](https://github.com/sweiss105/race2feed/blob/main/docs/PRC-Race2Feed-Event-Planner-Guide.mp4) (about 4½ minutes) walks through running an event from start to finish. This guide has the detail.
+
 This guide explains how to run a Race to Feed event with the app. It's organised by job, so you can skip to your part:
 
 - [The big picture](#the-big-picture)
